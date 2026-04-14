@@ -131,3 +131,7 @@ export const useReviewComments = create<State>((set, get) => ({
 export function planTabId(workspaceId: string, relPath: string): string {
   return `plan:${workspaceId}:${relPath}`
 }
+
+export function diffTabId(worktreePath: string, path: string, stage: string): string {
+  return `diff:${worktreePath}:${stage}:${path}`
+}

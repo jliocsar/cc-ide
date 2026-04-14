@@ -2,6 +2,10 @@ import { useEffect } from 'react'
 import { GitCompare, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSidebarData } from '@/state/sidebar-data'
+import { useTabs } from '@/state/tabs'
+import { useWorkspaces } from '@/state/workspaces'
+import { useReviewComments, diffTabId } from '@/state/review-comments'
+import { setDropPayload } from '@/lib/drop-payload'
 import { cn } from '@/lib/utils'
 import type { WorktreeDTO, ChangedFileDTO } from '@shared/ipc'
 
@@ -48,7 +52,7 @@ function DiffsForWorktree({ worktree }: { worktree: WorktreeDTO }): JSX.Element 
       </div>
       <div className="flex flex-col gap-px">
         {files.map((f) => (
-          <ChangedFileRow key={`${f.stage}:${f.path}`} file={f} />
+          <ChangedFileRow key={`${f.stage}:${f.path}`} file={f} worktreePath={worktree.path} />
         ))}
         {status === 'ready' && files.length === 0 ? (
           <div className="px-2 py-1 font-mono text-[11px] text-muted-foreground">clean</div>
@@ -58,11 +62,36 @@ function DiffsForWorktree({ worktree }: { worktree: WorktreeDTO }): JSX.Element 
   )
 }
 
-function ChangedFileRow({ file }: { file: ChangedFileDTO }): JSX.Element {
+function ChangedFileRow({ file, worktreePath }: { file: ChangedFileDTO; worktreePath: string }): JSX.Element {
+  const openDiff = useTabs((s) => s.openDiff)
+  const activeWorkspaceId = useWorkspaces((s) => s.activeId)
+  const tabId = diffTabId(worktreePath, file.path, file.stage)
+  const rangeCount = useReviewComments((s) => (s.byTab[tabId] ?? []).length)
+
   return (
-    <div className="flex items-center gap-2 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground">
+    <div
+      draggable
+      onDragStart={(e) => {
+        if (!activeWorkspaceId) return
+        setDropPayload(e.dataTransfer, {
+          kind: 'diff',
+          workspaceId: activeWorkspaceId,
+          worktreePath,
+          path: file.path,
+          stage: file.stage,
+        })
+      }}
+      onClick={() => {
+        if (!activeWorkspaceId) return
+        openDiff(activeWorkspaceId, worktreePath, file.path, file.stage)
+      }}
+      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+    >
       <GitCompare className="size-3 shrink-0" />
       <div className="min-w-0 flex-1 truncate font-mono">{file.path}</div>
+      {rangeCount > 0 ? (
+        <span className="rounded bg-primary/20 px-1 font-mono text-[10px] text-primary">{rangeCount}</span>
+      ) : null}
       <span
         className={cn(
           'rounded px-1 text-[9px] uppercase',

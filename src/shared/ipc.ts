@@ -83,6 +83,8 @@ export const fileDiffSchema = z.object({
   tooLarge: z.boolean(),
 })
 export type FileDiffDTO = z.infer<typeof fileDiffSchema>
+export type DiffHunkDTO = z.infer<typeof diffHunkSchema>
+export type DiffHunkLineDTO = z.infer<typeof diffHunkLineSchema>
 
 export const promptSchema = z.object({
   id: z.string(),

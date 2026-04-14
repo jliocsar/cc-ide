@@ -13,7 +13,7 @@ import { WindowFrame } from './window-frame'
 import { XtermView } from '@/components/terminal/xterm-view'
 import { useCanvas, type CanvasWindow } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
-import { useReviewComments, planTabId } from '@/state/review-comments'
+import { useReviewComments, planTabId, diffTabId } from '@/state/review-comments'
 import { invoke } from '@/lib/ipc'
 import { readDropPayload, buildDropString, type DropPayload } from '@/lib/drop-payload'
 
@@ -30,11 +30,14 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
 
   async function handleDrop(payload: DropPayload) {
     if (!session || session.exited) return
-    const tabId = payload.kind === 'plan' ? planTabId(payload.workspaceId, payload.relPath) : null
-    const ranges = tabId ? useReviewComments.getState().ranges(tabId) : []
+    const tabId =
+      payload.kind === 'plan'
+        ? planTabId(payload.workspaceId, payload.relPath)
+        : diffTabId(payload.worktreePath, payload.path, payload.stage)
+    const ranges = useReviewComments.getState().ranges(tabId)
     const dropText = buildDropString(payload, ranges)
     await invoke('pty:write', { ptyId: session.ptyId, data: dropText })
-    if (tabId) useReviewComments.getState().clear(tabId)
+    useReviewComments.getState().clear(tabId)
   }
 
   function requestClose() {
