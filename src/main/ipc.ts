@@ -5,6 +5,10 @@ import * as workspaceRegistry from './modules/workspace-registry'
 import * as tmux from './modules/tmux-adapter'
 import * as ptyManager from './modules/pty-manager'
 import * as canvasStore from './modules/canvas-store'
+import * as sessionDiscovery from './modules/session-discovery'
+import * as worktreeManager from './modules/worktree-manager'
+import * as diffProvider from './modules/diff-provider'
+import * as promptsStore from './modules/prompts-store'
 
 type Handler<C extends IpcChannel> = (payload: IpcRequest<C>) => Promise<IpcResponse<C>> | IpcResponse<C>
 
@@ -94,6 +98,63 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
   },
   'session:killTmuxWindow': async ({ tmuxWindow }) => {
     await tmux.killWindow(tmuxWindow)
+    return { ok: true }
+  },
+  'sessions:list': async ({ workspaceId }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) return { sessions: [] }
+    const sessions = await sessionDiscovery.listSessions(ws.path)
+    return { sessions }
+  },
+  'worktrees:list': async ({ workspaceId }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) return { worktrees: [] }
+    const worktrees = await worktreeManager.listWorktrees(ws.path)
+    return { worktrees }
+  },
+  'worktrees:create': async ({ workspaceId, worktreePath, branch, baseBranch }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const worktree = await worktreeManager.createWorktree({
+      repoPath: ws.path,
+      worktreePath,
+      branch,
+      baseBranch,
+    })
+    return { worktree }
+  },
+  'worktrees:delete': async ({ workspaceId, worktreePath }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await worktreeManager.deleteWorktree(ws.path, worktreePath)
+    return { ok: true }
+  },
+  'worktrees:canDelete': async ({ worktree }) => {
+    const guard = await worktreeManager.canDeleteWorktree(worktree)
+    return { guard }
+  },
+  'diffs:list': async ({ worktreePath }) => {
+    const files = await diffProvider.listChangedFiles(worktreePath)
+    return { files }
+  },
+  'diffs:get': async ({ worktreePath, path, stage }) => {
+    const diff = await diffProvider.getFileDiff(worktreePath, path, stage)
+    return { diff }
+  },
+  'prompts:list': async ({ query, sort }) => {
+    const prompts = await promptsStore.listPrompts({ query, sort })
+    return { prompts }
+  },
+  'prompts:create': async ({ title, body, favorite }) => {
+    const prompt = await promptsStore.createPrompt({ title, body, favorite })
+    return { prompt }
+  },
+  'prompts:update': async ({ id, patch }) => {
+    const prompt = await promptsStore.updatePrompt(id, patch)
+    return { prompt }
+  },
+  'prompts:delete': async ({ id }) => {
+    await promptsStore.deletePrompt(id)
     return { ok: true }
   },
   'session:attachExisting': async ({ workspaceId, tmuxWindow, cols, rows }) => {

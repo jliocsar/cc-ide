@@ -8,6 +8,93 @@ export const workspaceSchema = z.object({
 })
 export type Workspace = z.infer<typeof workspaceSchema>
 
+export const sessionSummarySchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  path: z.string(),
+  updatedAt: z.number(),
+  createdAt: z.number().nullable(),
+  firstUserMessage: z.string().nullable(),
+  messageCount: z.number(),
+})
+export type SessionSummaryDTO = z.infer<typeof sessionSummarySchema>
+
+export const worktreeSchema = z.object({
+  path: z.string(),
+  branch: z.string().nullable(),
+  head: z.string(),
+  isPrimary: z.boolean(),
+  isBare: z.boolean(),
+  isDetached: z.boolean(),
+  isLocked: z.boolean(),
+})
+export type WorktreeDTO = z.infer<typeof worktreeSchema>
+
+export const deleteGuardReasonSchema = z.enum([
+  'dirty-working-tree',
+  'unpushed-commits',
+  'no-remote-tracking',
+  'primary-worktree',
+])
+export const deleteGuardSchema = z.union([
+  z.object({ ok: z.literal(true) }),
+  z.object({ ok: z.literal(false), reasons: z.array(deleteGuardReasonSchema) }),
+])
+export type DeleteGuardDTO = z.infer<typeof deleteGuardSchema>
+
+export const fileStatusSchema = z.enum([
+  'added',
+  'modified',
+  'deleted',
+  'renamed',
+  'copied',
+  'untracked',
+])
+export const diffStageSchema = z.enum(['staged', 'unstaged'])
+export const changedFileSchema = z.object({
+  path: z.string(),
+  oldPath: z.string().nullable(),
+  status: fileStatusSchema,
+  stage: diffStageSchema,
+  additions: z.number(),
+  deletions: z.number(),
+  binary: z.boolean(),
+})
+export type ChangedFileDTO = z.infer<typeof changedFileSchema>
+
+export const diffHunkLineSchema = z.object({
+  kind: z.enum(['context', 'add', 'remove']),
+  oldLineNo: z.number().nullable(),
+  newLineNo: z.number().nullable(),
+  content: z.string(),
+})
+export const diffHunkSchema = z.object({
+  oldStart: z.number(),
+  oldLines: z.number(),
+  newStart: z.number(),
+  newLines: z.number(),
+  header: z.string(),
+  lines: z.array(diffHunkLineSchema),
+})
+export const fileDiffSchema = z.object({
+  file: changedFileSchema,
+  hunks: z.array(diffHunkSchema),
+  binary: z.boolean(),
+  tooLarge: z.boolean(),
+})
+export type FileDiffDTO = z.infer<typeof fileDiffSchema>
+
+export const promptSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  body: z.string(),
+  favorite: z.boolean(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+})
+export type PromptDTO = z.infer<typeof promptSchema>
+export const sortModeSchema = z.enum(['favorites-first', 'title'])
+
 export const ipcContract = {
   'app:ping': {
     request: z.object({ at: z.number() }),
@@ -64,6 +151,62 @@ export const ipcContract = {
       ptyId: z.string().nullable(),
       exists: z.boolean(),
     }),
+  },
+  'sessions:list': {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({ sessions: z.array(sessionSummarySchema) }),
+  },
+  'worktrees:list': {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({ worktrees: z.array(worktreeSchema) }),
+  },
+  'worktrees:create': {
+    request: z.object({
+      workspaceId: z.string(),
+      worktreePath: z.string(),
+      branch: z.string(),
+      baseBranch: z.string().optional(),
+    }),
+    response: z.object({ worktree: worktreeSchema }),
+  },
+  'worktrees:delete': {
+    request: z.object({ workspaceId: z.string(), worktreePath: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  'worktrees:canDelete': {
+    request: z.object({ worktree: worktreeSchema }),
+    response: z.object({ guard: deleteGuardSchema }),
+  },
+  'diffs:list': {
+    request: z.object({ worktreePath: z.string() }),
+    response: z.object({ files: z.array(changedFileSchema) }),
+  },
+  'diffs:get': {
+    request: z.object({ worktreePath: z.string(), path: z.string(), stage: diffStageSchema }),
+    response: z.object({ diff: fileDiffSchema }),
+  },
+  'prompts:list': {
+    request: z.object({ query: z.string().optional(), sort: sortModeSchema.optional() }),
+    response: z.object({ prompts: z.array(promptSchema) }),
+  },
+  'prompts:create': {
+    request: z.object({ title: z.string(), body: z.string(), favorite: z.boolean().optional() }),
+    response: z.object({ prompt: promptSchema }),
+  },
+  'prompts:update': {
+    request: z.object({
+      id: z.string(),
+      patch: z.object({
+        title: z.string().optional(),
+        body: z.string().optional(),
+        favorite: z.boolean().optional(),
+      }),
+    }),
+    response: z.object({ prompt: promptSchema }),
+  },
+  'prompts:delete': {
+    request: z.object({ id: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
   },
 } as const
 
