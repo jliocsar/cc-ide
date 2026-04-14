@@ -1,9 +1,8 @@
 # Handoff — start here
 
-Welcome to `cc-ide` mid-flight. The MVP shipped end-to-end across 6 phases; a live-app debug session (Phase 7) caught and fixed four real bugs. Two tasks remain before the project can be declared v0.1:
+Welcome to `cc-ide` mid-flight. The MVP shipped end-to-end across 6 phases; the Phase 7 live-debug session is now closed out — all flows in issue #2 are verified and seven real bugs have been fixed (see `.claude/references/lessons.md` items 4–6, 11–12 and the diffs/worktree EMPTY_FILES entry). One task remains before the project can be declared v0.1:
 
-1. Finish the live-app verification pass — **GitHub issue #2**. That's your first item.
-2. Work through the polish backlog — issues #8–#12, in roughly that order.
+1. Work through the polish backlog — issues #8–#12, in roughly that order.
 
 The future-features issues (#3–#7) are trackers only. Don't start them without talking to JC.
 
@@ -20,17 +19,9 @@ Read everything above before touching code. ~20 minutes total. The time is alrea
 
 ## Current state
 
-- `main` branch at latest commit shipping Phase 6 + Phase 7 fixes (dialog forwardRef, command-palette a11y description, prompt editor state reset, zustand EMPTY_RANGES).
+- `main` branch at Phase 7 close-out. Recent fixes: `EMPTY_FILES` for diffs selector, `AlertDialog` forwardRef wrappers, global `pty:exit` listener in Shell.
 - 71 tests across 7 modules, all green. `pnpm typecheck` clean.
 - The app runs via `pnpm dev` on port 5173; dev mode exposes CDP on 9223 for `agent-browser`.
-
-## How to resume Phase 7 (issue #2)
-
-1. `pnpm dev` in one terminal.
-2. `agent-browser connect 9223` in another.
-3. Follow the checklist in issue #2. Install the console-capture hook after every reload (see `.claude/references/debug-with-agent-browser.md`).
-4. When a bug surfaces, prefer fixing the root cause over a band-aid. Update `.claude/references/lessons.md` with a new entry.
-5. Commit fixes one bug at a time with a message that cites the reproduction path.
 
 ## How to work in this project
 
@@ -44,8 +35,8 @@ Read everything above before touching code. ~20 minutes total. The time is alrea
 
 Ask JC. He'd rather clarify in 30 seconds than have you build the wrong thing. Phrase questions as "I'd do X for reason Y — confirm?" so he can redirect in one word if he disagrees.
 
-## When you finish issue #2
+## Next up
 
-Update `HANDOFF.md` (this file) and `.claude/references/phase-summary.md` with the Phase 7 close-out. Then pick an item from #8–#12 or ask JC which is most valuable next.
+Pick an item from #8–#12 or ask JC which is most valuable next.
 
 Good luck. You've inherited a clean-ish tree.

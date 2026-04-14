@@ -76,13 +76,28 @@ Five modules landed in parallel by sub-agents, each with tests:
 - `workspace:remove` IPC + sidebar hover trash + confirm dialog. Does not touch disk.
 - `session:resumeClaude` spawns `claude --resume <id>` in a new grouped window/viewer; sidebar Sessions rows get a Play button that places the new window at an offset from existing.
 
-## Phase 7 — live debug session (partial)
+## Phase 7 — live debug session
 
-Attached via agent-browser on :9223. Fixed:
+Attached via agent-browser on :9223. First pass fixed:
 
 - `Dialog` components not wrapped in `React.forwardRef` (React 18) → radix Slot ref warning.
 - `CommandPalette` missing `DialogDescription` → a11y warning.
 - `PromptEditor.useEffect` depending on `prompt?.title` / `prompt?.body` → clobbered the field being typed after blur-commit triggered a re-sync.
 - Zustand selectors returning `?? []` creating a fresh array each render → infinite re-render loop when opening a plan. Fixed via module-scope `EMPTY_RANGES = Object.freeze([])`.
 
-Remaining live-app checks (end-to-end drag to terminal, diff flow, close-window dialog, camera persistence restore) tracked in GitHub issues. See HANDOFF.md.
+Second pass (closing out issue #2) walked the remaining verification flows and turned up three more bugs:
+
+- `DiffsForWorktree` tripped the same `?? []` loop when a second worktree was added. Fixed via `EMPTY_FILES` in `sidebar-data.ts`.
+- `AlertDialog` helpers weren't `forwardRef`'d (same bug as Dialog, different file). Fixed in `components/ui/alert-dialog.tsx`.
+- `pty:exit` was subscribed inside `XtermView`, so Detach/Kill unmounted the xterm before the event arrived and sessions stayed `exited: false` forever — which also broke the exited-pty-skips-dialog path. Subscription moved to `Shell` level.
+
+End-to-end flows verified live:
+
+- Plan tab → xterm drop: format matches the golden spec (`@<path>`, `@@ s,l @@`, comments verbatim).
+- Diff tab → xterm drop: same format, path uses worktree-relative.
+- Close-window dialog: Detach keeps tmux window, Kill removes it, exited pty skips the dialog and removes the canvas window immediately.
+- Camera + window layout survives workspace switch and full reload.
+- Multi-viewer isolation confirmed (3 pty writes hit 3 distinct tmux panes).
+- Session resume launches `claude --resume <id>` in a new grouped window.
+- Workspace remove leaves files on disk untouched.
+- tmux-missing error surfaces as a non-blocking toast with the real error message.
