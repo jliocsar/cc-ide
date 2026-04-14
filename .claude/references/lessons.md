@@ -81,6 +81,20 @@ During live debug, `agent-browser click @e32` (a plan file button wrapped in a d
 
 Workaround: use `agent-browser eval` + DOM `querySelector` + `.click()` when the target is draggable. Don't change the code.
 
+## 11. Shadcn AlertDialog also needs forwardRef (same as lesson 4)
+
+The Phase 7 Dialog fix didn't cover `alert-dialog.tsx`. First time someone opened the Detach/Kill confirmation, React warned "Function components cannot be given refs" for `AlertDialogOverlay`/`Content`/etc.
+
+Fix: wrap `AlertDialogTrigger`, `AlertDialogOverlay`, `AlertDialogContent`, `AlertDialogTitle`, `AlertDialogDescription`, `AlertDialogAction`, `AlertDialogCancel` in `React.forwardRef`. Same template as `dialog.tsx`. Future shadcn generations of alert-dialog need the same treatment.
+
+## 12. `pty:exit` listener was component-scoped → sessions leaked as exited=false
+
+`XtermView` subscribed to `pty:exit` in its own effect. When the canvas window was removed (Detach/Kill path calls `removeWindow` after `pty:close`), XtermView unmounted before the exit event bubbled through, and `markExited` never ran. The session record sat in the store with `exited: false` forever, which also breaks the "exited-pty skips dialog" path because `session.exited` never flips.
+
+Fix: subscribe to `pty:exit` once at `Shell` level via `onEvent('pty:exit', …)`, which lives for the whole app lifetime. Removed the duplicate listener from `XtermView`.
+
+Moral: any store update driven by a main→renderer event should be subscribed at a persistent app-level surface, not inside a component that can unmount mid-flight.
+
 ## 10. `pnpm create` with piped answers
 
 The scaffold CLI handles interactive input in a way that line-buffers oddly when stdin is a pipe. Characters got concatenated across prompts instead of being answered one per field. Faster: skip the scaffold, write files by hand from the known electron-vite template.

@@ -3,7 +3,6 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { invoke, onEvent } from '@/lib/ipc'
-import { useSessions } from '@/state/sessions'
 import { useLastTerminal } from '@/state/last-terminal'
 
 const THEME = {
@@ -31,7 +30,6 @@ const THEME = {
 
 export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
-  const markExited = useSessions((s) => s.markExited)
 
   useEffect(() => {
     const host = hostRef.current
@@ -54,9 +52,6 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
 
     const offData = onEvent('pty:data', (p) => {
       if (p.ptyId === ptyId) term.write(p.data)
-    })
-    const offExit = onEvent('pty:exit', (p) => {
-      if (p.ptyId === ptyId) markExited(ptyId, p.exitCode)
     })
 
     const inputDisposable = term.onData((data) => {
@@ -81,10 +76,9 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
       inputDisposable.dispose()
       focusDisposable.dispose()
       offData()
-      offExit()
       term.dispose()
     }
-  }, [ptyId, markExited])
+  }, [ptyId])
 
   return <div ref={hostRef} className="h-full w-full" />
 }

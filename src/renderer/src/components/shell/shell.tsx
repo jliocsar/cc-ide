@@ -10,6 +10,8 @@ import { useCanvasPersistence } from '@/hooks/use-canvas-persistence'
 import { useTabs } from '@/state/tabs'
 import { usePalette } from '@/state/palette'
 import { useUi } from '@/state/ui'
+import { useSessions } from '@/state/sessions'
+import { onEvent } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 
 export function Shell(): JSX.Element {
@@ -20,6 +22,13 @@ export function Shell(): JSX.Element {
   const togglePalette = usePalette((s) => s.togglePalette)
   const sidebarVisible = useUi((s) => s.sidebarVisible)
   const toggleSidebar = useUi((s) => s.toggleSidebar)
+
+  useEffect(() => {
+    const markExited = useSessions.getState().markExited
+    return onEvent('pty:exit', (p) => {
+      markExited(p.ptyId, p.exitCode)
+    })
+  }, [])
 
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
