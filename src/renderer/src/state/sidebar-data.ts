@@ -6,6 +6,8 @@ import type {
 } from '@shared/ipc'
 import { invoke } from '@/lib/ipc'
 
+export const EMPTY_FILES: readonly ChangedFileDTO[] = Object.freeze([])
+
 type Status = 'idle' | 'loading' | 'ready' | 'error'
 
 type State = {

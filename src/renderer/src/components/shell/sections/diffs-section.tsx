@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { GitCompare, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useSidebarData } from '@/state/sidebar-data'
+import { useSidebarData, EMPTY_FILES } from '@/state/sidebar-data'
 import { useTabs } from '@/state/tabs'
 import { useWorkspaces } from '@/state/workspaces'
 import { useReviewComments, diffTabId } from '@/state/review-comments'
@@ -25,7 +25,9 @@ export function DiffsSection({ worktrees }: { worktrees: WorktreeDTO[] }): JSX.E
 }
 
 function DiffsForWorktree({ worktree }: { worktree: WorktreeDTO }): JSX.Element {
-  const files = useSidebarData((s) => s.diffsByWorktree[worktree.path] ?? [])
+  const files = useSidebarData(
+    (s) => (s.diffsByWorktree[worktree.path] ?? EMPTY_FILES) as ChangedFileDTO[],
+  )
   const status = useSidebarData((s) => s.diffsStatus[worktree.path] ?? 'idle')
   const refresh = useSidebarData((s) => s.refreshDiffsFor)
 

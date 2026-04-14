@@ -59,6 +59,8 @@ When `s.byTab[tabId]` is undefined, the selector returns a brand-new array every
 
 Fix: module-scope `EMPTY_RANGES = Object.freeze([])` + the selector returns that stable reference. Or select a primitive. Pattern is documented in `rules/state-patterns.md`. All call sites fixed, but new stores need to follow the pattern.
 
+**Recurrence 2026-04-14:** `DiffsForWorktree` had `useSidebarData((s) => s.diffsByWorktree[worktree.path] ?? [])`. Symptom fired only when a second worktree was added (first render cycle populates, subsequent missing key for the new row tripped the loop). Fixed by exporting `EMPTY_FILES` from `sidebar-data.ts` and using it in the selector.
+
 ## 7. `node-pty` native ABI vs Electron ABI
 
 `node-pty` compiles against the Node ABI at install time. Electron uses its own ABI (based on the Chromium version, not the system Node). Running without a rebuild yields `NODE_MODULE_VERSION mismatch` the moment you `require('node-pty')` in main.
