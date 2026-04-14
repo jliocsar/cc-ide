@@ -12,19 +12,26 @@
     "start": "electron-vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "rebuild": "electron-rebuild -f -w node-pty",
+    "postinstall": "electron-rebuild -f -w node-pty || true"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^3.0.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.8.0",
+    "node-pty": "^1.1.0",
     "radix-ui": "^1.4.3",
     "tailwind-merge": "^3.5.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
@@ -38,5 +45,12 @@
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
     "vitest": "^2.1.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "node-pty"
+    ]
   }
 }
