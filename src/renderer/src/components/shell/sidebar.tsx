@@ -23,6 +23,7 @@ import { useSidebarData } from '@/state/sidebar-data'
 import { SessionsSection } from './sections/sessions-section'
 import { WorktreesSection } from './sections/worktrees-section'
 import { DiffsSection } from './sections/diffs-section'
+import { PlansSection } from './sections/plans-section'
 import { cn } from '@/lib/utils'
 
 export function Sidebar(): JSX.Element {
@@ -119,9 +120,7 @@ export function Sidebar(): JSX.Element {
               <AccordionItem value="plans" className="border-b-0">
                 <SectionHeader icon={ListChecks} label="Plans" />
                 <AccordionContent className="pb-2">
-                  <div className="px-2 py-1 font-mono text-[11px] text-muted-foreground">
-                    plan tree · coming in phase 4
-                  </div>
+                  <PlansSection workspaceId={activeId} />
                 </AccordionContent>
               </AccordionItem>
 

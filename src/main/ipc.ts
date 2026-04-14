@@ -9,6 +9,7 @@ import * as sessionDiscovery from './modules/session-discovery'
 import * as worktreeManager from './modules/worktree-manager'
 import * as diffProvider from './modules/diff-provider'
 import * as promptsStore from './modules/prompts-store'
+import * as planFsTree from './modules/plan-fs-tree'
 
 type Handler<C extends IpcChannel> = (payload: IpcRequest<C>) => Promise<IpcResponse<C>> | IpcResponse<C>
 
@@ -155,6 +156,34 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
   },
   'prompts:delete': async ({ id }) => {
     await promptsStore.deletePrompt(id)
+    return { ok: true }
+  },
+  'plans:tree': async ({ workspaceId }) => {
+    const tree = await planFsTree.listTree(workspaceId)
+    return { tree }
+  },
+  'plans:read': async ({ workspaceId, relPath }) => {
+    const content = await planFsTree.readPlan(workspaceId, relPath)
+    return { content }
+  },
+  'plans:write': async ({ workspaceId, relPath, content }) => {
+    await planFsTree.writePlan(workspaceId, relPath, content)
+    return { ok: true }
+  },
+  'plans:create': async ({ workspaceId, relPath }) => {
+    await planFsTree.createPlan(workspaceId, relPath)
+    return { ok: true }
+  },
+  'plans:createFolder': async ({ workspaceId, relPath }) => {
+    await planFsTree.createFolder(workspaceId, relPath)
+    return { ok: true }
+  },
+  'plans:rename': async ({ workspaceId, fromRel, toRel }) => {
+    await planFsTree.rename(workspaceId, fromRel, toRel)
+    return { ok: true }
+  },
+  'plans:delete': async ({ workspaceId, relPath }) => {
+    await planFsTree.deletePath(workspaceId, relPath)
     return { ok: true }
   },
   'session:attachExisting': async ({ workspaceId, tmuxWindow, cols, rows }) => {

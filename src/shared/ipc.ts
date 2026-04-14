@@ -208,6 +208,34 @@ export const ipcContract = {
     request: z.object({ id: z.string() }),
     response: z.object({ ok: z.literal(true) }),
   },
+  'plans:tree': {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({ tree: z.unknown() }),
+  },
+  'plans:read': {
+    request: z.object({ workspaceId: z.string(), relPath: z.string() }),
+    response: z.object({ content: z.string() }),
+  },
+  'plans:write': {
+    request: z.object({ workspaceId: z.string(), relPath: z.string(), content: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  'plans:create': {
+    request: z.object({ workspaceId: z.string(), relPath: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  'plans:createFolder': {
+    request: z.object({ workspaceId: z.string(), relPath: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  'plans:rename': {
+    request: z.object({ workspaceId: z.string(), fromRel: z.string(), toRel: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  'plans:delete': {
+    request: z.object({ workspaceId: z.string(), relPath: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
 } as const
 
 export type IpcContract = typeof ipcContract
