@@ -3,6 +3,10 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { join } from 'node:path'
 import { registerIpcHandlers } from './ipc'
 
+if (is.dev) {
+  app.commandLine.appendSwitch('remote-debugging-port', '9223')
+}
+
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1400,

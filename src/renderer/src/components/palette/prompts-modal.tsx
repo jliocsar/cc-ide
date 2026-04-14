@@ -182,7 +182,10 @@ function PromptEditor({
   useEffect(() => {
     setTitle(prompt?.title ?? '')
     setBody(prompt?.body ?? '')
-  }, [prompt?.id, prompt?.title, prompt?.body])
+    // intentionally only syncing on prompt id swap — syncing on title/body would
+    // clobber the field the user is currently typing into after each blur-commit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prompt?.id])
 
   if (!prompt) {
     return (

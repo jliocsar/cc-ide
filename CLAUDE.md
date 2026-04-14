@@ -1,90 +1,49 @@
-## Project
+# cc-ide — agent entry point
 
-Claude Code IDE — Electron desktop app to orchestrate multiple Claude Code instances across projects, worktrees, and sandboxes. PRD: GitHub issue #1 (`jliocsar/cc-ide`).
+Claude Code IDE. Electron + React. Orchestrates multiple Claude Code instances across projects, worktrees, and a spatial canvas with drag-to-terminal plan/diff review.
 
-## Stack
+**Read first, always:** HANDOFF.md (next-agent startup).
 
-Electron, React, TanStack Router, TanStack Query, Zustand, React Hook Form, Zod, Tailwind, shadcn + Radix, Vite, Vitest, Lucide, pnpm.
+## Rules (must follow)
 
-## React skill
+- [.claude/rules/architecture.md](.claude/rules/architecture.md) — main/preload/renderer split, IPC Zod contract, deep modules.
+- [.claude/rules/drop-format.md](.claude/rules/drop-format.md) — the load-bearing `@<path>` + `@@ start,len @@` contract.
+- [.claude/rules/state-patterns.md](.claude/rules/state-patterns.md) — zustand selector stability (EMPTY_RANGES), persistence debouncing.
+- [.claude/rules/testing.md](.claude/rules/testing.md) — what must have tests; fixture pattern.
+- [.claude/rules/ui.md](.claude/rules/ui.md) — dark-only monochrome; shadcn rules; reserved shortcuts (Ctrl+K/W/B, Ctrl+0/=/-).
+- [.claude/rules/scope.md](.claude/rules/scope.md) — out-of-scope items; do not drift.
+- [.claude/rules/dependencies.md](.claude/rules/dependencies.md) — ask before adding any dep.
 
-Ignore all Next.js instructions in the skill. You're only working with React here.
+## References (informational)
 
-## Task Tracking
+- [.claude/references/architecture.md](.claude/references/architecture.md) — full module map with file paths.
+- [.claude/references/ipc-channels.md](.claude/references/ipc-channels.md) — channel registry.
+- [.claude/references/tmux-model.md](.claude/references/tmux-model.md) — primary session + grouped viewers.
+- [.claude/references/canvas-model.md](.claude/references/canvas-model.md) — world transform, pan/zoom math, persistence.
+- [.claude/references/data-paths.md](.claude/references/data-paths.md) — `$HOME/.cc-ide/` layout and Claude-owned paths.
+- [.claude/references/debug-with-agent-browser.md](.claude/references/debug-with-agent-browser.md) — attach to Electron at `:9223`, flow checklist.
+- [.claude/references/phase-summary.md](.claude/references/phase-summary.md) — what each phase 0–6 shipped.
+- [.claude/references/lessons.md](.claude/references/lessons.md) — bugs hit and how we fixed them.
 
-Unless the task takes 1-2 steps, use `TaskCreate` to track your tasks.
+## Commands
 
-## Dependencies
+- `pnpm dev` — run Electron with dev-only CDP on 9223.
+- `pnpm build` — typecheck + build main + preload + renderer (no tests).
+- `pnpm test` — Vitest once.
+- `pnpm test:watch` — Vitest in watch mode.
+- `pnpm typecheck` — `tsc --noEmit` across composite tsconfigs.
 
-Do not add new libraries or dependencies with consulting me first. Never break this rule.
+## Critical invariants
 
-## Data paths
+- The drop format in `src/shared/comment-serializer.ts` is versioned. Golden tests in `comment-serializer.test.ts` lock it.
+- `src/shared/ipc.ts` is the ONLY legal boundary between renderer and main. All fs/git/tmux/pty lives in `src/main/`.
+- The app is dark mode, monochrome. Colors are reserved for semantic signals.
+- Do not add dependencies without asking.
 
-IDE-owned (writable): `$HOME/.cc-ide/`
-- `workspaces.json` — workspace registry
-- `prompts.json` — cross-project prompts store
-- `canvas/<workspace-slug>.json` — per-workspace canvas state (camera + windows)
-- `plans/<workspace-slug>/**/*.md` — plans tree
+## Task tracking
 
-Claude-owned (read-only): `~/.claude/projects/<slug>/*.jsonl` — source of truth for session discovery.
+Use `TaskCreate` for anything more than 1–2 steps. Mark completed as you go. Don't batch.
 
-## Tmux topology
+## Current status (2026-04-14)
 
-One tmux session per workspace (`has-session -t`, else `new-session -d`). One window per Claude instance. Window cwd = workspace root or selected worktree. Reuse existing sessions on IDE restart — never fragment.
-
-## Architecture rules
-
-- All fs/git/tmux side-effects live in the main process behind a single typed IPC contract (`ipc.ts`) with Zod at the boundary.
-- Renderer never touches OS directly — it consumes the typed client.
-- Deep modules to keep isolated + testable: `CommentSerializer`, `SessionDiscovery`, `TmuxAdapter`, `ClaudeSessionAdapter`, `WorkspaceRegistry`, `CanvasState`, `PromptsStore`, `PlanFsTree`, `DiffProvider`, `WorktreeManager`.
-- Canvas state is per-workspace, serialized, fully restored on workspace switch.
-
-## Drop format contract (load-bearing)
-
-Dragging a plan or diff into a terminal must paste exactly:
-
-```
-@<path>
-@@ start,len @@
-<comment>
-@@ start,len @@
-<comment>
-```
-
-Rules:
-- No blank line between `@<path>` and the first `@@`.
-- Always emit `@@ start,len @@` (include `len` even when `len == 1`).
-- Ranges in ascending `start` order; multi-file diffs ordered by file path.
-- Diffs use repo-relative path; plans use `.cc-ide/plans/<path>.md`.
-
-Any change to this format is a versioned breaking change — do not "clean up" the formatting.
-
-## Testing
-
-- Vitest, tests alongside modules (`foo.ts` + `foo.test.ts`).
-- **Must test**: `CommentSerializer` (plans + diffs) with golden drop-strings. Contract is spec-critical.
-- Before claiming any serializer change works: `pnpm test`.
-- Skip tests for UI components, tmux adapter, session discovery at MVP — revisit if bugs appear.
-
-## Scope discipline
-
-Explicitly out of MVP (do NOT drift into these):
-- Sandboxing (reserve `sandboxId` field + titlebar slot only — no logic).
-- Teammates / connected lines in canvas.
-- Workspace file explorer.
-- Voice input.
-- Multi-monitor / multiple Electron windows.
-- Auto-update / telemetry.
-
-## Comment persistence
-
-Plan/diff review comments are in-memory only. Flushed + cleared on drop; discarded on tab close. Do not persist to disk.
-
-## Worktree delete guardrail
-
-Only allow delete when: working tree clean AND HEAD reachable from `origin/<branch>`. Disable button with tooltip otherwise.
-
-## Window close behavior
-
-Closing a canvas window for a live Claude → dialog "Detach or Kill". If the Claude process already exited (pty exit event seen), close silently with no dialog.
-
+MVP shipped end-to-end. Phase 7 live-debug session found and fixed four real bugs (see lessons.md #4–6); a handful of verification flows remain. See open issues in `gh issue list` and HANDOFF.md.

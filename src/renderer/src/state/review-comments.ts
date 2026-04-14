@@ -7,6 +7,8 @@ export type RangeDraft = {
   comment: string
 }
 
+export const EMPTY_RANGES: readonly RangeDraft[] = Object.freeze([])
+
 type State = {
   byTab: Record<string, RangeDraft[]>
   lastRangeId: Record<string, string | null>

@@ -8,7 +8,7 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { MessageSquare, FolderGit2, Terminal, ArrowLeft } from 'lucide-react'
 import { usePalette } from '@/state/palette'
 import { useWorkspaces } from '@/state/workspaces'
@@ -36,6 +36,9 @@ export function CommandPalette(): JSX.Element {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="overflow-hidden p-0">
         <DialogTitle className="sr-only">Command palette</DialogTitle>
+        <DialogDescription className="sr-only">
+          Run a command, open prompts, or switch workspace.
+        </DialogDescription>
         <Command shouldFilter className="bg-background">
           <CommandInput
             placeholder={page === 'root' ? 'Type a command…' : 'Switch to workspace…'}

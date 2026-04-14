@@ -263,7 +263,7 @@ function FileRow({
   openPlan: (workspaceId: string, relPath: string) => void
 }): JSX.Element {
   const tabId = planTabId(workspaceId, node.relPath)
-  const rangeCount = useReviewComments((s) => (s.byTab[tabId] ?? []).length)
+  const rangeCount = useReviewComments((s) => s.byTab[tabId]?.length ?? 0)
 
   return (
     <div

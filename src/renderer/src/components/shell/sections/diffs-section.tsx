@@ -66,7 +66,7 @@ function ChangedFileRow({ file, worktreePath }: { file: ChangedFileDTO; worktree
   const openDiff = useTabs((s) => s.openDiff)
   const activeWorkspaceId = useWorkspaces((s) => s.activeId)
   const tabId = diffTabId(worktreePath, file.path, file.stage)
-  const rangeCount = useReviewComments((s) => (s.byTab[tabId] ?? []).length)
+  const rangeCount = useReviewComments((s) => s.byTab[tabId]?.length ?? 0)
 
   return (
     <div

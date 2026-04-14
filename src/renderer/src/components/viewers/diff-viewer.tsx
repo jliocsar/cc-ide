@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Trash2, MessageSquarePlus } from 'lucide-react'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
-import { diffTabId, useReviewComments, type RangeDraft } from '@/state/review-comments'
+import { EMPTY_RANGES, diffTabId, useReviewComments, type RangeDraft } from '@/state/review-comments'
 import type { FileDiffDTO, DiffHunkDTO, DiffHunkLineDTO } from '@shared/ipc'
 
 export function DiffViewer({
@@ -76,7 +76,7 @@ export function DiffViewer({
 }
 
 function DiffHunks({ tabId, hunks }: { tabId: string; hunks: DiffHunkDTO[] }): JSX.Element {
-  const ranges = useReviewComments((s) => s.byTab[tabId] ?? [])
+  const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
   const startSingle = useReviewComments((s) => s.startSingle)
   const extendLast = useReviewComments((s) => s.extendLast)
   const setLast = useReviewComments((s) => s.setLast)
@@ -197,7 +197,7 @@ function DiffHalfLine({
 }
 
 function CommentsPanel({ tabId, workspaceId: _ }: { tabId: string; workspaceId: string }): JSX.Element {
-  const ranges = useReviewComments((s) => s.byTab[tabId] ?? [])
+  const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
   const setComment = useReviewComments((s) => s.setComment)
   const removeRange = useReviewComments((s) => s.removeRange)
 

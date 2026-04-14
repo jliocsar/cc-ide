@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Trash2, MessageSquarePlus } from 'lucide-react'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
-import { planTabId, useReviewComments, type RangeDraft } from '@/state/review-comments'
+import { EMPTY_RANGES, planTabId, useReviewComments, type RangeDraft } from '@/state/review-comments'
 
 export function PlanViewer({
   workspaceId,
@@ -62,7 +62,7 @@ function PlanLines({ tabId, lines }: { tabId: string; lines: string[] }): JSX.El
   const startSingle = useReviewComments((s) => s.startSingle)
   const extendLast = useReviewComments((s) => s.extendLast)
   const setLast = useReviewComments((s) => s.setLast)
-  const ranges = useReviewComments((s) => s.byTab[tabId] ?? [])
+  const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
 
   function onLineClick(ev: React.MouseEvent<HTMLDivElement>, lineNo: number) {
     const isShift = ev.shiftKey
@@ -117,7 +117,7 @@ function PlanLines({ tabId, lines }: { tabId: string; lines: string[] }): JSX.El
 }
 
 function CommentsPanel({ tabId }: { tabId: string }): JSX.Element {
-  const ranges = useReviewComments((s) => s.byTab[tabId] ?? [])
+  const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
   const setComment = useReviewComments((s) => s.setComment)
   const removeRange = useReviewComments((s) => s.removeRange)
 
