@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { invoke, onEvent } from '@/lib/ipc'
 import { useSessions } from '@/state/sessions'
+import { useLastTerminal } from '@/state/last-terminal'
 
 const THEME = {
   background: '#0a0a0a',
@@ -62,6 +63,10 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
       void invoke('pty:write', { ptyId, data })
     })
 
+    const focusDisposable = term.onSelectionChange(() => useLastTerminal.getState().setLast(ptyId))
+    host.addEventListener('focusin', () => useLastTerminal.getState().setLast(ptyId))
+    host.addEventListener('pointerdown', () => useLastTerminal.getState().setLast(ptyId))
+
     const resize = () => {
       fit.fit()
       void invoke('pty:resize', { ptyId, cols: term.cols, rows: term.rows })
@@ -74,6 +79,7 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
     return () => {
       observer.disconnect()
       inputDisposable.dispose()
+      focusDisposable.dispose()
       offData()
       offExit()
       term.dispose()
