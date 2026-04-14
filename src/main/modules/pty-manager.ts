@@ -3,7 +3,7 @@ import * as pty from 'node-pty'
 import { BrowserWindow } from 'electron'
 import type { IpcEventChannel, IpcEvent } from '@shared/ipc'
 
-type Entry = { id: string; proc: pty.IPty }
+type Entry = { id: string; proc: pty.IPty; onExit?: (code: number | null) => void | Promise<void> }
 const ptys = new Map<string, Entry>()
 
 function broadcast<C extends IpcEventChannel>(channel: C, payload: IpcEvent<C>): void {
@@ -19,6 +19,7 @@ export function openPty(options: {
   cols: number
   rows: number
   env?: NodeJS.ProcessEnv
+  onExit?: (code: number | null) => void | Promise<void>
 }): string {
   const id = randomUUID()
   const proc = pty.spawn(options.command, options.args, {
@@ -28,11 +29,13 @@ export function openPty(options: {
     cwd: options.cwd,
     env: { ...process.env, ...options.env, TERM: 'xterm-256color' },
   })
-  ptys.set(id, { id, proc })
+  ptys.set(id, { id, proc, onExit: options.onExit })
   proc.onData((data) => broadcast('pty:data', { ptyId: id, data }))
   proc.onExit(({ exitCode }) => {
+    const entry = ptys.get(id)
     broadcast('pty:exit', { ptyId: id, exitCode: exitCode ?? null })
     ptys.delete(id)
+    void Promise.resolve(entry?.onExit?.(exitCode ?? null)).catch(() => {})
   })
   return id
 }

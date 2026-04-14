@@ -13,7 +13,8 @@ export type SessionRecord = {
 type State = {
   sessions: SessionRecord[]
   activePtyId: string | null
-  spawn: (workspaceId: string, cols: number, rows: number) => Promise<string>
+  spawn: (workspaceId: string, cols: number, rows: number) => Promise<{ ptyId: string; tmuxWindow: string }>
+  registerExisting: (record: Omit<SessionRecord, 'createdAt' | 'exited' | 'exitCode'>) => void
   markExited: (ptyId: string, exitCode: number | null) => void
   setActive: (ptyId: string | null) => void
 }
@@ -30,7 +31,15 @@ export const useSessions = create<State>((set) => ({
       ],
       activePtyId: ptyId,
     }))
-    return ptyId
+    return { ptyId, tmuxWindow }
+  },
+  registerExisting({ ptyId, tmuxWindow, workspaceId }) {
+    set((s) => ({
+      sessions: [
+        ...s.sessions,
+        { ptyId, tmuxWindow, workspaceId, createdAt: Date.now(), exited: false, exitCode: null },
+      ],
+    }))
   },
   markExited(ptyId, exitCode) {
     set((s) => ({

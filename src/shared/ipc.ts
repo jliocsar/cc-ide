@@ -41,6 +41,30 @@ export const ipcContract = {
     request: z.object({ ptyId: z.string() }),
     response: z.object({ ok: z.literal(true) }),
   },
+  'canvas:load': {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({ state: z.unknown().nullable() }),
+  },
+  'canvas:save': {
+    request: z.object({ workspaceId: z.string(), state: z.unknown() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  'session:killTmuxWindow': {
+    request: z.object({ tmuxWindow: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  'session:attachExisting': {
+    request: z.object({
+      workspaceId: z.string(),
+      tmuxWindow: z.string(),
+      cols: z.number().int().positive(),
+      rows: z.number().int().positive(),
+    }),
+    response: z.object({
+      ptyId: z.string().nullable(),
+      exists: z.boolean(),
+    }),
+  },
 } as const
 
 export type IpcContract = typeof ipcContract

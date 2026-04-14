@@ -49,6 +49,34 @@ export async function killWindow(target: string): Promise<void> {
   await run(['kill-window', '-t', target])
 }
 
+export async function hasWindow(target: string): Promise<boolean> {
+  const r = await run(['list-windows', '-F', '#{session_name}:#{window_name}'])
+  if (r.code !== 0) return false
+  return r.stdout.split('\n').some((line) => line.trim() === target)
+}
+
+export async function createViewerSession(options: {
+  primarySession: string
+  viewerName: string
+  windowTarget: string
+}): Promise<string> {
+  const { primarySession, viewerName, windowTarget } = options
+  const create = await run(['new-session', '-d', '-s', viewerName, '-t', primarySession])
+  if (create.code !== 0 && !create.stderr.includes('duplicate session')) {
+    throw new Error(`tmux new-session (viewer) failed: ${create.stderr.trim()}`)
+  }
+  const select = await run(['select-window', '-t', `${viewerName}:${windowTarget.split(':')[1]}`])
+  if (select.code !== 0) {
+    await run(['kill-session', '-t', viewerName])
+    throw new Error(`tmux select-window on viewer failed: ${select.stderr.trim()}`)
+  }
+  return viewerName
+}
+
+export async function killViewerSession(viewerName: string): Promise<void> {
+  await run(['kill-session', '-t', viewerName])
+}
+
 export async function tmuxAvailable(): Promise<boolean> {
   const r = await run(['-V'])
   return r.code === 0

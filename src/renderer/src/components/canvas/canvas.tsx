@@ -32,13 +32,14 @@ export function Canvas(): JSX.Element {
       setSpawning(true)
       setError(null)
       try {
-        const ptyId = await spawnSession(activeWorkspaceId, 120, 30)
+        const { ptyId, tmuxWindow } = await spawnSession(activeWorkspaceId, 120, 30)
         const { camera: cam } = useCanvas.getState()
         const world = worldFromViewport(viewportCenter.x, viewportCenter.y, cam)
         addWindow({
           id: crypto.randomUUID(),
           sessionId: ptyId,
-          title: 'claude',
+          tmuxWindow,
+          title: tmuxWindow,
           x: world.x - DEFAULT_WIN_W / 2,
           y: world.y - DEFAULT_WIN_H / 2,
           width: DEFAULT_WIN_W,

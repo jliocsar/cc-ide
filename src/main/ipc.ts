@@ -1,8 +1,10 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { channels, ipcContract, type IpcChannel, type IpcRequest, type IpcResponse } from '@shared/ipc'
 import * as workspaceRegistry from './modules/workspace-registry'
 import * as tmux from './modules/tmux-adapter'
 import * as ptyManager from './modules/pty-manager'
+import * as canvasStore from './modules/canvas-store'
 
 type Handler<C extends IpcChannel> = (payload: IpcRequest<C>) => Promise<IpcResponse<C>> | IpcResponse<C>
 
@@ -42,21 +44,30 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
     const hasTmux = await tmux.tmuxAvailable()
     if (!hasTmux) throw new Error('tmux is not installed or not in PATH')
-    const sessionName = tmux.sessionNameForWorkspace(ws.id)
-    await tmux.ensureSession(sessionName, ws.path)
+    const primarySession = tmux.sessionNameForWorkspace(ws.id)
+    await tmux.ensureSession(primarySession, ws.path)
     const windowName = `claude-${Date.now().toString(36)}`
     const tmuxWindow = await tmux.spawnWindow({
-      sessionName,
+      sessionName: primarySession,
       windowName,
       cwd: ws.path,
       command: 'claude',
     })
+    const viewerName = `${primarySession}-v-${randomUUID().slice(0, 8)}`
+    await tmux.createViewerSession({
+      primarySession,
+      viewerName,
+      windowTarget: tmuxWindow,
+    })
     const ptyId = ptyManager.openPty({
       command: 'tmux',
-      args: ['attach-session', '-t', tmuxWindow],
+      args: ['attach-session', '-t', viewerName],
       cwd: ws.path,
       cols,
       rows,
+      onExit: async () => {
+        await tmux.killViewerSession(viewerName)
+      },
     })
     return { ptyId, tmuxWindow }
   },
@@ -72,6 +83,40 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
   'pty:close': async ({ ptyId }) => {
     ptyManager.closePty(ptyId)
     return { ok: true }
+  },
+  'canvas:load': async ({ workspaceId }) => {
+    const state = await canvasStore.loadCanvas(workspaceId)
+    return { state }
+  },
+  'canvas:save': async ({ workspaceId, state }) => {
+    await canvasStore.saveCanvas(workspaceId, state)
+    return { ok: true }
+  },
+  'session:killTmuxWindow': async ({ tmuxWindow }) => {
+    await tmux.killWindow(tmuxWindow)
+    return { ok: true }
+  },
+  'session:attachExisting': async ({ workspaceId, tmuxWindow, cols, rows }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) return { ptyId: null, exists: false }
+    if (!(await tmux.tmuxAvailable())) return { ptyId: null, exists: false }
+    const exists = await tmux.hasWindow(tmuxWindow)
+    if (!exists) return { ptyId: null, exists: false }
+    const [primarySession] = tmuxWindow.split(':')
+    if (!primarySession) return { ptyId: null, exists: false }
+    const viewerName = `${primarySession}-v-${randomUUID().slice(0, 8)}`
+    await tmux.createViewerSession({ primarySession, viewerName, windowTarget: tmuxWindow })
+    const ptyId = ptyManager.openPty({
+      command: 'tmux',
+      args: ['attach-session', '-t', viewerName],
+      cwd: ws.path,
+      cols,
+      rows,
+      onExit: async () => {
+        await tmux.killViewerSession(viewerName)
+      },
+    })
+    return { ptyId, exists: true }
   },
 }
 

@@ -2,7 +2,8 @@ import { create } from 'zustand'
 
 export type CanvasWindow = {
   id: string
-  sessionId: string
+  tmuxWindow: string
+  sessionId: string | null
   title: string
   x: number
   y: number
@@ -12,6 +13,13 @@ export type CanvasWindow = {
 }
 
 export type Camera = { x: number; y: number; zoom: number }
+
+export type PersistedCanvas = {
+  version: 1
+  camera: Camera
+  windows: Array<Omit<CanvasWindow, 'sessionId'>>
+  nextZ: number
+}
 
 const ZOOM_MIN = 0.3
 const ZOOM_MAX = 2.5
@@ -30,6 +38,9 @@ type State = {
   zoomAt: (factor: number, viewportX: number, viewportY: number) => void
   resetCamera: () => void
   setCamera: (camera: Camera) => void
+
+  hydrate: (snapshot: PersistedCanvas | null) => void
+  snapshot: () => PersistedCanvas
 }
 
 export function worldFromViewport(
@@ -86,4 +97,26 @@ export const useCanvas = create<State>((set) => ({
 
   resetCamera: () => set({ camera: { x: 0, y: 0, zoom: 1 } }),
   setCamera: (camera) => set({ camera }),
+
+  hydrate: (snapshot) => {
+    if (!snapshot) {
+      set({ camera: { x: 0, y: 0, zoom: 1 }, windows: [], nextZ: 1 })
+      return
+    }
+    set({
+      camera: snapshot.camera,
+      windows: snapshot.windows.map((w) => ({ ...w, sessionId: null })),
+      nextZ: snapshot.nextZ,
+    })
+  },
+
+  snapshot: () => {
+    const s = useCanvas.getState()
+    return {
+      version: 1,
+      camera: s.camera,
+      windows: s.windows.map(({ sessionId: _ignored, ...rest }) => rest),
+      nextZ: s.nextZ,
+    }
+  },
 }))

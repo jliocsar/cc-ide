@@ -3,8 +3,10 @@ import { Sidebar } from './sidebar'
 import { HeaderTabs } from './header-tabs'
 import { Canvas } from '@/components/canvas/canvas'
 import { Statusbar } from './statusbar'
+import { useCanvasPersistence } from '@/hooks/use-canvas-persistence'
 
 export function Shell(): JSX.Element {
+  useCanvasPersistence()
   return (
     <TooltipProvider delayDuration={150}>
       <div className="grid h-full grid-cols-[260px_1fr] grid-rows-1 bg-background text-foreground">
