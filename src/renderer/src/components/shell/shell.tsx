@@ -1,7 +1,7 @@
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Sidebar } from './sidebar'
 import { HeaderTabs } from './header-tabs'
-import { Canvas } from './canvas'
+import { Canvas } from '@/components/canvas/canvas'
 import { Statusbar } from './statusbar'
 
 export function Shell(): JSX.Element {
