@@ -13,7 +13,9 @@ import { WindowFrame } from './window-frame'
 import { XtermView } from '@/components/terminal/xterm-view'
 import { useCanvas, type CanvasWindow } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
+import { useReviewComments, planTabId } from '@/state/review-comments'
 import { invoke } from '@/lib/ipc'
+import { readDropPayload, buildDropString, type DropPayload } from '@/lib/drop-payload'
 
 export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
   const removeWindow = useCanvas((s) => s.removeWindow)
@@ -24,6 +26,16 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
   const alive = session && !session.exited
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+
+  async function handleDrop(payload: DropPayload) {
+    if (!session || session.exited) return
+    const tabId = payload.kind === 'plan' ? planTabId(payload.workspaceId, payload.relPath) : null
+    const ranges = tabId ? useReviewComments.getState().ranges(tabId) : []
+    const dropText = buildDropString(payload, ranges)
+    await invoke('pty:write', { ptyId: session.ptyId, data: dropText })
+    if (tabId) useReviewComments.getState().clear(tabId)
+  }
 
   function requestClose() {
     if (!alive) {
@@ -84,7 +96,32 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
             dormant · {w.tmuxWindow}
           </div>
         ) : (
-          <XtermView ptyId={w.sessionId!} />
+          <div
+            className="relative h-full"
+            onDragOver={(e) => {
+              if (!session || session.exited) return
+              if (!e.dataTransfer.types.includes('application/x-cc-ide-drop')) return
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'copy'
+              if (!dragOver) setDragOver(true)
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragOver(false)
+              const payload = readDropPayload(e.dataTransfer)
+              if (payload) void handleDrop(payload)
+            }}
+          >
+            <XtermView ptyId={w.sessionId!} />
+            {dragOver ? (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-primary/10 ring-2 ring-inset ring-primary/40">
+                <span className="rounded bg-primary/80 px-2 py-1 font-mono text-[11px] text-primary-foreground">
+                  drop to paste
+                </span>
+              </div>
+            ) : null}
+          </div>
         )}
       </WindowFrame>
 

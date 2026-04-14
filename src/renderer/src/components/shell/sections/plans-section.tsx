@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input'
 import { invoke } from '@/lib/ipc'
 import { usePlansTree, type PlanDir, type PlanNode } from '@/state/plans-tree'
 import { useTabs } from '@/state/tabs'
+import { useReviewComments, planTabId } from '@/state/review-comments'
+import { setDropPayload } from '@/lib/drop-payload'
 import { cn } from '@/lib/utils'
 
 export function PlansSection({ workspaceId }: { workspaceId: string }): JSX.Element {
@@ -137,38 +139,21 @@ function PlanRow({
 
   if (node.kind === 'file') {
     return (
-      <div
-        className="group flex items-center gap-1.5 rounded px-1 py-0.5 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-        style={indent}
-      >
-        <FileText className="size-3 shrink-0" />
-        {renaming ? (
-          <form onSubmit={commitRename} className="flex-1">
-            <input
-              autoFocus
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onBlur={(e) => commitRename(e as unknown as React.FormEvent)}
-              className="w-full bg-transparent font-mono text-[12px] outline-none"
-            />
-          </form>
-        ) : (
-          <button
-            type="button"
-            onClick={() => openPlan(workspaceId, node.relPath)}
-            className="min-w-0 flex-1 truncate text-left font-mono"
-          >
-            {node.name}
-          </button>
-        )}
-        <RowActions
-          onRename={() => {
-            setNewName(node.name)
-            setRenaming(true)
-          }}
-          onDelete={onDelete}
-        />
-      </div>
+      <FileRow
+        node={node}
+        workspaceId={workspaceId}
+        indent={indent}
+        renaming={renaming}
+        newName={newName}
+        setNewName={setNewName}
+        commitRename={commitRename}
+        onRename={() => {
+          setNewName(node.name)
+          setRenaming(true)
+        }}
+        onDelete={onDelete}
+        openPlan={openPlan}
+      />
     )
   }
 
@@ -251,6 +236,71 @@ function PlanRow({
           ))
         : null}
     </>
+  )
+}
+
+function FileRow({
+  node,
+  workspaceId,
+  indent,
+  renaming,
+  newName,
+  setNewName,
+  commitRename,
+  onRename,
+  onDelete,
+  openPlan,
+}: {
+  node: PlanNode & { kind: 'file' }
+  workspaceId: string
+  indent: React.CSSProperties
+  renaming: boolean
+  newName: string
+  setNewName: (v: string) => void
+  commitRename: (e: React.FormEvent) => void
+  onRename: () => void
+  onDelete: (e: React.MouseEvent) => void
+  openPlan: (workspaceId: string, relPath: string) => void
+}): JSX.Element {
+  const tabId = planTabId(workspaceId, node.relPath)
+  const rangeCount = useReviewComments((s) => (s.byTab[tabId] ?? []).length)
+
+  return (
+    <div
+      draggable={!renaming}
+      onDragStart={(e) => {
+        setDropPayload(e.dataTransfer, { kind: 'plan', workspaceId, relPath: node.relPath })
+      }}
+      className="group flex items-center gap-1.5 rounded px-1 py-0.5 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+      style={indent}
+    >
+      <FileText className="size-3 shrink-0" />
+      {renaming ? (
+        <form onSubmit={commitRename} className="flex-1">
+          <input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onBlur={(e) => commitRename(e as unknown as React.FormEvent)}
+            className="w-full bg-transparent font-mono text-[12px] outline-none"
+          />
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => openPlan(workspaceId, node.relPath)}
+          className="min-w-0 flex-1 truncate text-left font-mono"
+        >
+          {node.name}
+        </button>
+      )}
+      {rangeCount > 0 ? (
+        <span className="rounded bg-primary/20 px-1 font-mono text-[10px] text-primary">
+          {rangeCount}
+        </span>
+      ) : null}
+      <RowActions onRename={onRename} onDelete={onDelete} />
+    </div>
   )
 }
 

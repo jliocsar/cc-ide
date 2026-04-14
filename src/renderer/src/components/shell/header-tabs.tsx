@@ -1,6 +1,20 @@
 import { LayoutGrid, X, FileText, GitCompare, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTabs, type Tab } from '@/state/tabs'
+import { setDropPayload, type DropPayload } from '@/lib/drop-payload'
+
+function dragPayloadFor(tab: Tab): DropPayload | null {
+  if (tab.kind === 'plan') return { kind: 'plan', workspaceId: tab.meta.workspaceId, relPath: tab.meta.relPath }
+  if (tab.kind === 'diff')
+    return {
+      kind: 'diff',
+      workspaceId: tab.meta.workspaceId,
+      worktreePath: tab.meta.worktreePath,
+      path: tab.meta.path,
+      stage: tab.meta.stage,
+    }
+  return null
+}
 
 const ICON_BY_KIND: Record<Tab['kind'], React.ComponentType<{ className?: string }>> = {
   board: LayoutGrid,
@@ -21,9 +35,14 @@ export function HeaderTabs(): JSX.Element {
         {tabs.map((tab) => {
           const Icon = ICON_BY_KIND[tab.kind]
           const active = tab.id === activeId
+          const payload = dragPayloadFor(tab)
           return (
             <div
               key={tab.id}
+              draggable={!!payload}
+              onDragStart={(e) => {
+                if (payload) setDropPayload(e.dataTransfer, payload)
+              }}
               onClick={() => setActive(tab.id)}
               onAuxClick={(e) => {
                 if (e.button === 1 && !tab.pinned) closeTab(tab.id)
