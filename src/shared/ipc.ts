@@ -114,6 +114,19 @@ export const ipcContract = {
     request: z.object({}),
     response: z.object({ workspace: workspaceSchema.nullable(), error: z.string().nullable() }),
   },
+  'workspace:remove': {
+    request: z.object({ id: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  'session:resumeClaude': {
+    request: z.object({
+      workspaceId: z.string(),
+      sessionId: z.string(),
+      cols: z.number().int().positive(),
+      rows: z.number().int().positive(),
+    }),
+    response: z.object({ ptyId: z.string(), tmuxWindow: z.string() }),
+  },
   'session:spawnClaude': {
     request: z.object({ workspaceId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
     response: z.object({ ptyId: z.string(), tmuxWindow: z.string() }),

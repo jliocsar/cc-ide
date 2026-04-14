@@ -17,6 +17,7 @@ import {
   GitBranch,
   ListChecks,
   GitCompare,
+  Trash2,
 } from 'lucide-react'
 import { useWorkspaces } from '@/state/workspaces'
 import { useSidebarData } from '@/state/sidebar-data'
@@ -27,7 +28,7 @@ import { PlansSection } from './sections/plans-section'
 import { cn } from '@/lib/utils'
 
 export function Sidebar(): JSX.Element {
-  const { workspaces, activeId, loaded, refresh, pickAndAdd, setActive } = useWorkspaces()
+  const { workspaces, activeId, loaded, refresh, pickAndAdd, setActive, remove } = useWorkspaces()
   const worktrees = useSidebarData((s) => s.worktrees)
   const clearSidebar = useSidebarData((s) => s.clear)
 
@@ -75,25 +76,41 @@ export function Sidebar(): JSX.Element {
                   workspaces.map((w) => {
                     const active = w.id === activeId
                     return (
-                      <button
+                      <div
                         key={w.id}
-                        type="button"
-                        onClick={() => setActive(w.id)}
-                        title={w.path}
                         className={cn(
-                          'flex items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors',
+                          'group flex items-center gap-2 rounded-md px-2 py-1 transition-colors',
                           active
                             ? 'bg-accent text-accent-foreground'
                             : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
                         )}
                       >
-                        {active ? (
-                          <CheckCircle2 className="size-3 shrink-0" />
-                        ) : (
-                          <Circle className="size-3 shrink-0" />
-                        )}
-                        <span className="truncate font-mono text-[12px]">{w.name}</span>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => setActive(w.id)}
+                          title={w.path}
+                          className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
+                        >
+                          {active ? (
+                            <CheckCircle2 className="size-3 shrink-0" />
+                          ) : (
+                            <Circle className="size-3 shrink-0" />
+                          )}
+                          <span className="truncate font-mono text-[12px]">{w.name}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Remove "${w.name}" from cc-ide?\nFiles on disk are NOT deleted.`)) {
+                              void remove(w.id)
+                            }
+                          }}
+                          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100"
+                          aria-label="Remove workspace"
+                        >
+                          <Trash2 className="size-3" />
+                        </button>
+                      </div>
                     )
                   })
                 )}

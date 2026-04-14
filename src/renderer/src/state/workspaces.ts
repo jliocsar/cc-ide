@@ -9,6 +9,7 @@ type State = {
   refresh: () => Promise<void>
   pickAndAdd: () => Promise<string | null>
   setActive: (id: string) => void
+  remove: (id: string) => Promise<void>
 }
 
 export const useWorkspaces = create<State>((set, get) => ({
@@ -36,5 +37,15 @@ export const useWorkspaces = create<State>((set, get) => ({
   },
   setActive(id) {
     set({ activeId: id })
+  },
+  async remove(id) {
+    await invoke('workspace:remove', { id })
+    await get().refresh()
+    set((s) => ({
+      activeId:
+        s.activeId === id
+          ? s.workspaces.find((w) => w.id !== id)?.id ?? null
+          : s.activeId,
+    }))
   },
 }))

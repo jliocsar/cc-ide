@@ -1,18 +1,51 @@
-import { useEffect } from 'react'
-import { Terminal, RefreshCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Terminal, RefreshCw, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSidebarData } from '@/state/sidebar-data'
+import { useSessions } from '@/state/sessions'
+import { useCanvas } from '@/state/canvas'
 import { cn } from '@/lib/utils'
+
+const DEFAULT_WIN_W = 720
+const DEFAULT_WIN_H = 440
 
 export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.Element {
   const sessions = useSidebarData((s) => s.sessions)
   const status = useSidebarData((s) => s.sessionsStatus)
   const error = useSidebarData((s) => s.sessionsError)
   const refresh = useSidebarData((s) => s.refreshSessions)
+  const resumeSession = useSessions((s) => s.resume)
+  const [resuming, setResuming] = useState<string | null>(null)
 
   useEffect(() => {
     void refresh(workspaceId)
   }, [workspaceId, refresh])
+
+  async function onResume(sessionId: string) {
+    if (resuming) return
+    setResuming(sessionId)
+    try {
+      const { ptyId, tmuxWindow } = await resumeSession(workspaceId, sessionId, 120, 30)
+      const { windows, camera, addWindow } = useCanvas.getState()
+      const offset = windows.length * 24
+      const baseX = -camera.x / camera.zoom + 80 + offset
+      const baseY = -camera.y / camera.zoom + 80 + offset
+      addWindow({
+        id: crypto.randomUUID(),
+        sessionId: ptyId,
+        tmuxWindow,
+        title: tmuxWindow,
+        x: baseX,
+        y: baseY,
+        width: DEFAULT_WIN_W,
+        height: DEFAULT_WIN_H,
+      })
+    } catch (err) {
+      console.error('[resume]', err)
+    } finally {
+      setResuming(null)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-1">
@@ -35,7 +68,7 @@ export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.E
           <div
             key={s.id}
             title={s.firstUserMessage ?? s.id}
-            className="flex items-start gap-2 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            className="group flex items-start gap-2 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
           >
             <Terminal className="mt-0.5 size-3 shrink-0" />
             <div className="min-w-0 flex-1">
@@ -44,6 +77,16 @@ export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.E
                 {new Date(s.updatedAt).toLocaleString()} · {s.messageCount} msg
               </div>
             </div>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              disabled={resuming !== null}
+              onClick={() => void onResume(s.id)}
+              className="opacity-0 transition-opacity group-hover:opacity-100"
+              aria-label="Resume session"
+            >
+              <Play />
+            </Button>
           </div>
         ))}
         {status === 'ready' && sessions.length === 0 ? (

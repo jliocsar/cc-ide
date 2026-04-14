@@ -44,6 +44,37 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     }
   },
 
+  'workspace:remove': async ({ id }) => {
+    await workspaceRegistry.removeWorkspace(id)
+    return { ok: true }
+  },
+  'session:resumeClaude': async ({ workspaceId, sessionId, cols, rows }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    if (!(await tmux.tmuxAvailable())) throw new Error('tmux is not installed or not in PATH')
+    const primarySession = tmux.sessionNameForWorkspace(ws.id)
+    await tmux.ensureSession(primarySession, ws.path)
+    const windowName = `claude-r-${sessionId.slice(0, 8)}`
+    const tmuxWindow = await tmux.spawnWindow({
+      sessionName: primarySession,
+      windowName,
+      cwd: ws.path,
+      command: `claude --resume ${sessionId}`,
+    })
+    const viewerName = `${primarySession}-v-${randomUUID().slice(0, 8)}`
+    await tmux.createViewerSession({ primarySession, viewerName, windowTarget: tmuxWindow })
+    const ptyId = ptyManager.openPty({
+      command: 'tmux',
+      args: ['attach-session', '-t', viewerName],
+      cwd: ws.path,
+      cols,
+      rows,
+      onExit: async () => {
+        await tmux.killViewerSession(viewerName)
+      },
+    })
+    return { ptyId, tmuxWindow }
+  },
   'session:spawnClaude': async ({ workspaceId, cols, rows }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)
     if (!ws) throw new Error(`workspace not found: ${workspaceId}`)

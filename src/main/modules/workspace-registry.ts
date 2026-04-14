@@ -71,3 +71,10 @@ export async function getWorkspace(id: string): Promise<Workspace | null> {
   const all = await readRegistry()
   return all.find((w) => w.id === id) ?? null
 }
+
+export async function removeWorkspace(id: string): Promise<void> {
+  const all = await readRegistry()
+  const next = all.filter((w) => w.id !== id)
+  if (next.length === all.length) return
+  await writeRegistry(next)
+}
