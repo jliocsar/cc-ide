@@ -110,6 +110,7 @@ export function Canvas(): JSX.Element {
       if (ev.button !== 0 && ev.button !== 1) return
       const host = hostRef.current
       if (!host) return
+      if (ev.target !== host) return
       const startX = ev.clientX
       const startY = ev.clientY
       let lastX = startX
