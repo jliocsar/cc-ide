@@ -16,6 +16,7 @@ import * as tabsStore from './modules/tabs-store'
 import * as ephemeralWorktrees from './modules/ephemeral-worktrees'
 import * as sessionWatcher from './modules/session-watcher'
 import { generateClaudeWindowName } from './modules/cat-name-gen'
+import { validateTmuxWindowName } from '@shared/tmux-name'
 import { broadcast } from './modules/event-bus'
 import {
   ensurePlansWatcher,
@@ -256,6 +257,20 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
   'session:killTmuxWindow': async ({ tmuxWindow }) => {
     await tmux.killWindow(tmuxWindow)
     return { ok: true }
+  },
+  'session:renameTmuxWindow': async ({ tmuxWindow, newName }) => {
+    const validation = validateTmuxWindowName(newName)
+    if (!validation.ok) throw new Error(validation.reason)
+    const [sessionName, oldName] = tmuxWindow.split(':')
+    if (!sessionName || !oldName) throw new Error('invalid tmux window target')
+    const newTarget = `${sessionName}:${newName}`
+    if (newTarget === tmuxWindow) return { tmuxWindow }
+    const exists = await tmux.hasWindow(newTarget)
+    if (exists) throw new Error(`a window named "${newName}" already exists in this session`)
+    const hadOld = await tmux.hasWindow(tmuxWindow)
+    if (!hadOld) throw new Error('window no longer exists')
+    await tmux.renameWindow(sessionName, oldName, newName)
+    return { tmuxWindow: newTarget }
   },
   'conversations:list': async ({ workspaceId }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)

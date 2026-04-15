@@ -69,8 +69,17 @@ export async function killWindow(target: string): Promise<void> {
   await run(['kill-window', '-t', target])
 }
 
+export async function renameWindow(
+  sessionName: string,
+  oldName: string,
+  newName: string,
+): Promise<void> {
+  const r = await run(['rename-window', '-t', `${sessionName}:${oldName}`, newName])
+  if (r.code !== 0) throw new Error(`tmux rename-window failed: ${r.stderr.trim()}`)
+}
+
 export async function hasWindow(target: string): Promise<boolean> {
-  const r = await run(['list-windows', '-F', '#{session_name}:#{window_name}'])
+  const r = await run(['list-windows', '-a', '-F', '#{session_name}:#{window_name}'])
   if (r.code !== 0) return false
   return r.stdout.split('\n').some((line) => line.trim() === target)
 }
