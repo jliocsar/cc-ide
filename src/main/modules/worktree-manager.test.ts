@@ -8,6 +8,10 @@ import {
   createWorktree,
   canDeleteWorktree,
   deleteWorktree,
+  isWorktreeUntouched,
+  deleteBranchIfMerged,
+  listLocalBranches,
+  currentBranch,
 } from './worktree-manager'
 
 // ---------------------------------------------------------------------------
@@ -217,5 +221,73 @@ describe('deleteWorktree', () => {
     all = await listWorktrees(repoDir)
     expect(all).toHaveLength(1)
     expect(all[0]?.isPrimary).toBe(true)
+  })
+})
+
+describe('isWorktreeUntouched', () => {
+  it('true when clean + no commits ahead', async () => {
+    const wtPath = join(repoDir, 'wt-clean')
+    await createWorktree({
+      repoPath: repoDir,
+      worktreePath: wtPath,
+      branch: 'feat/clean',
+      baseBranch: 'main',
+    })
+    expect(await isWorktreeUntouched(wtPath, 'main')).toBe(true)
+  })
+
+  it('false when working tree is dirty', async () => {
+    const wtPath = join(repoDir, 'wt-dirty')
+    await createWorktree({
+      repoPath: repoDir,
+      worktreePath: wtPath,
+      branch: 'feat/dirty',
+      baseBranch: 'main',
+    })
+    await writeFile(join(wtPath, 'new.txt'), 'stuff')
+    expect(await isWorktreeUntouched(wtPath, 'main')).toBe(false)
+  })
+
+  it('false when commits ahead of base', async () => {
+    const wtPath = join(repoDir, 'wt-ahead')
+    await createWorktree({
+      repoPath: repoDir,
+      worktreePath: wtPath,
+      branch: 'feat/ahead',
+      baseBranch: 'main',
+    })
+    await writeFile(join(wtPath, 'new.txt'), 'x')
+    await gitOrThrow(['add', 'new.txt'], wtPath)
+    await gitOrThrow(['commit', '-m', 'one'], wtPath)
+    expect(await isWorktreeUntouched(wtPath, 'main')).toBe(false)
+  })
+})
+
+describe('deleteBranchIfMerged', () => {
+  it('succeeds for merged/empty branch', async () => {
+    await gitOrThrow(['branch', 'feat/empty'], repoDir)
+    expect(await deleteBranchIfMerged(repoDir, 'feat/empty')).toBe(true)
+  })
+
+  it('refuses when branch has unmerged commits', async () => {
+    await gitOrThrow(['checkout', '-b', 'feat/unmerged'], repoDir)
+    await writeFile(join(repoDir, 'a.txt'), 'a')
+    await gitOrThrow(['add', 'a.txt'], repoDir)
+    await gitOrThrow(['commit', '-m', 'a'], repoDir)
+    await gitOrThrow(['checkout', 'main'], repoDir)
+    expect(await deleteBranchIfMerged(repoDir, 'feat/unmerged')).toBe(false)
+  })
+})
+
+describe('listLocalBranches / currentBranch', () => {
+  it('returns all local branches', async () => {
+    await gitOrThrow(['branch', 'feat/a'], repoDir)
+    await gitOrThrow(['branch', 'feat/b'], repoDir)
+    const branches = await listLocalBranches(repoDir)
+    expect(branches.sort()).toEqual(['feat/a', 'feat/b', 'main'])
+  })
+
+  it('currentBranch returns HEAD branch', async () => {
+    expect(await currentBranch(repoDir)).toBe('main')
   })
 })

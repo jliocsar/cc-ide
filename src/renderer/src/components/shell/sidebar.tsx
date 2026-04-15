@@ -33,6 +33,7 @@ import {
 import { DiffsSection } from './sections/diffs-section'
 import { PlansSection, PlanCreateDialog } from './sections/plans-section'
 import { useSpawnSession } from '@/hooks/use-spawn-session'
+import { useSpawnModal } from '@/state/spawn-modal'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 
@@ -175,7 +176,8 @@ function SessionsAccordion({ workspaceId }: { workspaceId: string }): JSX.Elemen
   const sessions = useSidebarData((s) => s.sessions)
   const status = useSidebarData((s) => s.sessionsStatus)
   const refresh = useSidebarData((s) => s.refreshSessions)
-  const { spawn, spawning } = useSpawnSession()
+  const { spawning } = useSpawnSession()
+  const openSpawnModal = useSpawnModal((s) => s.open)
 
   return (
     <AccordionItem value="sessions" className="border-b-0">
@@ -202,7 +204,7 @@ function SessionsAccordion({ workspaceId }: { workspaceId: string }): JSX.Elemen
               disabled={spawning}
               onClick={(e) => {
                 e.stopPropagation()
-                void spawn()
+                openSpawnModal()
               }}
               aria-label="New session"
             >

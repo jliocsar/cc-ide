@@ -10,6 +10,7 @@ import { Plus, Minus, Maximize2 } from 'lucide-react'
 import { useCanvas } from '@/state/canvas'
 import { useWorkspaces } from '@/state/workspaces'
 import { useSpawnSession } from '@/hooks/use-spawn-session'
+import { useSpawnModal } from '@/state/spawn-modal'
 import { setCanvasHost } from '@/lib/canvas-host'
 import { XtermWindow } from './xterm-window'
 
@@ -22,7 +23,8 @@ export function Canvas(): JSX.Element {
   const resetCamera = useCanvas((s) => s.resetCamera)
 
   const activeWorkspaceId = useWorkspaces((s) => s.activeId)
-  const { spawn, spawning, error } = useSpawnSession()
+  const { spawning, error } = useSpawnSession()
+  const openSpawnModal = useSpawnModal((s) => s.open)
 
   const [menu, setMenu] = useState<{ x: number; y: number; vp: { x: number; y: number } } | null>(null)
 
@@ -35,8 +37,8 @@ export function Canvas(): JSX.Element {
     const host = hostRef.current
     if (!host) return
     const rect = host.getBoundingClientRect()
-    void spawn({ x: rect.width / 2, y: rect.height / 2 })
-  }, [spawn])
+    openSpawnModal({ x: rect.width / 2, y: rect.height / 2 })
+  }, [openSpawnModal])
 
   useEffect(() => {
     const host = hostRef.current
@@ -243,7 +245,7 @@ export function Canvas(): JSX.Element {
             disabled={!canSpawn || spawning}
             onClick={() => {
               if (!menu) return
-              void spawn(menu.vp)
+              openSpawnModal(menu.vp)
               setMenu(null)
             }}
           >
