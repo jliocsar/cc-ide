@@ -9,11 +9,11 @@ import { getCanvasViewportCenter } from '@/lib/canvas-host'
 const DEFAULT_WIN_W = 720
 const DEFAULT_WIN_H = 440
 
-export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.Element {
-  const sessions = useSidebarData((s) => s.sessions)
-  const status = useSidebarData((s) => s.sessionsStatus)
-  const error = useSidebarData((s) => s.sessionsError)
-  const refresh = useSidebarData((s) => s.refreshSessions)
+export function ConversationsSection({ workspaceId }: { workspaceId: string }): JSX.Element {
+  const conversations = useSidebarData((s) => s.conversations)
+  const status = useSidebarData((s) => s.conversationsStatus)
+  const error = useSidebarData((s) => s.conversationsError)
+  const refresh = useSidebarData((s) => s.refreshConversations)
   const resumeSession = useSessions((s) => s.resume)
   const [resuming, setResuming] = useState<string | null>(null)
 
@@ -51,7 +51,7 @@ export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.E
     <div className="flex min-w-0 flex-col">
       {error ? <div className="px-3 py-1 font-mono text-[11px] text-destructive">{error}</div> : null}
       <div className="flex flex-col">
-        {sessions.map((s) => (
+        {conversations.map((s) => (
           <div
             key={s.id}
             title={s.firstUserMessage ?? s.id}
@@ -70,14 +70,14 @@ export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.E
               disabled={resuming !== null}
               onClick={() => void onResume(s.id)}
               className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-              aria-label="Resume session"
+              aria-label="Resume conversation"
             >
               <Play />
             </Button>
           </div>
         ))}
-        {status === 'ready' && sessions.length === 0 ? (
-          <div className="px-3 py-1 font-mono text-[11px] text-muted-foreground">no sessions yet</div>
+        {status === 'ready' && conversations.length === 0 ? (
+          <div className="px-3 py-1 font-mono text-[11px] text-muted-foreground">no conversations yet</div>
         ) : null}
       </div>
     </div>

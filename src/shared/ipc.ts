@@ -194,9 +194,9 @@ export const ipcContract = {
       exists: z.boolean(),
     }),
   },
-  'sessions:list': {
+  'conversations:list': {
     request: z.object({ workspaceId: z.string() }),
-    response: z.object({ sessions: z.array(sessionSummarySchema) }),
+    response: z.object({ conversations: z.array(sessionSummarySchema) }),
   },
   'worktrees:list': {
     request: z.object({ workspaceId: z.string() }),
@@ -313,7 +313,7 @@ export const worktreeCleanedEventSchema = z.object({
 export const eventChannels = {
   'pty:data': ptyDataEventSchema,
   'pty:exit': ptyExitEventSchema,
-  'sessions:changed': workspaceScopedEventSchema,
+  'conversations:changed': workspaceScopedEventSchema,
   'worktrees:changed': workspaceScopedEventSchema,
   'plans:changed': workspaceScopedEventSchema,
   'worktree:cleaned': worktreeCleanedEventSchema,

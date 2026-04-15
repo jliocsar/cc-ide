@@ -25,7 +25,7 @@ import { useWorkspaces } from '@/state/workspaces'
 import { useSidebarData } from '@/state/sidebar-data'
 import { usePlansTree } from '@/state/plans-tree'
 import { onEvent } from '@/lib/ipc'
-import { SessionsSection } from './sections/sessions-section'
+import { ConversationsSection } from './sections/conversations-section'
 import {
   WorktreesSection,
   CreateWorktreeDialog,
@@ -54,8 +54,8 @@ export function Sidebar(): JSX.Element {
     const state = useSidebarData.getState()
     const plansState = usePlansTree.getState()
     const unsubs = [
-      onEvent('sessions:changed', (p) => {
-        if (p.workspaceId === activeId) void state.refreshSessions(activeId)
+      onEvent('conversations:changed', (p) => {
+        if (p.workspaceId === activeId) void state.refreshConversations(activeId)
       }),
       onEvent('worktrees:changed', (p) => {
         if (p.workspaceId === activeId) void state.refreshWorktrees(activeId)
@@ -78,7 +78,7 @@ export function Sidebar(): JSX.Element {
       <ScrollArea className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!w-full [&>[data-slot=scroll-area-viewport]>div]:!min-w-0">
         <Accordion
           type="multiple"
-          defaultValue={['workspaces', 'sessions', 'worktrees']}
+          defaultValue={['workspaces', 'conversations', 'worktrees']}
           className="w-full pb-4"
         >
           <AccordionItem value="workspaces" className="border-b-0">
@@ -154,7 +154,7 @@ export function Sidebar(): JSX.Element {
 
           {activeId ? (
             <>
-              <SessionsAccordion workspaceId={activeId} />
+              <ConversationsAccordion workspaceId={activeId} />
               <WorktreesAccordion workspaceId={activeId} />
               <PlansAccordion workspaceId={activeId} />
               <AccordionItem value="diffs" className="border-b-0">
@@ -171,19 +171,19 @@ export function Sidebar(): JSX.Element {
   )
 }
 
-function SessionsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
-  const sessions = useSidebarData((s) => s.sessions)
-  const status = useSidebarData((s) => s.sessionsStatus)
-  const refresh = useSidebarData((s) => s.refreshSessions)
+function ConversationsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
+  const conversations = useSidebarData((s) => s.conversations)
+  const status = useSidebarData((s) => s.conversationsStatus)
+  const refresh = useSidebarData((s) => s.refreshConversations)
   const openSpawnModal = useSpawnModal((s) => s.open)
   const modalOpen = useSpawnModal((s) => s.isOpen)
 
   return (
-    <AccordionItem value="sessions" className="border-b-0">
+    <AccordionItem value="conversations" className="border-b-0">
       <SectionHeader
         icon={MessagesSquare}
         label="Conversations"
-        count={status === 'loading' ? '…' : sessions.length}
+        count={status === 'loading' ? '…' : conversations.length}
         actions={
           <>
             <Button
@@ -193,7 +193,7 @@ function SessionsAccordion({ workspaceId }: { workspaceId: string }): JSX.Elemen
                 e.stopPropagation()
                 void refresh(workspaceId)
               }}
-              aria-label="Refresh sessions"
+              aria-label="Refresh conversations"
             >
               <RefreshCw className={cn(status === 'loading' && 'animate-spin')} />
             </Button>
@@ -213,7 +213,7 @@ function SessionsAccordion({ workspaceId }: { workspaceId: string }): JSX.Elemen
         }
       />
       <AccordionContent className="pb-0">
-        <SessionsSection workspaceId={workspaceId} />
+        <ConversationsSection workspaceId={workspaceId} />
       </AccordionContent>
     </AccordionItem>
   )

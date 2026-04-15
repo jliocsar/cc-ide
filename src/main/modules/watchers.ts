@@ -63,7 +63,7 @@ export async function ensureSessionWatcher(workspaceId: string, workspacePath: s
   const w = await tryWatch(dir, { recursive: false }, () => {
     if (entry.sessionsTimer) clearTimeout(entry.sessionsTimer)
     entry.sessionsTimer = setTimeout(() => {
-      broadcast('sessions:changed', { workspaceId })
+      broadcast('conversations:changed', { workspaceId })
     }, DEBOUNCE_MS)
   })
   entry.sessions = w

@@ -257,12 +257,12 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     await tmux.killWindow(tmuxWindow)
     return { ok: true }
   },
-  'sessions:list': async ({ workspaceId }) => {
+  'conversations:list': async ({ workspaceId }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) return { sessions: [] }
+    if (!ws) return { conversations: [] }
     void ensureSessionWatcher(ws.id, ws.path)
-    const sessions = await sessionDiscovery.listSessions(ws.path)
-    return { sessions }
+    const conversations = await sessionDiscovery.listSessions(ws.path)
+    return { conversations }
   },
   'worktrees:list': async ({ workspaceId }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)
