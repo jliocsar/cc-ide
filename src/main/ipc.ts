@@ -16,7 +16,7 @@ import * as tabsStore from './modules/tabs-store'
 import * as ephemeralWorktrees from './modules/ephemeral-worktrees'
 import * as sessionWatcher from './modules/session-watcher'
 import { generateClaudeWindowName } from './modules/cat-name-gen'
-import { validateTmuxWindowName } from '@shared/tmux-name'
+import { validateTmuxWindowName, slugifyFirstMessage } from '@shared/tmux-name'
 import { broadcast } from './modules/event-bus'
 import {
   ensurePlansWatcher,
@@ -31,6 +31,24 @@ function slugifyBranch(branch: string): string {
     .replace(/\//g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
+}
+
+async function computeResumeWindowName(
+  workspacePath: string,
+  primarySession: string,
+  sessionId: string,
+): Promise<string> {
+  const sessions = await sessionDiscovery.listSessions(workspacePath)
+  const summary = sessions.find((s) => s.id === sessionId)
+  const slug = slugifyFirstMessage(summary?.firstUserMessage ?? null)
+  const base = slug ? `claude-${slug}` : `claude-r-${sessionId.slice(0, 8)}`
+  if (!(await tmux.hasWindow(`${primarySession}:${base}`))) return base
+  for (let i = 2; i < 100; i++) {
+    const candidate = `${base}-${i}`
+    if (candidate.length > 64) break
+    if (!(await tmux.hasWindow(`${primarySession}:${candidate}`))) return candidate
+  }
+  return `claude-r-${sessionId.slice(0, 8)}-${randomUUID().slice(0, 4)}`
 }
 
 async function uniqueWorktreePath(repoPath: string, slug: string): Promise<string> {
@@ -111,7 +129,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     if (!(await tmux.tmuxAvailable())) throw new Error('tmux is not installed or not in PATH')
     const primarySession = tmux.sessionNameForWorkspace(ws.id)
     await tmux.ensureSession(primarySession, ws.path)
-    const windowName = `claude-r-${sessionId.slice(0, 8)}`
+    const windowName = await computeResumeWindowName(ws.path, primarySession, sessionId)
     const tmuxWindow = await tmux.spawnWindow({
       sessionName: primarySession,
       windowName,
