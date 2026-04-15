@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -145,24 +145,27 @@ function DiffHunks({ tabId, hunks, path }: { tabId: string; hunks: DiffHunkDTO[]
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
   const startSingle = useReviewComments((s) => s.startSingle)
   const extendLast = useReviewComments((s) => s.extendLast)
-  const setLast = useReviewComments((s) => s.setLast)
   const hunkTokens = useHunkTokens(hunks, path)
+  const draggingRef = useRef(false)
 
-  function onClickNewLine(ev: React.MouseEvent, lineNo: number) {
-    if (ev.shiftKey) {
-      extendLast(tabId, lineNo)
-      return
-    }
-    if (ev.metaKey || ev.ctrlKey) {
-      startSingle(tabId, lineNo)
-      return
-    }
-    const existing = ranges.find((r) => lineNo >= r.start && lineNo <= r.start + r.len - 1)
-    if (existing) {
-      setLast(tabId, existing.id)
-      return
-    }
+  function onPointerDownNewLine(ev: React.PointerEvent, lineNo: number): void {
+    if (ev.button !== 0) return
+    if (!(ev.metaKey || ev.ctrlKey)) return
     startSingle(tabId, lineNo)
+    draggingRef.current = true
+    ;(ev.currentTarget as HTMLElement).setPointerCapture?.(ev.pointerId)
+    ev.preventDefault()
+  }
+
+  function onPointerMoveNewLine(ev: React.PointerEvent, lineNo: number): void {
+    if (!draggingRef.current) return
+    extendLast(tabId, lineNo)
+  }
+
+  function endDrag(ev: React.PointerEvent): void {
+    if (!draggingRef.current) return
+    draggingRef.current = false
+    ;(ev.currentTarget as HTMLElement).releasePointerCapture?.(ev.pointerId)
   }
 
   function isCommented(lineNo: number): boolean {
@@ -206,10 +209,16 @@ function DiffHunks({ tabId, hunks, path }: { tabId: string; hunks: DiffHunkDTO[]
                       selectable={line.newLineNo !== null}
                       selected={line.newLineNo !== null && isInRange(line.newLineNo)}
                       commented={line.newLineNo !== null && isCommented(line.newLineNo)}
-                      onClick={(e) => {
+                      onPointerDown={(e) => {
                         if (line.newLineNo === null) return
-                        onClickNewLine(e, line.newLineNo)
+                        onPointerDownNewLine(e, line.newLineNo)
                       }}
+                      onPointerMove={(e) => {
+                        if (line.newLineNo === null) return
+                        onPointerMoveNewLine(e, line.newLineNo)
+                      }}
+                      onPointerUp={endDrag}
+                      onPointerCancel={endDrag}
                     />
                   )
                 })}
@@ -229,7 +238,10 @@ function DiffHalfLine({
   selectable,
   selected,
   commented,
-  onClick,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
 }: {
   side: 'old' | 'new'
   line: DiffHunkLineDTO
@@ -237,7 +249,10 @@ function DiffHalfLine({
   selectable?: boolean
   selected?: boolean
   commented?: boolean
-  onClick?: (e: React.MouseEvent) => void
+  onPointerDown?: (e: React.PointerEvent) => void
+  onPointerMove?: (e: React.PointerEvent) => void
+  onPointerUp?: (e: React.PointerEvent) => void
+  onPointerCancel?: (e: React.PointerEvent) => void
 }): JSX.Element {
   const num = side === 'old' ? line.oldLineNo : line.newLineNo
   const display =
@@ -256,7 +271,10 @@ function DiffHalfLine({
 
   return (
     <div
-      onClick={onClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       className={cn(
         'flex items-start gap-2 px-2 leading-[1.6]',
         bg,

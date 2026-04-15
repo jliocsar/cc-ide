@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Trash2, MessageSquarePlus } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Trash2, MessageSquarePlus, Pencil, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { EMPTY_RANGES, planTabId, useReviewComments, type RangeDraft } from '@/state/review-comments'
+import { usePlanTabUi, type PlanMode } from '@/state/plan-tab-ui'
+import { PlanEditor } from '@/components/editor/plan-editor'
 
 export function PlanViewer({
   workspaceId,
@@ -17,6 +20,11 @@ export function PlanViewer({
   const tabId = planTabId(workspaceId, relPath)
   const [content, setContent] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const mode = usePlanTabUi((s) => s.byTab[tabId]?.mode ?? 'review')
+  const setMode = usePlanTabUi((s) => s.setMode)
+  const toggleMode = usePlanTabUi((s) => s.toggleMode)
+  const sidebarCollapsed = usePlanTabUi((s) => s.byTab[tabId]?.sidebarCollapsed ?? false)
+  const setSidebarCollapsed = usePlanTabUi((s) => s.setSidebarCollapsed)
 
   useEffect(() => {
     let cancelled = false
@@ -33,7 +41,18 @@ export function PlanViewer({
     }
   }, [workspaceId, relPath])
 
-  const lines = useMemo(() => (content ?? '').split('\n'), [content])
+  useEffect(() => {
+    function onKey(ev: KeyboardEvent): void {
+      const mod = ev.ctrlKey || ev.metaKey
+      if (!mod || !ev.shiftKey) return
+      if (ev.key === 'm' || ev.key === 'M') {
+        ev.preventDefault()
+        toggleMode(tabId)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [tabId, toggleMode])
 
   if (error) {
     return (
@@ -51,72 +70,104 @@ export function PlanViewer({
   }
 
   return (
-    <div className="grid h-full grid-cols-[1fr_360px] bg-background">
-      <PlanLines tabId={tabId} lines={lines} />
-      <CommentsPanel tabId={tabId} />
+    <div className="grid h-full grid-rows-[32px_minmax(0,1fr)] bg-background">
+      <PlanHeader mode={mode} onSet={(m) => setMode(tabId, m)} />
+      <div
+        className={cn(
+          'grid min-h-0',
+          sidebarCollapsed ? 'grid-cols-[1fr_32px]' : 'grid-cols-[1fr_360px]',
+        )}
+      >
+        <div className="h-full min-h-0 overflow-hidden border-r border-border">
+          <PlanEditor
+            tabId={tabId}
+            workspaceId={workspaceId}
+            relPath={relPath}
+            initialContent={content}
+          />
+        </div>
+        {sidebarCollapsed ? (
+          <CommentsRail tabId={tabId} onExpand={() => setSidebarCollapsed(tabId, false)} />
+        ) : (
+          <CommentsPanel tabId={tabId} onCollapse={() => setSidebarCollapsed(tabId, true)} />
+        )}
+      </div>
     </div>
   )
 }
 
-function PlanLines({ tabId, lines }: { tabId: string; lines: string[] }): JSX.Element {
-  const startSingle = useReviewComments((s) => s.startSingle)
-  const extendLast = useReviewComments((s) => s.extendLast)
-  const setLast = useReviewComments((s) => s.setLast)
-  const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
-
-  function onLineClick(ev: React.MouseEvent<HTMLDivElement>, lineNo: number) {
-    const isShift = ev.shiftKey
-    const isMeta = ev.metaKey || ev.ctrlKey
-    if (isShift) {
-      extendLast(tabId, lineNo)
-      return
-    }
-    if (isMeta) {
-      startSingle(tabId, lineNo)
-      return
-    }
-    const existing = ranges.find((r) => lineNo >= r.start && lineNo <= r.start + r.len - 1)
-    if (existing) {
-      setLast(tabId, existing.id)
-      return
-    }
-    startSingle(tabId, lineNo)
-  }
-
-  function rangeForLine(lineNo: number): RangeDraft | undefined {
-    return ranges.find((r) => lineNo >= r.start && lineNo <= r.start + r.len - 1)
-  }
-
+function PlanHeader({
+  mode,
+  onSet,
+}: {
+  mode: PlanMode
+  onSet: (m: PlanMode) => void
+}): JSX.Element {
   return (
-    <ScrollArea className="h-full border-r border-border">
-      <div className="select-text font-mono text-[12px] leading-[1.6]">
-        {lines.map((line, i) => {
-          const lineNo = i + 1
-          const range = rangeForLine(lineNo)
-          const inRange = !!range
-          const hasComment = range?.comment.trim().length ?? 0
-          return (
-            <div
-              key={lineNo}
-              onClick={(e) => onLineClick(e, lineNo)}
-              className={cn(
-                'group flex cursor-pointer items-start gap-3 px-3 hover:bg-accent/30',
-                inRange && 'bg-accent/40',
-                hasComment && 'border-l-2 border-l-primary bg-primary/10',
-              )}
-            >
-              <span className="w-10 shrink-0 select-none text-right text-muted-foreground">{lineNo}</span>
-              <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">{line || ' '}</span>
-            </div>
-          )
-        })}
-        <div className="h-12" />
+    <div className="flex h-8 shrink-0 items-center gap-2 border-b border-border bg-card px-3 text-[11px] text-muted-foreground">
+      <div className="flex items-center rounded-md border border-border bg-background p-[2px]">
+        <ModeButton
+          active={mode === 'edit'}
+          onClick={() => onSet('edit')}
+          icon={<Pencil className="size-3" />}
+          label="Edit"
+          tooltip="Type to modify. Save with Ctrl+S."
+        />
+        <ModeButton
+          active={mode === 'review'}
+          onClick={() => onSet('review')}
+          icon={<Eye className="size-3" />}
+          label="Review"
+          tooltip="Click lines to comment. Drag tab into a terminal to send."
+        />
       </div>
-    </ScrollArea>
+      <span className="ml-auto font-mono text-[10px] opacity-60">Ctrl+Shift+M to toggle</span>
+    </div>
   )
 }
 
-function CommentsPanel({ tabId }: { tabId: string }): JSX.Element {
+function ModeButton({
+  active,
+  onClick,
+  icon,
+  label,
+  tooltip,
+}: {
+  active: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  label: string
+  tooltip: string
+}): JSX.Element {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          className={cn(
+            'flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium transition-colors',
+            active
+              ? 'bg-secondary text-foreground'
+              : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+          )}
+        >
+          {icon}
+          {label}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+function CommentsPanel({
+  tabId,
+  onCollapse,
+}: {
+  tabId: string
+  onCollapse: () => void
+}): JSX.Element {
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
   const setComment = useReviewComments((s) => s.setComment)
   const removeRange = useReviewComments((s) => s.removeRange)
@@ -125,7 +176,15 @@ function CommentsPanel({ tabId }: { tabId: string }): JSX.Element {
 
   return (
     <div className="flex h-full flex-col bg-card">
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2 pr-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="icon-xs" variant="ghost" onClick={onCollapse} aria-label="Collapse review comments">
+              <ChevronRight />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Collapse</TooltipContent>
+        </Tooltip>
         <MessageSquarePlus className="size-3.5" />
         <span>Review comments</span>
         <span className="ml-auto font-mono lowercase">{ranges.length} range{ranges.length === 1 ? '' : 's'}</span>
@@ -134,9 +193,11 @@ function CommentsPanel({ tabId }: { tabId: string }): JSX.Element {
         <div className="flex flex-col gap-3 p-3">
           {sorted.length === 0 ? (
             <div className="font-mono text-[11px] text-muted-foreground">
-              click a line in the plan to start a comment.
+              ctrl/cmd-click a line to start a comment.
               <br />
-              shift-click extends · ctrl/cmd-click adds disjoint ranges.
+              ctrl/cmd-click and drag to select multiple lines.
+              <br />
+              drag the tab into a terminal to send.
             </div>
           ) : (
             sorted.map((r) => (
@@ -170,6 +231,37 @@ function CommentsPanel({ tabId }: { tabId: string }): JSX.Element {
           )}
         </div>
       </ScrollArea>
+    </div>
+  )
+}
+
+function CommentsRail({
+  tabId,
+  onExpand,
+}: {
+  tabId: string
+  onExpand: () => void
+}): JSX.Element {
+  const rangeCount = useReviewComments((s) => s.byTab[tabId]?.length ?? 0)
+
+  return (
+    <div className="flex h-full flex-col items-center gap-2 border-l border-border bg-card py-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button size="icon-xs" variant="ghost" onClick={onExpand} aria-label="Expand review comments">
+            <ChevronLeft />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="left">Expand review comments</TooltipContent>
+      </Tooltip>
+      {rangeCount > 0 ? (
+        <span
+          className="flex min-w-5 items-center justify-center rounded-full bg-primary/20 px-1.5 font-mono text-[10px] text-foreground"
+          title={`${rangeCount} range${rangeCount === 1 ? '' : 's'}`}
+        >
+          {rangeCount}
+        </span>
+      ) : null}
     </div>
   )
 }

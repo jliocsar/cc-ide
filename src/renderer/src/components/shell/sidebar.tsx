@@ -6,7 +6,6 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import {
   FolderGit2,
@@ -21,10 +20,14 @@ import {
   RefreshCw,
   FolderPlus,
   Terminal,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useWorkspaces } from '@/state/workspaces'
 import { useSidebarData } from '@/state/sidebar-data'
 import { usePlansTree } from '@/state/plans-tree'
+import { useUi } from '@/state/ui'
 import { onEvent } from '@/lib/ipc'
 import { ConversationsSection } from './sections/conversations-section'
 import { SessionsSection } from './sections/sessions-section'
@@ -78,12 +81,48 @@ export function Sidebar(): JSX.Element {
     }
   }, [activeId])
 
+  const sidebarVisible = useUi((s) => s.sidebarVisible)
+  const toggleSidebar = useUi((s) => s.toggleSidebar)
+
+  if (!sidebarVisible) {
+    return (
+      <aside className="flex h-full w-10 min-h-0 flex-col items-center overflow-hidden border-r border-border bg-card py-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={toggleSidebar}
+              aria-label="Expand sidebar"
+            >
+              <ChevronRight />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Expand sidebar · Ctrl+B</TooltipContent>
+        </Tooltip>
+      </aside>
+    )
+  }
+
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-card">
-      <div className="flex h-10 shrink-0 items-center px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        cc-ide
+    <aside className="flex h-full w-[260px] min-h-0 flex-col overflow-hidden border-r border-border bg-card">
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border pl-3 pr-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <span>cc-ide</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={toggleSidebar}
+              aria-label="Collapse sidebar"
+              className="ml-auto"
+            >
+              <ChevronLeft />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Collapse sidebar · Ctrl+B</TooltipContent>
+        </Tooltip>
       </div>
-      <Separator />
       <ScrollArea className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!w-full [&>[data-slot=scroll-area-viewport]>div]:!min-w-0">
         <Accordion
           type="multiple"

@@ -13,6 +13,7 @@ import * as diffProvider from './modules/diff-provider'
 import * as promptsStore from './modules/prompts-store'
 import * as planFsTree from './modules/plan-fs-tree'
 import * as tabsStore from './modules/tabs-store'
+import * as settingsStore from './modules/settings-store'
 import * as ephemeralWorktrees from './modules/ephemeral-worktrees'
 import * as sessionWatcher from './modules/session-watcher'
 import { generateClaudeWindowName } from './modules/cat-name-gen'
@@ -392,6 +393,15 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
   'tabs:save': async ({ workspaceId, state }) => {
     await tabsStore.saveTabs(workspaceId, state)
     return { ok: true }
+  },
+  'settings:get': async () => {
+    const settings = await settingsStore.readSettings()
+    return { settings }
+  },
+  'settings:set': async ({ patch }) => {
+    const settings = await settingsStore.updateSettings(patch)
+    broadcast('settings:changed', { settings })
+    return { settings }
   },
   'session:attachExisting': async ({ workspaceId, tmuxWindow, cols, rows }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)
