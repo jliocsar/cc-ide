@@ -80,7 +80,7 @@ export function Sidebar(): JSX.Element {
       <ScrollArea className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!w-full [&>[data-slot=scroll-area-viewport]>div]:!min-w-0">
         <Accordion
           type="multiple"
-          defaultValue={['workspaces', 'sessions', 'conversations', 'worktrees']}
+          defaultValue={[]}
           className="w-full pb-4"
         >
           <AccordionItem value="workspaces" className="border-b-0">
