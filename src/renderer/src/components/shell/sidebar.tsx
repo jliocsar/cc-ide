@@ -20,12 +20,14 @@ import {
   Trash2,
   RefreshCw,
   FolderPlus,
+  Terminal,
 } from 'lucide-react'
 import { useWorkspaces } from '@/state/workspaces'
 import { useSidebarData } from '@/state/sidebar-data'
 import { usePlansTree } from '@/state/plans-tree'
 import { onEvent } from '@/lib/ipc'
 import { ConversationsSection } from './sections/conversations-section'
+import { SessionsSection } from './sections/sessions-section'
 import {
   WorktreesSection,
   CreateWorktreeDialog,
@@ -78,7 +80,7 @@ export function Sidebar(): JSX.Element {
       <ScrollArea className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!w-full [&>[data-slot=scroll-area-viewport]>div]:!min-w-0">
         <Accordion
           type="multiple"
-          defaultValue={['workspaces', 'conversations', 'worktrees']}
+          defaultValue={['workspaces', 'sessions', 'conversations', 'worktrees']}
           className="w-full pb-4"
         >
           <AccordionItem value="workspaces" className="border-b-0">
@@ -154,6 +156,7 @@ export function Sidebar(): JSX.Element {
 
           {activeId ? (
             <>
+              <SessionsAccordion workspaceId={activeId} />
               <ConversationsAccordion workspaceId={activeId} />
               <WorktreesAccordion workspaceId={activeId} />
               <PlansAccordion workspaceId={activeId} />
@@ -168,6 +171,37 @@ export function Sidebar(): JSX.Element {
         </Accordion>
       </ScrollArea>
     </aside>
+  )
+}
+
+function SessionsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
+  const openSpawnModal = useSpawnModal((s) => s.open)
+  const modalOpen = useSpawnModal((s) => s.isOpen)
+
+  return (
+    <AccordionItem value="sessions" className="border-b-0">
+      <SectionHeader
+        icon={Terminal}
+        label="Sessions"
+        actions={
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            disabled={modalOpen}
+            onClick={(e) => {
+              e.stopPropagation()
+              openSpawnModal()
+            }}
+            aria-label="New session"
+          >
+            <Plus />
+          </Button>
+        }
+      />
+      <AccordionContent className="pb-0">
+        <SessionsSection workspaceId={workspaceId} />
+      </AccordionContent>
+    </AccordionItem>
   )
 }
 
