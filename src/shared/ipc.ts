@@ -132,6 +132,7 @@ export const ipcContract = {
       workspaceId: z.string(),
       cols: z.number().int().positive(),
       rows: z.number().int().positive(),
+      customName: z.string().optional(),
       worktree: z
         .union([
           z.object({ kind: z.literal('primary') }),

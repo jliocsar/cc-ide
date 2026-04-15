@@ -132,13 +132,20 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     })
     return { ptyId, tmuxWindow }
   },
-  'session:spawnClaude': async ({ workspaceId, cols, rows, worktree }) => {
+  'session:spawnClaude': async ({ workspaceId, cols, rows, customName, worktree }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)
     if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
     const hasTmux = await tmux.tmuxAvailable()
     if (!hasTmux) throw new Error('tmux is not installed or not in PATH')
     const primarySession = tmux.sessionNameForWorkspace(ws.id)
     await tmux.ensureSession(primarySession, ws.path)
+    if (customName !== undefined) {
+      const validation = validateTmuxWindowName(customName)
+      if (!validation.ok) throw new Error(validation.reason)
+      if (await tmux.hasWindow(`${primarySession}:${customName}`)) {
+        throw new Error(`a window named "${customName}" already exists in this workspace`)
+      }
+    }
 
     let cwd = ws.path
     let ephemeral: {
@@ -162,7 +169,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       ephemeral = { worktreePath, branch: worktree.branch, base: worktree.base }
     }
 
-    const windowName = await generateClaudeWindowName(primarySession)
+    const windowName = customName ?? (await generateClaudeWindowName(primarySession))
     const tmuxWindow = await tmux.spawnWindow({
       sessionName: primarySession,
       windowName,
