@@ -6,3 +6,4 @@ dist
 coverage
 .vite
 tmp
+.claude/worktrees/

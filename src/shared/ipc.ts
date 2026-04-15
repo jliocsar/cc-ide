@@ -251,6 +251,14 @@ export const ipcContract = {
     request: z.object({ workspaceId: z.string(), relPath: z.string() }),
     response: z.object({ ok: z.literal(true) }),
   },
+  'tabs:load': {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({ state: z.unknown().nullable() }),
+  },
+  'tabs:save': {
+    request: z.object({ workspaceId: z.string(), state: z.unknown() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
 } as const
 
 export type IpcContract = typeof ipcContract
@@ -261,10 +269,14 @@ export const channels = Object.keys(ipcContract) as IpcChannel[]
 
 export const ptyDataEventSchema = z.object({ ptyId: z.string(), data: z.string() })
 export const ptyExitEventSchema = z.object({ ptyId: z.string(), exitCode: z.number().nullable() })
+export const workspaceScopedEventSchema = z.object({ workspaceId: z.string() })
 
 export const eventChannels = {
   'pty:data': ptyDataEventSchema,
   'pty:exit': ptyExitEventSchema,
+  'sessions:changed': workspaceScopedEventSchema,
+  'worktrees:changed': workspaceScopedEventSchema,
+  'plans:changed': workspaceScopedEventSchema,
 } as const
 
 export type IpcEventChannel = keyof typeof eventChannels

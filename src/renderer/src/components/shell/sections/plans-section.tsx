@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, ChevronDown, FileText, Folder, Plus, FolderPlus, RefreshCw, Trash2, Pencil } from 'lucide-react'
+import { ChevronRight, ChevronDown, FileText, Folder, Plus, FolderPlus, Trash2, Pencil } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -15,56 +15,28 @@ import { usePlansTree, type PlanDir, type PlanNode } from '@/state/plans-tree'
 import { useTabs } from '@/state/tabs'
 import { useReviewComments, planTabId } from '@/state/review-comments'
 import { setDropPayload } from '@/lib/drop-payload'
-import { cn } from '@/lib/utils'
 
-export function PlansSection({ workspaceId }: { workspaceId: string }): JSX.Element {
+type CreateRequest = { mode: 'file' | 'folder'; parent: string }
+
+export function PlansSection({
+  workspaceId,
+  onCreateFromRow,
+}: {
+  workspaceId: string
+  onCreateFromRow: (req: CreateRequest) => void
+}): JSX.Element {
   const status = usePlansTree((s) => s.status)
   const root = usePlansTree((s) => s.root)
   const error = usePlansTree((s) => s.error)
   const load = usePlansTree((s) => s.load)
-  const refresh = usePlansTree((s) => s.refresh)
-  const [createOpen, setCreateOpen] = useState<null | { mode: 'file' | 'folder'; parent: string }>(null)
 
   useEffect(() => {
     void load(workspaceId)
   }, [workspaceId, load])
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between px-1">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          {status === 'loading' ? 'loading…' : 'tree'}
-        </span>
-        <div className="flex items-center gap-1">
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={() => void refresh()}
-            aria-label="Refresh plans"
-          >
-            <RefreshCw className={cn(status === 'loading' && 'animate-spin')} />
-          </Button>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={() => setCreateOpen({ mode: 'folder', parent: '' })}
-            aria-label="New folder"
-          >
-            <FolderPlus />
-          </Button>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={() => setCreateOpen({ mode: 'file', parent: '' })}
-            aria-label="New plan"
-          >
-            <Plus />
-          </Button>
-        </div>
-      </div>
-
-      {error ? <div className="px-2 py-1 font-mono text-[11px] text-destructive">{error}</div> : null}
-
+    <div className="flex min-w-0 flex-col">
+      {error ? <div className="px-3 py-1 font-mono text-[11px] text-destructive">{error}</div> : null}
       <div className="flex flex-col">
         {root && root.children.length > 0 ? (
           root.children.map((node) => (
@@ -73,20 +45,13 @@ export function PlansSection({ workspaceId }: { workspaceId: string }): JSX.Elem
               node={node}
               workspaceId={workspaceId}
               depth={0}
-              onCreate={setCreateOpen}
+              onCreate={onCreateFromRow}
             />
           ))
         ) : status === 'ready' ? (
-          <div className="px-2 py-1 font-mono text-[11px] text-muted-foreground">no plans</div>
+          <div className="px-3 py-1 font-mono text-[11px] text-muted-foreground">no plans</div>
         ) : null}
       </div>
-
-      <CreateDialog
-        open={createOpen !== null}
-        request={createOpen}
-        onClose={() => setCreateOpen(null)}
-        workspaceId={workspaceId}
-      />
     </div>
   )
 }
@@ -100,7 +65,7 @@ function PlanRow({
   node: PlanNode
   workspaceId: string
   depth: number
-  onCreate: (req: { mode: 'file' | 'folder'; parent: string }) => void
+  onCreate: (req: CreateRequest) => void
 }): JSX.Element {
   const expanded = usePlansTree((s) => s.expanded.has(node.relPath))
   const toggle = usePlansTree((s) => s.toggle)
@@ -109,7 +74,7 @@ function PlanRow({
   const [renaming, setRenaming] = useState(false)
   const [newName, setNewName] = useState(node.name)
 
-  const indent = { paddingLeft: 6 + depth * 12 }
+  const indent = { paddingLeft: 12 + depth * 12 }
 
   async function onDelete(e: React.MouseEvent) {
     e.stopPropagation()
@@ -121,13 +86,19 @@ function PlanRow({
   async function commitRename(e: React.FormEvent) {
     e.preventDefault()
     e.stopPropagation()
-    const trimmed = newName.trim()
+    const trimmed = newName.trim().replace(/\//g, '')
     if (!trimmed || trimmed === node.name) {
       setRenaming(false)
       return
     }
     const parent = node.relPath.includes('/') ? node.relPath.slice(0, node.relPath.lastIndexOf('/') + 1) : ''
     const target = parent + trimmed
+    const siblings = listSiblings(node.relPath)
+    if (siblings.some((s) => s.name === trimmed && s.relPath !== node.relPath)) {
+      console.error('rename collision:', target)
+      setRenaming(false)
+      return
+    }
     try {
       await invoke('plans:rename', { workspaceId, fromRel: node.relPath, toRel: target })
       await refresh()
@@ -160,7 +131,7 @@ function PlanRow({
   return (
     <>
       <div
-        className="group flex items-center gap-1.5 rounded px-1 py-0.5 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+        className="group flex items-center gap-1.5 py-0.5 pr-3 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
         style={indent}
       >
         <button
@@ -239,6 +210,22 @@ function PlanRow({
   )
 }
 
+function listSiblings(relPath: string): Array<{ name: string; relPath: string }> {
+  const root = usePlansTree.getState().root
+  if (!root) return []
+  const parentPath = relPath.includes('/') ? relPath.slice(0, relPath.lastIndexOf('/')) : ''
+  if (!parentPath) return root.children.map((c) => ({ name: c.name, relPath: c.relPath }))
+  const stack: PlanNode[] = [...root.children]
+  while (stack.length) {
+    const n = stack.shift()!
+    if (n.relPath === parentPath && n.kind === 'dir') {
+      return n.children.map((c) => ({ name: c.name, relPath: c.relPath }))
+    }
+    if (n.kind === 'dir') stack.push(...n.children)
+  }
+  return []
+}
+
 function FileRow({
   node,
   workspaceId,
@@ -271,7 +258,7 @@ function FileRow({
       onDragStart={(e) => {
         setDropPayload(e.dataTransfer, { kind: 'plan', workspaceId, relPath: node.relPath })
       }}
-      className="group flex items-center gap-1.5 rounded px-1 py-0.5 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+      className="group flex items-center gap-1.5 py-0.5 pr-3 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
       style={indent}
     >
       <FileText className="size-3 shrink-0" />
@@ -339,14 +326,14 @@ function RowActions({
   )
 }
 
-function CreateDialog({
+export function PlanCreateDialog({
   open,
   request,
   onClose,
   workspaceId,
 }: {
   open: boolean
-  request: { mode: 'file' | 'folder'; parent: string } | null
+  request: CreateRequest | null
   onClose: () => void
   workspaceId: string
 }): JSX.Element {
@@ -366,7 +353,7 @@ function CreateDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!request || busy) return
-    const trimmed = name.trim()
+    const trimmed = name.trim().replace(/\//g, '')
     if (!trimmed) return
     setBusy(true)
     setError(null)

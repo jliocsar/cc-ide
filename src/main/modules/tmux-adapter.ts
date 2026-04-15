@@ -16,11 +16,30 @@ export function sessionNameForWorkspace(workspaceId: string): string {
   return `ccide-${workspaceId.slice(0, 8)}`
 }
 
+const IDLE_WINDOW = '__ccide_idle__'
+
 export async function ensureSession(sessionName: string, cwd: string): Promise<void> {
   const has = await run(['has-session', '-t', sessionName])
   if (has.code === 0) return
-  const create = await run(['new-session', '-d', '-s', sessionName, '-c', cwd, '-x', '200', '-y', '50'])
+  const create = await run([
+    'new-session',
+    '-d',
+    '-s',
+    sessionName,
+    '-n',
+    IDLE_WINDOW,
+    '-c',
+    cwd,
+    '-x',
+    '200',
+    '-y',
+    '50',
+  ])
   if (create.code !== 0) throw new Error(`tmux new-session failed: ${create.stderr.trim()}`)
+}
+
+async function killIdleIfExists(sessionName: string): Promise<void> {
+  await run(['kill-window', '-t', `${sessionName}:${IDLE_WINDOW}`])
 }
 
 export async function spawnWindow(options: {
@@ -42,6 +61,7 @@ export async function spawnWindow(options: {
     command,
   ])
   if (r.code !== 0) throw new Error(`tmux new-window failed: ${r.stderr.trim()}`)
+  void killIdleIfExists(sessionName)
   return `${sessionName}:${windowName}`
 }
 
@@ -53,6 +73,15 @@ export async function hasWindow(target: string): Promise<boolean> {
   const r = await run(['list-windows', '-F', '#{session_name}:#{window_name}'])
   if (r.code !== 0) return false
   return r.stdout.split('\n').some((line) => line.trim() === target)
+}
+
+export async function listWindows(sessionName: string): Promise<string[]> {
+  const r = await run(['list-windows', '-t', sessionName, '-F', '#W'])
+  if (r.code !== 0) return []
+  return r.stdout
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && l !== IDLE_WINDOW)
 }
 
 export async function createViewerSession(options: {

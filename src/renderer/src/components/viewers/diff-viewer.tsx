@@ -68,7 +68,7 @@ export function DiffViewer({
   }
 
   return (
-    <div className="grid h-full grid-cols-[1fr_360px] bg-background">
+    <div className="grid h-full grid-cols-[minmax(0,1fr)_360px] grid-rows-[minmax(0,1fr)] bg-background">
       <DiffHunks tabId={tabId} hunks={diff.hunks} />
       <CommentsPanel tabId={tabId} workspaceId={workspaceId} />
     </div>
@@ -183,7 +183,7 @@ function DiffHalfLine({
         'flex items-start gap-2 px-2 leading-[1.6]',
         bg,
         selectable && 'cursor-pointer hover:bg-accent/30',
-        selected && 'bg-accent/40',
+        selected && 'border-l-2 border-l-blue-500 bg-blue-500/15',
         commented && 'border-l-2 border-l-primary bg-primary/10',
       )}
     >
