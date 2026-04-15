@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Terminal, X } from 'lucide-react'
 import { useSessions } from '@/state/sessions'
 import { useCanvas } from '@/state/canvas'
 import { getCanvasViewportCenter } from '@/lib/canvas-host'
 import { invoke } from '@/lib/ipc'
 import { validateTmuxWindowName } from '@shared/tmux-name'
+import { InlineRenameInput } from '@/components/ui/inline-rename-input'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -41,6 +42,7 @@ function SessionRow({ tmuxWindow, ptyId }: { tmuxWindow: string; ptyId: string }
   const removeWindow = useCanvas((s) => s.removeWindow)
   const rename = useSessions((s) => s.rename)
   const [editing, setEditing] = useState(false)
+  const shortName = tmuxWindow.split(':').slice(1).join(':') || tmuxWindow
 
   function onActivate() {
     const canvas = useCanvas.getState()
@@ -65,18 +67,23 @@ function SessionRow({ tmuxWindow, ptyId }: { tmuxWindow: string; ptyId: string }
 
   if (editing) {
     return (
-      <SessionRenameRow
-        currentName={tmuxWindow.split(':').slice(1).join(':')}
-        onCancel={() => setEditing(false)}
-        onCommit={async (next) => {
-          try {
-            await rename(tmuxWindow, next)
-            setEditing(false)
-          } catch (err) {
-            toast.error(err instanceof Error ? err.message : String(err))
-          }
-        }}
-      />
+      <div className="flex min-w-0 items-center gap-2 px-3 py-1 text-[11px]">
+        <Terminal className="size-3 shrink-0 text-muted-foreground" />
+        <InlineRenameInput
+          className="flex-1"
+          value={shortName}
+          validate={validateTmuxWindowName}
+          onCancel={() => setEditing(false)}
+          onCommit={async (next) => {
+            try {
+              await rename(tmuxWindow, next)
+              setEditing(false)
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : String(err))
+            }
+          }}
+        />
+      </div>
     )
   }
 
@@ -94,7 +101,7 @@ function SessionRow({ tmuxWindow, ptyId }: { tmuxWindow: string; ptyId: string }
       className="group flex min-w-0 items-center gap-2 px-3 py-1 text-left text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground focus-visible:bg-accent/50 focus-visible:text-foreground focus-visible:outline-none"
     >
       <Terminal className="size-3 shrink-0" />
-      <span className="min-w-0 flex-1 truncate font-mono">{tmuxWindow.split(':').slice(1).join(':')}</span>
+      <span className="min-w-0 flex-1 truncate font-mono">{shortName}</span>
       <span
         className={cn(
           'shrink-0 rounded-sm border border-green-500/30 bg-green-500/15 px-1 py-px font-mono text-[9px] uppercase tracking-wider text-green-400',
@@ -112,68 +119,5 @@ function SessionRow({ tmuxWindow, ptyId }: { tmuxWindow: string; ptyId: string }
         <X className="size-3" />
       </span>
     </button>
-  )
-}
-
-function SessionRenameRow({
-  currentName,
-  onCommit,
-  onCancel,
-}: {
-  currentName: string
-  onCommit: (next: string) => void | Promise<void>
-  onCancel: () => void
-}): JSX.Element {
-  const [value, setValue] = useState(currentName)
-  const [pending, setPending] = useState(false)
-  const ref = useRef<HTMLInputElement | null>(null)
-
-  useEffect(() => {
-    ref.current?.focus()
-    ref.current?.select()
-  }, [])
-
-  const validation = validateTmuxWindowName(value)
-  const valid = validation.ok
-
-  async function commit() {
-    if (!valid || value === currentName || pending) return
-    setPending(true)
-    try {
-      await onCommit(value)
-    } finally {
-      setPending(false)
-    }
-  }
-
-  return (
-    <div className="flex min-w-0 items-center gap-2 px-3 py-1 text-[11px]">
-      <Terminal className="size-3 shrink-0 text-muted-foreground" />
-      <input
-        ref={ref}
-        value={value}
-        disabled={pending}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            void commit()
-          } else if (e.key === 'Escape' || e.key === 'Tab') {
-            e.preventDefault()
-            onCancel()
-          }
-        }}
-        onBlur={() => {
-          if (!pending) onCancel()
-        }}
-        title={valid ? undefined : (validation as { ok: false; reason: string }).reason}
-        className={cn(
-          'min-w-0 flex-1 rounded-sm border bg-background px-1 py-px font-mono text-[11px] outline-none focus:ring-1',
-          valid
-            ? 'border-border focus:ring-ring'
-            : 'border-destructive focus:ring-destructive',
-        )}
-      />
-    </div>
   )
 }

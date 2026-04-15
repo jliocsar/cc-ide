@@ -78,6 +78,7 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
       <WindowFrame
         id={w.id}
         title={w.title}
+        tmuxWindow={alive ? w.tmuxWindow : undefined}
         x={w.x}
         y={w.y}
         width={w.width}

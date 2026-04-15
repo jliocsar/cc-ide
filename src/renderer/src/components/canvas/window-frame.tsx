@@ -1,11 +1,16 @@
-import { useCallback, useRef, type ReactNode } from 'react'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { useCanvas } from '@/state/canvas'
+import { useSessions } from '@/state/sessions'
+import { InlineRenameInput } from '@/components/ui/inline-rename-input'
+import { validateTmuxWindowName } from '@shared/tmux-name'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 type Props = {
   id: string
   title: string
+  tmuxWindow?: string
   x: number
   y: number
   width: number
@@ -19,15 +24,29 @@ type Props = {
 const MIN_W = 320
 const MIN_H = 180
 
-export function WindowFrame({ id, title, x, y, width, height, zIndex, onClose, children, badge }: Props): JSX.Element {
+export function WindowFrame({
+  id,
+  title,
+  tmuxWindow,
+  x,
+  y,
+  width,
+  height,
+  zIndex,
+  onClose,
+  children,
+  badge,
+}: Props): JSX.Element {
   const updateWindow = useCanvas((s) => s.updateWindow)
   const focusWindow = useCanvas((s) => s.focusWindow)
   const getZoom = useRef(() => useCanvas.getState().camera.zoom).current
+  const [editing, setEditing] = useState(false)
 
   const onTitlebarPointerDown = useCallback(
     (ev: React.PointerEvent<HTMLDivElement>) => {
       if (ev.button !== 0) return
-      if (ev.target instanceof Element && ev.target.closest('button')) return
+      if (editing) return
+      if (ev.target instanceof Element && ev.target.closest('button, input')) return
       ev.stopPropagation()
       focusWindow(id)
       const startX = ev.clientX
@@ -51,7 +70,7 @@ export function WindowFrame({ id, title, x, y, width, height, zIndex, onClose, c
       window.addEventListener('pointermove', move)
       window.addEventListener('pointerup', up)
     },
-    [id, x, y, updateWindow, focusWindow, getZoom],
+    [id, x, y, updateWindow, focusWindow, getZoom, editing],
   )
 
   const onResizePointerDown = useCallback(
@@ -86,6 +105,10 @@ export function WindowFrame({ id, title, x, y, width, height, zIndex, onClose, c
     [id, width, height, updateWindow, focusWindow, getZoom],
   )
 
+  const shortName = tmuxWindow
+    ? tmuxWindow.split(':').slice(1).join(':') || tmuxWindow
+    : null
+
   return (
     <div
       onPointerDown={(e) => {
@@ -107,7 +130,33 @@ export function WindowFrame({ id, title, x, y, width, height, zIndex, onClose, c
         onPointerDown={onTitlebarPointerDown}
         className="flex h-7 shrink-0 cursor-grab select-none items-center gap-2 border-b border-border bg-card px-3 text-[11px] font-mono text-muted-foreground active:cursor-grabbing"
       >
-        <span className="truncate">{title}</span>
+        {editing && tmuxWindow && shortName !== null ? (
+          <InlineRenameInput
+            className="flex-1"
+            value={shortName}
+            validate={validateTmuxWindowName}
+            onCancel={() => setEditing(false)}
+            onCommit={async (next) => {
+              try {
+                await useSessions.getState().rename(tmuxWindow, next)
+                setEditing(false)
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : String(err))
+              }
+            }}
+          />
+        ) : (
+          <span
+            className={cn('truncate', tmuxWindow && 'cursor-text')}
+            onDoubleClick={(e) => {
+              if (!tmuxWindow) return
+              e.stopPropagation()
+              setEditing(true)
+            }}
+          >
+            {title}
+          </span>
+        )}
         {badge}
         <div className="ml-auto flex items-center gap-1">
           {onClose ? (
