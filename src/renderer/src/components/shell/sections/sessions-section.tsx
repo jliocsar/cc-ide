@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Terminal, X } from 'lucide-react'
+import { Pencil, Terminal, X } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useSessions } from '@/state/sessions'
 import { useCanvas } from '@/state/canvas'
 import { getCanvasViewportCenter } from '@/lib/canvas-host'
@@ -9,8 +15,13 @@ import { InlineRenameInput } from '@/components/ui/inline-rename-input'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
+type MenuState = { tmuxWindow: string; ptyId: string; x: number; y: number } | null
+
 export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.Element {
   const sessions = useSessions((s) => s.sessions)
+  const [menu, setMenu] = useState<MenuState>(null)
+  const [editingTmuxWindow, setEditingTmuxWindow] = useState<string | null>(null)
+
   const liveSessions = useMemo(
     () =>
       sessions
@@ -30,18 +41,74 @@ export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.E
   return (
     <div className="flex min-w-0 flex-col">
       {liveSessions.map((s) => (
-        <SessionRow key={s.ptyId} tmuxWindow={s.tmuxWindow} ptyId={s.ptyId} />
+        <SessionRow
+          key={s.ptyId}
+          tmuxWindow={s.tmuxWindow}
+          ptyId={s.ptyId}
+          editing={editingTmuxWindow === s.tmuxWindow}
+          onStartEdit={() => setEditingTmuxWindow(s.tmuxWindow)}
+          onStopEdit={() => setEditingTmuxWindow(null)}
+          onContextMenu={(x, y) => setMenu({ tmuxWindow: s.tmuxWindow, ptyId: s.ptyId, x, y })}
+        />
       ))}
+
+      <DropdownMenu
+        open={menu !== null}
+        onOpenChange={(v) => {
+          if (!v) setMenu(null)
+        }}
+      >
+        <DropdownMenuTrigger asChild>
+          <span
+            aria-hidden
+            style={{
+              position: 'fixed',
+              left: menu?.x ?? 0,
+              top: menu?.y ?? 0,
+              width: 0,
+              height: 0,
+              pointerEvents: 'none',
+            }}
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" sideOffset={0}>
+          <DropdownMenuItem
+            onClick={() => {
+              if (!menu) return
+              setEditingTmuxWindow(menu.tmuxWindow)
+              setMenu(null)
+            }}
+          >
+            <Pencil />
+            Rename
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }
 
-function SessionRow({ tmuxWindow, ptyId }: { tmuxWindow: string; ptyId: string }): JSX.Element {
+type RowProps = {
+  tmuxWindow: string
+  ptyId: string
+  editing: boolean
+  onStartEdit: () => void
+  onStopEdit: () => void
+  onContextMenu: (x: number, y: number) => void
+}
+
+function SessionRow({
+  tmuxWindow,
+  ptyId,
+  editing,
+  onStartEdit,
+  onStopEdit,
+  onContextMenu,
+}: RowProps): JSX.Element {
   const panToWindow = useCanvas((s) => s.panToWindow)
   const focusWindow = useCanvas((s) => s.focusWindow)
   const removeWindow = useCanvas((s) => s.removeWindow)
   const rename = useSessions((s) => s.rename)
-  const [editing, setEditing] = useState(false)
   const shortName = tmuxWindow.split(':').slice(1).join(':') || tmuxWindow
 
   function onActivate() {
@@ -73,11 +140,11 @@ function SessionRow({ tmuxWindow, ptyId }: { tmuxWindow: string; ptyId: string }
           className="flex-1"
           value={shortName}
           validate={validateTmuxWindowName}
-          onCancel={() => setEditing(false)}
+          onCancel={onStopEdit}
           onCommit={async (next) => {
             try {
               await rename(tmuxWindow, next)
-              setEditing(false)
+              onStopEdit()
             } catch (err) {
               toast.error(err instanceof Error ? err.message : String(err))
             }
@@ -92,16 +159,20 @@ function SessionRow({ tmuxWindow, ptyId }: { tmuxWindow: string; ptyId: string }
       type="button"
       tabIndex={0}
       onClick={onActivate}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        onContextMenu(e.clientX, e.clientY)
+      }}
       onKeyDown={(e) => {
         if (e.key === 'F2') {
           e.preventDefault()
-          setEditing(true)
+          onStartEdit()
         }
       }}
       className="group flex min-w-0 items-center gap-2 px-3 py-1 text-left text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground focus-visible:bg-accent/50 focus-visible:text-foreground focus-visible:outline-none"
     >
       <Terminal className="size-3 shrink-0" />
-      <span className="min-w-0 flex-1 truncate font-mono">{shortName}</span>
+      <span className="min-w-0 truncate font-mono">{shortName}</span>
       <span
         className={cn(
           'shrink-0 rounded-sm border border-green-500/30 bg-green-500/15 px-1 py-px font-mono text-[9px] uppercase tracking-wider text-green-400',
@@ -109,14 +180,16 @@ function SessionRow({ tmuxWindow, ptyId }: { tmuxWindow: string; ptyId: string }
       >
         live
       </span>
-      <span
-        role="button"
-        tabIndex={-1}
-        onClick={onKill}
-        aria-label="Kill session"
-        className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
-      >
-        <X className="size-3" />
+      <span className="ml-auto shrink-0">
+        <span
+          role="button"
+          tabIndex={-1}
+          onClick={onKill}
+          aria-label="Kill session"
+          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+        >
+          <X className="size-3" />
+        </span>
       </span>
     </button>
   )

@@ -9,3 +9,16 @@ export function getCanvasViewportCenter(): { x: number; y: number } {
   const r = host.getBoundingClientRect()
   return { x: r.width / 2, y: r.height / 2 }
 }
+
+export function getCanvasHost(): HTMLDivElement | null {
+  return host
+}
+
+export function clientToCanvasViewport(
+  clientX: number,
+  clientY: number,
+): { x: number; y: number } | null {
+  if (!host) return null
+  const r = host.getBoundingClientRect()
+  return { x: clientX - r.left, y: clientY - r.top }
+}
