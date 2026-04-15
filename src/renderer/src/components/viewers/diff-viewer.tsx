@@ -6,7 +6,45 @@ import { Trash2, MessageSquarePlus } from 'lucide-react'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { EMPTY_RANGES, diffTabId, useReviewComments, type RangeDraft } from '@/state/review-comments'
+import { guessLang, tokenizeLines } from '@/lib/shiki'
+import type { ThemedToken } from 'shiki'
 import type { FileDiffDTO, DiffHunkDTO, DiffHunkLineDTO } from '@shared/ipc'
+
+type HunkTokens = {
+  oldTokens: ThemedToken[][]
+  newTokens: ThemedToken[][]
+  oldLineIdx: number[] // hunkLineIdx → index into oldTokens, or -1
+  newLineIdx: number[] // hunkLineIdx → index into newTokens, or -1
+}
+
+function buildSideTexts(hunk: DiffHunkDTO): {
+  oldText: string
+  newText: string
+  oldLineIdx: number[]
+  newLineIdx: number[]
+} {
+  const oldLines: string[] = []
+  const newLines: string[] = []
+  const oldLineIdx: number[] = []
+  const newLineIdx: number[] = []
+  for (const line of hunk.lines) {
+    if (line.kind === 'add') {
+      oldLineIdx.push(-1)
+      newLineIdx.push(newLines.length)
+      newLines.push(line.content)
+    } else if (line.kind === 'remove') {
+      oldLineIdx.push(oldLines.length)
+      newLineIdx.push(-1)
+      oldLines.push(line.content)
+    } else {
+      oldLineIdx.push(oldLines.length)
+      newLineIdx.push(newLines.length)
+      oldLines.push(line.content)
+      newLines.push(line.content)
+    }
+  }
+  return { oldText: oldLines.join('\n'), newText: newLines.join('\n'), oldLineIdx, newLineIdx }
+}
 
 export function DiffViewer({
   workspaceId,
@@ -69,17 +107,46 @@ export function DiffViewer({
 
   return (
     <div className="grid h-full grid-cols-[minmax(0,1fr)_360px] grid-rows-[minmax(0,1fr)] bg-background">
-      <DiffHunks tabId={tabId} hunks={diff.hunks} />
+      <DiffHunks tabId={tabId} hunks={diff.hunks} path={path} />
       <CommentsPanel tabId={tabId} workspaceId={workspaceId} />
     </div>
   )
 }
 
-function DiffHunks({ tabId, hunks }: { tabId: string; hunks: DiffHunkDTO[] }): JSX.Element {
+function useHunkTokens(hunks: DiffHunkDTO[], path: string): (HunkTokens | null)[] {
+  const [tokens, setTokens] = useState<(HunkTokens | null)[]>(() => hunks.map(() => null))
+
+  useEffect(() => {
+    let cancelled = false
+    const lang = guessLang(path)
+    setTokens(hunks.map(() => null))
+    void (async () => {
+      const built = hunks.map((h) => buildSideTexts(h))
+      const results = await Promise.all(
+        built.map(async (b) => {
+          const [oldTokens, newTokens] = await Promise.all([
+            tokenizeLines(b.oldText, lang),
+            tokenizeLines(b.newText, lang),
+          ])
+          return { oldTokens, newTokens, oldLineIdx: b.oldLineIdx, newLineIdx: b.newLineIdx }
+        }),
+      )
+      if (!cancelled) setTokens(results)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [hunks, path])
+
+  return tokens
+}
+
+function DiffHunks({ tabId, hunks, path }: { tabId: string; hunks: DiffHunkDTO[]; path: string }): JSX.Element {
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
   const startSingle = useReviewComments((s) => s.startSingle)
   const extendLast = useReviewComments((s) => s.extendLast)
   const setLast = useReviewComments((s) => s.setLast)
+  const hunkTokens = useHunkTokens(hunks, path)
 
   function onClickNewLine(ev: React.MouseEvent, lineNo: number) {
     if (ev.shiftKey) {
@@ -118,25 +185,34 @@ function DiffHunks({ tabId, hunks }: { tabId: string; hunks: DiffHunkDTO[] }): J
             </div>
             <div className="grid grid-cols-2">
               <div className="border-r border-border">
-                {hunk.lines.map((line, j) => (
-                  <DiffHalfLine key={`o-${j}`} side="old" line={line} />
-                ))}
+                {hunk.lines.map((line, j) => {
+                  const ht = hunkTokens[i]
+                  const idx = ht ? ht.oldLineIdx[j] : -1
+                  const tokens = ht && idx >= 0 ? ht.oldTokens[idx] : null
+                  return <DiffHalfLine key={`o-${j}`} side="old" line={line} tokens={tokens} />
+                })}
               </div>
               <div>
-                {hunk.lines.map((line, j) => (
-                  <DiffHalfLine
-                    key={`n-${j}`}
-                    side="new"
-                    line={line}
-                    selectable={line.newLineNo !== null}
-                    selected={line.newLineNo !== null && isInRange(line.newLineNo)}
-                    commented={line.newLineNo !== null && isCommented(line.newLineNo)}
-                    onClick={(e) => {
-                      if (line.newLineNo === null) return
-                      onClickNewLine(e, line.newLineNo)
-                    }}
-                  />
-                ))}
+                {hunk.lines.map((line, j) => {
+                  const ht = hunkTokens[i]
+                  const idx = ht ? ht.newLineIdx[j] : -1
+                  const tokens = ht && idx >= 0 ? ht.newTokens[idx] : null
+                  return (
+                    <DiffHalfLine
+                      key={`n-${j}`}
+                      side="new"
+                      line={line}
+                      tokens={tokens}
+                      selectable={line.newLineNo !== null}
+                      selected={line.newLineNo !== null && isInRange(line.newLineNo)}
+                      commented={line.newLineNo !== null && isCommented(line.newLineNo)}
+                      onClick={(e) => {
+                        if (line.newLineNo === null) return
+                        onClickNewLine(e, line.newLineNo)
+                      }}
+                    />
+                  )
+                })}
               </div>
             </div>
           </div>
@@ -149,6 +225,7 @@ function DiffHunks({ tabId, hunks }: { tabId: string; hunks: DiffHunkDTO[] }): J
 function DiffHalfLine({
   side,
   line,
+  tokens,
   selectable,
   selected,
   commented,
@@ -156,6 +233,7 @@ function DiffHalfLine({
 }: {
   side: 'old' | 'new'
   line: DiffHunkLineDTO
+  tokens: ThemedToken[] | null
   selectable?: boolean
   selected?: boolean
   commented?: boolean
@@ -190,7 +268,17 @@ function DiffHalfLine({
       <span className="w-8 shrink-0 select-none text-right text-muted-foreground">{num ?? ''}</span>
       <span className="w-3 shrink-0 select-none text-muted-foreground">{display === null ? '' : sigil}</span>
       <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-        {display === null ? ' ' : display || ' '}
+        {display === null ? (
+          ' '
+        ) : tokens && tokens.length > 0 ? (
+          tokens.map((t, k) => (
+            <span key={k} style={t.color ? { color: t.color } : undefined}>
+              {t.content}
+            </span>
+          ))
+        ) : (
+          display || ' '
+        )}
       </span>
     </div>
   )
