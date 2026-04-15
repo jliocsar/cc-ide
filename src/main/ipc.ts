@@ -219,8 +219,8 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     await planFsTree.createFolder(workspaceId, relPath)
     return { ok: true }
   },
-  'plans:rename': async ({ workspaceId, fromRel, toRel }) => {
-    await planFsTree.rename(workspaceId, fromRel, toRel)
+  'plans:rename': async ({ workspaceId, fromRel, toRel, overwrite }) => {
+    await planFsTree.rename(workspaceId, fromRel, toRel, { overwrite })
     return { ok: true }
   },
   'plans:delete': async ({ workspaceId, relPath }) => {

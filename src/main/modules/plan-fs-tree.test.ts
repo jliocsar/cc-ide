@@ -116,6 +116,35 @@ describe('rename', () => {
     await createPlan(WORKSPACE, 'b')
     await expect(rename(WORKSPACE, 'a.md', 'b.md')).rejects.toThrow(/already exists/)
   })
+
+  it('overwrites destination file when overwrite: true', async () => {
+    await createPlan(WORKSPACE, 'a')
+    await writePlan(WORKSPACE, 'a.md', 'fresh')
+    await createPlan(WORKSPACE, 'b')
+    await writePlan(WORKSPACE, 'b.md', 'stale')
+    await rename(WORKSPACE, 'a.md', 'b.md', { overwrite: true })
+    expect(await readPlan(WORKSPACE, 'b.md')).toBe('fresh')
+  })
+
+  it('refuses to overwrite a folder even with overwrite: true', async () => {
+    await createPlan(WORKSPACE, 'a')
+    await createFolder(WORKSPACE, 'b')
+    await expect(
+      rename(WORKSPACE, 'a.md', 'b', { overwrite: true }),
+    ).rejects.toThrow(/cannot overwrite a folder/)
+  })
+
+  it('refuses to move a folder into one of its descendants', async () => {
+    await createFolder(WORKSPACE, 'A')
+    await createFolder(WORKSPACE, 'A/B')
+    await expect(rename(WORKSPACE, 'A', 'A/B/A')).rejects.toThrow(/descendants/)
+  })
+
+  it('no-op when fromRel === toRel', async () => {
+    await createPlan(WORKSPACE, 'a')
+    await rename(WORKSPACE, 'a.md', 'a.md')
+    expect(await readPlan(WORKSPACE, 'a.md')).toBe('')
+  })
 })
 
 describe('deletePath', () => {
