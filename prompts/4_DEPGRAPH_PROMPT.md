@@ -1,0 +1,2 @@
+/grill-me Ultrathink this my friend: If we were to create a special type of tab in this app to add a DAG of dependencies/modules imports; We re-use the same canvas structure -- but instead we show a Obsidian-flavored graph mapping dependencies (i.e. how the code base files connect to each other, stopping at the 3rd party imports/not going into node_modules for example); How hard would that be? We can start just with TypeScript first -- but it would need support for multiple langs
+
