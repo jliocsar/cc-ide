@@ -2,6 +2,17 @@ import { useState } from 'react'
 import { LayoutGrid, X, FileText, GitCompare, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTabs, type Tab } from '@/state/tabs'
+import { usePlanTabUi } from '@/state/plan-tab-ui'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { setDropPayload, type DropPayload } from '@/lib/drop-payload'
 
 const TAB_REORDER_MIME = 'application/x-cc-ide-tab-reorder'
@@ -32,7 +43,19 @@ export function HeaderTabs(): JSX.Element {
   const setActive = useTabs((s) => s.setActive)
   const closeTab = useTabs((s) => s.closeTab)
   const reorderTab = useTabs((s) => s.reorderTab)
+  const dirtyMap = usePlanTabUi((s) => s.byTab)
+  const pendingCloseId = usePlanTabUi((s) => s.pendingCloseId)
+  const setPendingCloseId = usePlanTabUi((s) => s.setPendingCloseId)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  function requestClose(id: string): void {
+    const isDirty = dirtyMap[id]?.dirty ?? false
+    if (isDirty) {
+      setPendingCloseId(id)
+      return
+    }
+    closeTab(id)
+  }
 
   return (
     <div className="flex h-10 items-center overflow-x-auto border-b border-border bg-card">
@@ -42,6 +65,7 @@ export function HeaderTabs(): JSX.Element {
           const active = tab.id === activeId
           const payload = dragPayloadFor(tab)
           const canReorder = !tab.pinned
+          const dirty = dirtyMap[tab.id]?.dirty ?? false
           return (
             <div
               key={tab.id}
@@ -71,7 +95,7 @@ export function HeaderTabs(): JSX.Element {
               }}
               onClick={() => setActive(tab.id)}
               onAuxClick={(e) => {
-                if (e.button === 1 && !tab.pinned) closeTab(tab.id)
+                if (e.button === 1 && !tab.pinned) requestClose(tab.id)
               }}
               className={cn(
                 'relative flex h-full cursor-pointer select-none items-center gap-2 border-r border-border px-3 text-xs',
@@ -82,13 +106,16 @@ export function HeaderTabs(): JSX.Element {
               )}
             >
               <Icon className="size-3.5" />
-              <span className="max-w-[200px] truncate font-mono">{tab.title}</span>
+              <span className="max-w-[200px] truncate font-mono">
+                {dirty ? <span className="mr-1 text-foreground">•</span> : null}
+                {tab.title}
+              </span>
               {!tab.pinned ? (
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
-                    closeTab(tab.id)
+                    requestClose(tab.id)
                   }}
                   className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
                   aria-label="Close tab"
@@ -100,6 +127,32 @@ export function HeaderTabs(): JSX.Element {
           )
         })}
       </div>
+      <AlertDialog
+        open={pendingCloseId !== null}
+        onOpenChange={(v) => {
+          if (!v) setPendingCloseId(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This plan tab has unsaved edits. Closing it will discard them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingCloseId) closeTab(pendingCloseId)
+                setPendingCloseId(null)
+              }}
+            >
+              Discard & close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

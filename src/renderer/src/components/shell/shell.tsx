@@ -9,10 +9,12 @@ import { Statusbar } from './statusbar'
 import { SpawnModal } from './spawn-modal'
 import { CommandPalette } from '@/components/palette/command-palette'
 import { PromptsModal } from '@/components/palette/prompts-modal'
+import { SettingsModal } from '@/components/settings/settings-modal'
 import { useCanvasPersistence } from '@/hooks/use-canvas-persistence'
 import { useTabsPersistence } from '@/hooks/use-tabs-persistence'
 import { useTabs } from '@/state/tabs'
 import { usePalette } from '@/state/palette'
+import { usePlanTabUi } from '@/state/plan-tab-ui'
 import { useUi } from '@/state/ui'
 import { useSessions } from '@/state/sessions'
 import { useCanvas } from '@/state/canvas'
@@ -71,7 +73,12 @@ export function Shell(): JSX.Element {
         togglePalette()
       } else if (ev.key === 'w' || ev.key === 'W') {
         ev.preventDefault()
-        closeTab(activeId)
+        const isDirty = usePlanTabUi.getState().byTab[activeId]?.dirty ?? false
+        if (isDirty) {
+          usePlanTabUi.getState().setPendingCloseId(activeId)
+        } else {
+          closeTab(activeId)
+        }
       } else if (ev.key === 'b' || ev.key === 'B') {
         ev.preventDefault()
         toggleSidebar()
@@ -86,7 +93,7 @@ export function Shell(): JSX.Element {
       <div
         className={cn(
           'grid h-full grid-rows-1 bg-background text-foreground transition-[grid-template-columns] duration-150',
-          sidebarVisible ? 'grid-cols-[260px_1fr]' : 'grid-cols-[0_1fr]',
+          sidebarVisible ? 'grid-cols-[260px_1fr]' : 'grid-cols-[40px_1fr]',
         )}
       >
         <div className="overflow-hidden">
@@ -94,7 +101,7 @@ export function Shell(): JSX.Element {
         </div>
         <div className="grid min-w-0 grid-rows-[40px_minmax(0,1fr)_24px]">
           <HeaderTabs />
-          <div className="grid min-h-0 overflow-hidden [&>*]:h-full">
+          <div className="grid min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden [&>*]:h-full">
             <TabRouter />
           </div>
           <Statusbar />
@@ -102,6 +109,7 @@ export function Shell(): JSX.Element {
       </div>
       <CommandPalette />
       <PromptsModal />
+      <SettingsModal />
       <SpawnModal />
       {sidebarLoading ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background">

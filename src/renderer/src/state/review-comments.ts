@@ -25,6 +25,7 @@ type State = {
   removeRange: (tabId: string, id: string) => void
   clear: (tabId: string) => void
   setLast: (tabId: string, id: string | null) => void
+  replaceAll: (tabId: string, next: RangeDraft[]) => void
 }
 
 function newId(): string {
@@ -127,6 +128,19 @@ export const useReviewComments = create<State>((set, get) => ({
 
   setLast(tabId, id) {
     set((s) => ({ lastRangeId: { ...s.lastRangeId, [tabId]: id } }))
+  },
+
+  replaceAll(tabId, next) {
+    set((s) => {
+      const stillExists = next.some((r) => r.id === s.lastRangeId[tabId])
+      return {
+        byTab: { ...s.byTab, [tabId]: next },
+        lastRangeId: {
+          ...s.lastRangeId,
+          [tabId]: stillExists ? s.lastRangeId[tabId] ?? null : null,
+        },
+      }
+    })
   },
 }))
 

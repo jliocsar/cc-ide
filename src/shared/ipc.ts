@@ -97,6 +97,22 @@ export const promptSchema = z.object({
 export type PromptDTO = z.infer<typeof promptSchema>;
 export const sortModeSchema = z.enum(["favorites-first", "title"]);
 
+export const editorKeybindsSchema = z.enum(["vscode", "vim"]);
+export type EditorKeybindsDTO = z.infer<typeof editorKeybindsSchema>;
+export const settingsSchema = z.object({
+  editor: z.object({
+    keybinds: editorKeybindsSchema,
+  }),
+});
+export type SettingsDTO = z.infer<typeof settingsSchema>;
+export const settingsPatchSchema = z.object({
+  editor: z
+    .object({
+      keybinds: editorKeybindsSchema.optional(),
+    })
+    .optional(),
+});
+
 export const ipcContract = {
   "app:ping": {
     request: z.object({ at: z.number() }),
@@ -325,6 +341,14 @@ export const ipcContract = {
     request: z.object({ workspaceId: z.string(), state: z.unknown() }),
     response: z.object({ ok: z.literal(true) }),
   },
+  "settings:get": {
+    request: z.object({}),
+    response: z.object({ settings: settingsSchema }),
+  },
+  "settings:set": {
+    request: z.object({ patch: settingsPatchSchema }),
+    response: z.object({ settings: settingsSchema }),
+  },
 } as const;
 
 export type IpcContract = typeof ipcContract;
@@ -354,6 +378,8 @@ export const worktreeCleanedEventSchema = z.object({
   action: z.enum(["deleted", "promoted"]),
 });
 
+export const settingsChangedEventSchema = z.object({ settings: settingsSchema });
+
 export const eventChannels = {
   "pty:data": ptyDataEventSchema,
   "pty:exit": ptyExitEventSchema,
@@ -361,6 +387,7 @@ export const eventChannels = {
   "worktrees:changed": workspaceScopedEventSchema,
   "plans:changed": workspaceScopedEventSchema,
   "worktree:cleaned": worktreeCleanedEventSchema,
+  "settings:changed": settingsChangedEventSchema,
 } as const;
 
 export type IpcEventChannel = keyof typeof eventChannels;
