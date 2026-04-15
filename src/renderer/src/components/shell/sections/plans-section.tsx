@@ -1,5 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { ChevronRight, ChevronDown, FileText, Folder, Plus, FolderPlus, Trash2, Pencil } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   Dialog,
   DialogContent,
@@ -10,13 +21,45 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import { invoke } from '@/lib/ipc'
 import { usePlansTree, type PlanDir, type PlanNode } from '@/state/plans-tree'
 import { useTabs } from '@/state/tabs'
 import { useReviewComments, planTabId } from '@/state/review-comments'
 import { setDropPayload } from '@/lib/drop-payload'
 
+const MOVE_MIME = 'application/x-cc-ide-plan-move'
+const SPRING_EXPAND_MS = 600
+
 type CreateRequest = { mode: 'file' | 'folder'; parent: string }
+
+type OverwriteRequest = { fromRel: string; toRel: string }
+
+function basename(rel: string): string {
+  const i = rel.lastIndexOf('/')
+  return i < 0 ? rel : rel.slice(i + 1)
+}
+
+function joinRel(parent: string, name: string): string {
+  return parent ? `${parent}/${name}` : name
+}
+
+function listChildren(parentRel: string): PlanNode[] {
+  const root = usePlansTree.getState().root
+  if (!root) return []
+  if (parentRel === '') return root.children
+  const stack: PlanNode[] = [...root.children]
+  while (stack.length) {
+    const n = stack.shift()!
+    if (n.relPath === parentRel && n.kind === 'dir') return n.children
+    if (n.kind === 'dir') stack.push(...n.children)
+  }
+  return []
+}
+
+function isDescendantMove(fromRel: string, toParentRel: string): boolean {
+  return toParentRel === fromRel || toParentRel.startsWith(fromRel + '/')
+}
 
 export function PlansSection({
   workspaceId,
@@ -29,13 +72,74 @@ export function PlansSection({
   const root = usePlansTree((s) => s.root)
   const error = usePlansTree((s) => s.error)
   const load = usePlansTree((s) => s.load)
+  const refresh = usePlansTree((s) => s.refresh)
+  const rewriteExpanded = usePlansTree((s) => s.rewriteExpandedForMove)
+  const rewriteTabs = useTabs((s) => s.rewritePlanTabsForMove)
+
+  const [overwriteReq, setOverwriteReq] = useState<OverwriteRequest | null>(null)
+  const [rootDragOver, setRootDragOver] = useState(false)
 
   useEffect(() => {
     void load(workspaceId)
   }, [workspaceId, load])
 
+  async function doMove(fromRel: string, toRel: string, overwrite?: boolean): Promise<void> {
+    try {
+      await invoke('plans:rename', { workspaceId, fromRel, toRel, overwrite })
+      rewriteExpanded(fromRel, toRel)
+      rewriteTabs(workspaceId, fromRel, toRel)
+      await refresh()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (/already exists/.test(msg) && !overwrite) {
+        setOverwriteReq({ fromRel, toRel })
+        return
+      }
+      toast.error(msg)
+    }
+  }
+
+  async function performMove(fromRel: string, toParentRel: string): Promise<void> {
+    if (isDescendantMove(fromRel, toParentRel)) {
+      toast.error('Cannot move a folder into itself or one of its descendants.')
+      return
+    }
+    const name = basename(fromRel)
+    const toRel = joinRel(toParentRel, name)
+    if (toRel === fromRel) return
+    const siblings = listChildren(toParentRel)
+    const collision = siblings.some((c) => c.name === name && c.relPath !== fromRel)
+    if (collision) {
+      setOverwriteReq({ fromRel, toRel })
+      return
+    }
+    await doMove(fromRel, toRel)
+  }
+
+  function onRootDragOver(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes(MOVE_MIME)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setRootDragOver(true)
+  }
+  function onRootDragLeave(e: React.DragEvent) {
+    if (e.currentTarget === e.target) setRootDragOver(false)
+  }
+  function onRootDrop(e: React.DragEvent) {
+    const fromRel = e.dataTransfer.getData(MOVE_MIME)
+    setRootDragOver(false)
+    if (!fromRel) return
+    e.preventDefault()
+    void performMove(fromRel, '')
+  }
+
   return (
-    <div className="flex min-w-0 flex-col">
+    <div
+      className={cn('flex min-w-0 flex-col', rootDragOver && 'bg-accent/20')}
+      onDragOver={onRootDragOver}
+      onDragLeave={onRootDragLeave}
+      onDrop={onRootDrop}
+    >
       {error ? <div className="px-3 py-1 font-mono text-[11px] text-destructive">{error}</div> : null}
       <div className="flex flex-col">
         {root && root.children.length > 0 ? (
@@ -46,12 +150,36 @@ export function PlansSection({
               workspaceId={workspaceId}
               depth={0}
               onCreate={onCreateFromRow}
+              performMove={performMove}
             />
           ))
         ) : status === 'ready' ? (
           <div className="px-3 py-1 font-mono text-[11px] text-muted-foreground">no plans</div>
         ) : null}
       </div>
+      <AlertDialog open={!!overwriteReq} onOpenChange={(v) => !v && setOverwriteReq(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Overwrite existing plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <code className="font-mono">{overwriteReq?.toRel}</code> already exists. Overwriting
+              replaces it with the file you're moving. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOverwriteReq(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const req = overwriteReq
+                setOverwriteReq(null)
+                if (req) void doMove(req.fromRel, req.toRel, true)
+              }}
+            >
+              Overwrite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -61,18 +189,23 @@ function PlanRow({
   workspaceId,
   depth,
   onCreate,
+  performMove,
 }: {
   node: PlanNode
   workspaceId: string
   depth: number
   onCreate: (req: CreateRequest) => void
+  performMove: (fromRel: string, toParentRel: string) => Promise<void>
 }): JSX.Element {
   const expanded = usePlansTree((s) => s.expanded.has(node.relPath))
   const toggle = usePlansTree((s) => s.toggle)
+  const setExpanded = usePlansTree((s) => s.setExpanded)
   const refresh = usePlansTree((s) => s.refresh)
   const openPlan = useTabs((s) => s.openPlan)
   const [renaming, setRenaming] = useState(false)
   const [newName, setNewName] = useState(node.name)
+  const [dragOver, setDragOver] = useState(false)
+  const springTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const indent = { paddingLeft: 12 + depth * 12 }
 
@@ -93,17 +226,19 @@ function PlanRow({
     }
     const parent = node.relPath.includes('/') ? node.relPath.slice(0, node.relPath.lastIndexOf('/') + 1) : ''
     const target = parent + trimmed
-    const siblings = listSiblings(node.relPath)
+    const siblings = listChildren(parent.replace(/\/$/, ''))
     if (siblings.some((s) => s.name === trimmed && s.relPath !== node.relPath)) {
-      console.error('rename collision:', target)
+      toast.error(`A ${siblings.find((s) => s.name === trimmed)?.kind ?? 'sibling'} named "${trimmed}" already exists.`)
       setRenaming(false)
       return
     }
     try {
       await invoke('plans:rename', { workspaceId, fromRel: node.relPath, toRel: target })
+      usePlansTree.getState().rewriteExpandedForMove(node.relPath, target)
+      useTabs.getState().rewritePlanTabsForMove(workspaceId, node.relPath, target)
       await refresh()
     } catch (err) {
-      console.error('rename failed', err)
+      toast.error(err instanceof Error ? err.message : String(err))
     }
     setRenaming(false)
   }
@@ -128,10 +263,57 @@ function PlanRow({
     )
   }
 
+  function clearSpringTimer() {
+    if (springTimerRef.current) {
+      clearTimeout(springTimerRef.current)
+      springTimerRef.current = null
+    }
+  }
+
+  function onDragStart(e: React.DragEvent) {
+    e.stopPropagation()
+    e.dataTransfer.setData(MOVE_MIME, node.relPath)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  function onDragOver(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes(MOVE_MIME)) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'move'
+    if (!dragOver) setDragOver(true)
+    if (!expanded && !springTimerRef.current) {
+      springTimerRef.current = setTimeout(() => {
+        setExpanded(node.relPath, true)
+        springTimerRef.current = null
+      }, SPRING_EXPAND_MS)
+    }
+  }
+  function onDragLeave(_e: React.DragEvent) {
+    setDragOver(false)
+    clearSpringTimer()
+  }
+  function onDrop(e: React.DragEvent) {
+    const fromRel = e.dataTransfer.getData(MOVE_MIME)
+    setDragOver(false)
+    clearSpringTimer()
+    if (!fromRel) return
+    e.preventDefault()
+    e.stopPropagation()
+    void performMove(fromRel, node.relPath)
+  }
+
   return (
     <>
       <div
-        className="group flex items-center gap-1.5 py-0.5 pr-3 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+        draggable={!renaming}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        className={cn(
+          'group flex items-center gap-1.5 py-0.5 pr-3 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+          dragOver && 'bg-accent/60 ring-1 ring-inset ring-primary/50',
+        )}
         style={indent}
       >
         <button
@@ -203,27 +385,12 @@ function PlanRow({
               workspaceId={workspaceId}
               depth={depth + 1}
               onCreate={onCreate}
+              performMove={performMove}
             />
           ))
         : null}
     </>
   )
-}
-
-function listSiblings(relPath: string): Array<{ name: string; relPath: string }> {
-  const root = usePlansTree.getState().root
-  if (!root) return []
-  const parentPath = relPath.includes('/') ? relPath.slice(0, relPath.lastIndexOf('/')) : ''
-  if (!parentPath) return root.children.map((c) => ({ name: c.name, relPath: c.relPath }))
-  const stack: PlanNode[] = [...root.children]
-  while (stack.length) {
-    const n = stack.shift()!
-    if (n.relPath === parentPath && n.kind === 'dir') {
-      return n.children.map((c) => ({ name: c.name, relPath: c.relPath }))
-    }
-    if (n.kind === 'dir') stack.push(...n.children)
-  }
-  return []
 }
 
 function FileRow({
@@ -257,6 +424,8 @@ function FileRow({
       draggable={!renaming}
       onDragStart={(e) => {
         setDropPayload(e.dataTransfer, { kind: 'plan', workspaceId, relPath: node.relPath })
+        e.dataTransfer.setData(MOVE_MIME, node.relPath)
+        e.dataTransfer.effectAllowed = 'copyMove'
       }}
       className="group flex items-center gap-1.5 py-0.5 pr-3 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
       style={indent}

@@ -31,6 +31,7 @@ type State = {
   refresh: () => Promise<void>
   toggle: (relPath: string) => void
   setExpanded: (relPath: string, expanded: boolean) => void
+  rewriteExpandedForMove: (fromRel: string, toRel: string) => void
 }
 
 export const usePlansTree = create<State>((set, get) => ({
@@ -74,6 +75,18 @@ export const usePlansTree = create<State>((set, get) => ({
       const next = new Set(s.expanded)
       if (expanded) next.add(relPath)
       else next.delete(relPath)
+      return { expanded: next }
+    })
+  },
+
+  rewriteExpandedForMove(fromRel, toRel) {
+    set((s) => {
+      const next = new Set<string>()
+      for (const k of s.expanded) {
+        if (k === fromRel) next.add(toRel)
+        else if (k.startsWith(fromRel + '/')) next.add(toRel + k.slice(fromRel.length))
+        else next.add(k)
+      }
       return { expanded: next }
     })
   },

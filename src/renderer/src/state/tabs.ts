@@ -56,6 +56,7 @@ type State = {
   switchWorkspace: (id: string | null) => void
   hydrateWorkspace: (id: string, state: TabsSnapshot | null) => void
   snapshotWorkspace: (id: string) => TabsSnapshot
+  rewritePlanTabsForMove: (workspaceId: string, fromRel: string, toRel: string) => void
 }
 
 function planTabId(workspaceId: string, relPath: string): string {
@@ -191,6 +192,45 @@ export const useTabs = create<State>((set, get) => {
 
     snapshotWorkspace(id) {
       return get()._byWorkspace[id] ?? emptyEntry()
+    },
+
+    rewritePlanTabsForMove(workspaceId, fromRel, toRel) {
+      function remap(tab: Tab): Tab {
+        if (tab.kind !== 'plan') return tab
+        if (tab.meta.workspaceId !== workspaceId) return tab
+        const rel = tab.meta.relPath
+        let next: string | null = null
+        if (rel === fromRel) next = toRel
+        else if (rel.startsWith(fromRel + '/')) next = toRel + rel.slice(fromRel.length)
+        if (next === null) return tab
+        return {
+          ...tab,
+          id: planTabId(workspaceId, next),
+          title: next.split('/').pop() || next,
+          meta: { ...tab.meta, relPath: next },
+        }
+      }
+      function remapSnapshot(snap: TabsSnapshot): TabsSnapshot {
+        const tabs = snap.tabs.map(remap)
+        const oldToNew = new Map<string, string>()
+        snap.tabs.forEach((t, i) => {
+          const r = tabs[i]
+          if (r && t.id !== r.id) oldToNew.set(t.id, r.id)
+        })
+        const activeId = oldToNew.get(snap.activeId) ?? snap.activeId
+        return { tabs, activeId }
+      }
+      const s = get()
+      const byWs = { ...s._byWorkspace }
+      if (byWs[workspaceId]) byWs[workspaceId] = remapSnapshot(byWs[workspaceId])
+      const isActive = s._activeWorkspaceId === workspaceId
+      const liveSnap: TabsSnapshot = isActive
+        ? (byWs[workspaceId] ?? { tabs: s.tabs, activeId: s.activeId })
+        : { tabs: s.tabs, activeId: s.activeId }
+      set({
+        _byWorkspace: byWs,
+        ...(isActive ? { tabs: liveSnap.tabs, activeId: liveSnap.activeId } : {}),
+      })
     },
   }
 })

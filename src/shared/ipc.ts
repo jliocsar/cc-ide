@@ -244,7 +244,12 @@ export const ipcContract = {
     response: z.object({ ok: z.literal(true) }),
   },
   'plans:rename': {
-    request: z.object({ workspaceId: z.string(), fromRel: z.string(), toRel: z.string() }),
+    request: z.object({
+      workspaceId: z.string(),
+      fromRel: z.string(),
+      toRel: z.string(),
+      overwrite: z.boolean().optional(),
+    }),
     response: z.object({ ok: z.literal(true) }),
   },
   'plans:delete': {

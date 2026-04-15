@@ -141,12 +141,25 @@ export async function createFolder(workspaceId: string, relPath: string): Promis
   }
 }
 
-export async function rename(workspaceId: string, fromRel: string, toRel: string): Promise<void> {
+export async function rename(
+  workspaceId: string,
+  fromRel: string,
+  toRel: string,
+  opts?: { overwrite?: boolean },
+): Promise<void> {
   if (!fromRel || !toRel) throw new Error('both fromRel and toRel are required')
+  if (fromRel === toRel) return
   const fromAbs = resolveSafe(workspaceId, fromRel)
   const toAbs = resolveSafe(workspaceId, toRel)
-  const exists = await fs.stat(toAbs).catch(() => null)
-  if (exists) throw new Error(`destination already exists: ${toRel}`)
+  // Guard: moving a folder into itself or one of its descendants.
+  if (toRel === fromRel || toRel.startsWith(fromRel + '/')) {
+    throw new Error(`cannot move a folder into itself or one of its descendants`)
+  }
+  const existing = await fs.stat(toAbs).catch(() => null)
+  if (existing) {
+    if (!opts?.overwrite) throw new Error(`destination already exists: ${toRel}`)
+    if (existing.isDirectory()) throw new Error(`cannot overwrite a folder: ${toRel}`)
+  }
   await ensureDir(join(toAbs, '..'))
   await fs.rename(fromAbs, toAbs)
 }
