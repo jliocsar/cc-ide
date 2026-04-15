@@ -187,7 +187,7 @@ function SessionRow({
         tabIndex={-1}
         onClick={onKill}
         aria-label="Kill session"
-        className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+        className="shrink-0 self-center rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
       >
         <X className="size-3" />
       </span>
