@@ -207,6 +207,12 @@ function PlanRow({
   const [dragOver, setDragOver] = useState(false)
   const springTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  useEffect(() => {
+    return () => {
+      if (springTimerRef.current) clearTimeout(springTimerRef.current)
+    }
+  }, [])
+
   const indent = { paddingLeft: 12 + depth * 12 }
 
   async function onDelete(e: React.MouseEvent) {

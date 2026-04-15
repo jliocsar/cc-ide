@@ -9,7 +9,6 @@ import {
 import { Plus, Minus, Maximize2 } from 'lucide-react'
 import { useCanvas } from '@/state/canvas'
 import { useWorkspaces } from '@/state/workspaces'
-import { useSpawnSession } from '@/hooks/use-spawn-session'
 import { useSpawnModal } from '@/state/spawn-modal'
 import { setCanvasHost } from '@/lib/canvas-host'
 import { XtermWindow } from './xterm-window'
@@ -23,8 +22,8 @@ export function Canvas(): JSX.Element {
   const resetCamera = useCanvas((s) => s.resetCamera)
 
   const activeWorkspaceId = useWorkspaces((s) => s.activeId)
-  const { spawning, error } = useSpawnSession()
   const openSpawnModal = useSpawnModal((s) => s.open)
+  const modalOpen = useSpawnModal((s) => s.isOpen)
 
   const [menu, setMenu] = useState<{ x: number; y: number; vp: { x: number; y: number } } | null>(null)
 
@@ -164,10 +163,9 @@ export function Canvas(): JSX.Element {
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="pointer-events-auto flex flex-col items-center gap-3">
             <div className="font-mono text-xs text-muted-foreground">empty canvas</div>
-            <Button size="sm" onClick={spawnFromToolbar} disabled={spawning || !canSpawn}>
-              {spawning ? 'spawning…' : 'Spawn Claude'}
+            <Button size="sm" onClick={spawnFromToolbar} disabled={modalOpen || !canSpawn}>
+              Spawn Claude
             </Button>
-            {error ? <div className="font-mono text-[11px] text-destructive">{error}</div> : null}
             {!canSpawn ? (
               <div className="font-mono text-[11px] text-muted-foreground">pick a workspace from the sidebar</div>
             ) : null}
@@ -213,18 +211,13 @@ export function Canvas(): JSX.Element {
           size="icon-xs"
           variant="ghost"
           onClick={spawnFromToolbar}
-          disabled={spawning || !canSpawn}
+          disabled={modalOpen || !canSpawn}
           aria-label="Spawn Claude"
         >
           <Plus />
         </Button>
       </div>
 
-      {error && hasWindows ? (
-        <div className="absolute left-3 bottom-3 rounded border border-destructive/30 bg-destructive/10 px-2 py-1 font-mono text-[11px] text-destructive">
-          {error}
-        </div>
-      ) : null}
 
       <DropdownMenu open={menu !== null} onOpenChange={(v) => { if (!v) setMenu(null) }}>
         <DropdownMenuTrigger asChild>
@@ -242,7 +235,7 @@ export function Canvas(): JSX.Element {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" sideOffset={0}>
           <DropdownMenuItem
-            disabled={!canSpawn || spawning}
+            disabled={!canSpawn || modalOpen}
             onClick={() => {
               if (!menu) return
               openSpawnModal(menu.vp)
