@@ -23,6 +23,7 @@ import { useSpawnModal, getLastUsedWorktree, setLastUsedWorktree } from '@/state
 import { useSpawnSession } from '@/hooks/use-spawn-session'
 import { useWorkspaces } from '@/state/workspaces'
 import type { SpawnWorktreeOption } from '@/state/sessions'
+import { validateTmuxWindowName } from '@shared/tmux-name'
 
 type ExistingWorktree = { path: string; branch: string | null; isPrimary: boolean }
 
@@ -57,7 +58,12 @@ export function SpawnModal(): JSX.Element {
   const [choice, setChoice] = useState<Choice>({ kind: 'primary' })
   const [newBranch, setNewBranch] = useState('')
   const [baseBranch, setBaseBranch] = useState<string | null>(null)
+  const [customName, setCustomName] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  const trimmedCustomName = customName.trim()
+  const nameValidation = trimmedCustomName === '' ? null : validateTmuxWindowName(trimmedCustomName)
+  const nameInvalid = nameValidation !== null && !nameValidation.ok
 
   // Load worktrees + branches every open.
   useEffect(() => {
@@ -80,6 +86,7 @@ export function SpawnModal(): JSX.Element {
         setChoice(exists ? initial : { kind: 'primary' })
         setNewBranch('')
         setBaseBranch(g.current ?? g.branches[0] ?? null)
+        setCustomName('')
         setError(null)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err))
@@ -116,9 +123,17 @@ export function SpawnModal(): JSX.Element {
       }
       option = { kind: 'new', branch, base: baseBranch }
     }
+    if (nameInvalid) {
+      setError((nameValidation as { ok: false; reason: string }).reason)
+      return
+    }
     setError(null)
     try {
-      await spawn(viewportPos ?? undefined, option)
+      await spawn(
+        viewportPos ?? undefined,
+        option,
+        trimmedCustomName === '' ? undefined : trimmedCustomName,
+      )
       setLastUsedWorktree(workspaceId, option)
       close()
     } catch (err) {
@@ -189,12 +204,29 @@ export function SpawnModal(): JSX.Element {
             </div>
           ) : null}
         </div>
+        <label className="flex flex-col gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+          Session name (optional)
+          <Input
+            value={customName}
+            onChange={(e) => setCustomName(e.target.value)}
+            placeholder="claude-oreo (auto)"
+            className={cn(
+              'font-mono',
+              nameInvalid && 'border-destructive focus-visible:ring-destructive',
+            )}
+          />
+          {nameInvalid ? (
+            <span className="font-mono text-[10px] text-destructive">
+              {(nameValidation as { ok: false; reason: string }).reason}
+            </span>
+          ) : null}
+        </label>
         {error ? <div className="font-mono text-[11px] text-destructive">{error}</div> : null}
         <DialogFooter>
           <Button variant="ghost" onClick={close}>
             Cancel
           </Button>
-          <Button onClick={onSpawn} disabled={spawning}>
+          <Button onClick={onSpawn} disabled={spawning || nameInvalid}>
             {spawning ? 'Spawning…' : 'Spawn'}
           </Button>
         </DialogFooter>

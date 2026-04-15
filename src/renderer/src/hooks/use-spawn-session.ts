@@ -8,7 +8,11 @@ const DEFAULT_WIN_W = 720
 const DEFAULT_WIN_H = 440
 
 export function useSpawnSession(): {
-  spawn: (viewportPos?: { x: number; y: number }, worktree?: SpawnWorktreeOption) => Promise<void>
+  spawn: (
+    viewportPos?: { x: number; y: number },
+    worktree?: SpawnWorktreeOption,
+    customName?: string,
+  ) => Promise<void>
   spawning: boolean
   error: string | null
 } {
@@ -19,7 +23,11 @@ export function useSpawnSession(): {
   const [error, setError] = useState<string | null>(null)
 
   const spawn = useCallback(
-    async (viewportPos?: { x: number; y: number }, worktree?: SpawnWorktreeOption) => {
+    async (
+      viewportPos?: { x: number; y: number },
+      worktree?: SpawnWorktreeOption,
+      customName?: string,
+    ) => {
       if (!activeWorkspaceId) {
         setError('Add a workspace first.')
         return
@@ -28,7 +36,13 @@ export function useSpawnSession(): {
       setError(null)
       try {
         const vp = viewportPos ?? getCanvasViewportCenter()
-        const { ptyId, tmuxWindow } = await spawnSession(activeWorkspaceId, 120, 30, worktree)
+        const { ptyId, tmuxWindow } = await spawnSession(
+          activeWorkspaceId,
+          120,
+          30,
+          worktree,
+          customName,
+        )
         const { camera } = useCanvas.getState()
         const world = worldFromViewport(vp.x, vp.y, camera)
         addWindow({

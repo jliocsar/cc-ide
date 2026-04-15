@@ -24,6 +24,7 @@ type State = {
     cols: number,
     rows: number,
     worktree?: SpawnWorktreeOption,
+    customName?: string,
   ) => Promise<{ ptyId: string; tmuxWindow: string }>
   resume: (workspaceId: string, sessionId: string, cols: number, rows: number) => Promise<{ ptyId: string; tmuxWindow: string }>
   registerExisting: (record: Omit<SessionRecord, 'createdAt' | 'exited' | 'exitCode'>) => void
@@ -35,12 +36,13 @@ type State = {
 export const useSessions = create<State>((set) => ({
   sessions: [],
   activePtyId: null,
-  async spawn(workspaceId, cols, rows, worktree) {
+  async spawn(workspaceId, cols, rows, worktree, customName) {
     const { ptyId, tmuxWindow } = await invoke('session:spawnClaude', {
       workspaceId,
       cols,
       rows,
       worktree,
+      customName,
     })
     set((s) => ({
       sessions: [
