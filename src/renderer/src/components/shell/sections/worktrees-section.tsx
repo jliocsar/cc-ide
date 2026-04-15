@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { GitBranch, Plus, RefreshCw, Trash2, AlertTriangle } from 'lucide-react'
+import { GitBranch, Trash2, AlertTriangle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useSidebarData } from '@/state/sidebar-data'
+import { useWorkspaces } from '@/state/workspaces'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import type { WorktreeDTO } from '@shared/ipc'
@@ -29,61 +30,32 @@ const GUARD_LABEL: Record<string, string> = {
 
 export function WorktreesSection({ workspaceId }: { workspaceId: string }): JSX.Element {
   const worktrees = useSidebarData((s) => s.worktrees)
-  const status = useSidebarData((s) => s.worktreesStatus)
   const error = useSidebarData((s) => s.worktreesError)
   const refresh = useSidebarData((s) => s.refreshWorktrees)
-  const [createOpen, setCreateOpen] = useState(false)
 
   useEffect(() => {
     void refresh(workspaceId)
   }, [workspaceId, refresh])
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between px-1">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          {status === 'loading' ? 'loading…' : `${worktrees.length}`}
-        </span>
-        <div className="flex items-center gap-1">
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={() => void refresh(workspaceId)}
-            aria-label="Refresh worktrees"
-          >
-            <RefreshCw className={cn(status === 'loading' && 'animate-spin')} />
-          </Button>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={() => setCreateOpen(true)}
-            aria-label="New worktree"
-          >
-            <Plus />
-          </Button>
-        </div>
-      </div>
-      {error ? <div className="px-2 py-1 font-mono text-[11px] text-destructive">{error}</div> : null}
-
-      <div className="flex flex-col gap-px">
+    <div className="flex min-w-0 flex-col">
+      {error ? <div className="px-3 py-1 font-mono text-[11px] text-destructive">{error}</div> : null}
+      <div className="flex flex-col">
         {worktrees.map((w) => (
           <WorktreeRow key={w.path} workspaceId={workspaceId} worktree={w} />
         ))}
       </div>
-
-      <CreateWorktreeDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        workspaceId={workspaceId}
-      />
     </div>
   )
 }
 
 function WorktreeRow({ workspaceId, worktree }: { workspaceId: string; worktree: WorktreeDTO }): JSX.Element {
   const refresh = useSidebarData((s) => s.refreshWorktrees)
+  const workspacePath = useWorkspaces((s) => s.workspaces.find((w) => w.id === workspaceId)?.path ?? '')
   const [guard, setGuard] = useState<{ ok: boolean; reasons: string[] } | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  const displayPath = relativeToWorkspace(worktree.path, workspacePath)
 
   async function probe() {
     const { guard } = await invoke('worktrees:canDelete', { worktree })
@@ -117,11 +89,11 @@ function WorktreeRow({ workspaceId, worktree }: { workspaceId: string; worktree:
       : 'Checking…'
 
   return (
-    <div className="group flex items-center gap-2 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent/50">
+    <div className="group flex min-w-0 items-center gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50">
       <GitBranch className="size-3 shrink-0" />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-hidden">
         <div className="truncate font-mono text-foreground">{worktree.branch ?? '(detached)'}</div>
-        <div className="truncate text-[10px]">{worktree.path}</div>
+        <div className="truncate text-[10px]" title={worktree.path}>{displayPath}</div>
       </div>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -130,7 +102,7 @@ function WorktreeRow({ workspaceId, worktree }: { workspaceId: string; worktree:
             variant="ghost"
             disabled={!guard?.ok || deleting}
             onClick={onDelete}
-            className={cn(!guard?.ok && 'opacity-40')}
+            className={cn('shrink-0', !guard?.ok && 'opacity-40')}
             aria-label="Delete worktree"
           >
             {guard?.ok ? <Trash2 /> : <AlertTriangle />}
@@ -142,7 +114,15 @@ function WorktreeRow({ workspaceId, worktree }: { workspaceId: string; worktree:
   )
 }
 
-function CreateWorktreeDialog({
+function relativeToWorkspace(abs: string, workspacePath: string): string {
+  if (!workspacePath) return abs
+  const normalized = workspacePath.endsWith('/') ? workspacePath.slice(0, -1) : workspacePath
+  if (abs === normalized) return '.'
+  if (abs.startsWith(normalized + '/')) return abs.slice(normalized.length + 1)
+  return abs
+}
+
+export function CreateWorktreeDialog({
   open,
   onOpenChange,
   workspaceId,

@@ -10,6 +10,13 @@ import * as worktreeManager from './modules/worktree-manager'
 import * as diffProvider from './modules/diff-provider'
 import * as promptsStore from './modules/prompts-store'
 import * as planFsTree from './modules/plan-fs-tree'
+import * as tabsStore from './modules/tabs-store'
+import { generateClaudeWindowName } from './modules/cat-name-gen'
+import {
+  ensurePlansWatcher,
+  ensureSessionWatcher,
+  ensureWorktreeWatcher,
+} from './modules/watchers'
 
 type Handler<C extends IpcChannel> = (payload: IpcRequest<C>) => Promise<IpcResponse<C>> | IpcResponse<C>
 
@@ -82,7 +89,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     if (!hasTmux) throw new Error('tmux is not installed or not in PATH')
     const primarySession = tmux.sessionNameForWorkspace(ws.id)
     await tmux.ensureSession(primarySession, ws.path)
-    const windowName = `claude-${Date.now().toString(36)}`
+    const windowName = await generateClaudeWindowName(primarySession)
     const tmuxWindow = await tmux.spawnWindow({
       sessionName: primarySession,
       windowName,
@@ -135,12 +142,14 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
   'sessions:list': async ({ workspaceId }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)
     if (!ws) return { sessions: [] }
+    void ensureSessionWatcher(ws.id, ws.path)
     const sessions = await sessionDiscovery.listSessions(ws.path)
     return { sessions }
   },
   'worktrees:list': async ({ workspaceId }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)
     if (!ws) return { worktrees: [] }
+    void ensureWorktreeWatcher(ws.id, ws.path)
     const worktrees = await worktreeManager.listWorktrees(ws.path)
     return { worktrees }
   },
@@ -190,6 +199,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     return { ok: true }
   },
   'plans:tree': async ({ workspaceId }) => {
+    void ensurePlansWatcher(workspaceId)
     const tree = await planFsTree.listTree(workspaceId)
     return { tree }
   },
@@ -215,6 +225,14 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
   },
   'plans:delete': async ({ workspaceId, relPath }) => {
     await planFsTree.deletePath(workspaceId, relPath)
+    return { ok: true }
+  },
+  'tabs:load': async ({ workspaceId }) => {
+    const state = await tabsStore.loadTabs(workspaceId)
+    return { state }
+  },
+  'tabs:save': async ({ workspaceId, state }) => {
+    await tabsStore.saveTabs(workspaceId, state)
     return { ok: true }
   },
   'session:attachExisting': async ({ workspaceId, tmuxWindow, cols, rows }) => {

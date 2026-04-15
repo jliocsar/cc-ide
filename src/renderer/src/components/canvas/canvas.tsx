@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Plus, Minus, Maximize2 } from 'lucide-react'
-import { useCanvas, worldFromViewport } from '@/state/canvas'
-import { useSessions } from '@/state/sessions'
+import { useCanvas } from '@/state/canvas'
 import { useWorkspaces } from '@/state/workspaces'
+import { useSpawnSession } from '@/hooks/use-spawn-session'
+import { setCanvasHost } from '@/lib/canvas-host'
 import { XtermWindow } from './xterm-window'
-
-const DEFAULT_WIN_W = 720
-const DEFAULT_WIN_H = 440
 
 export function Canvas(): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -16,50 +20,23 @@ export function Canvas(): JSX.Element {
   const pan = useCanvas((s) => s.pan)
   const zoomAt = useCanvas((s) => s.zoomAt)
   const resetCamera = useCanvas((s) => s.resetCamera)
-  const addWindow = useCanvas((s) => s.addWindow)
 
-  const spawnSession = useSessions((s) => s.spawn)
   const activeWorkspaceId = useWorkspaces((s) => s.activeId)
-  const [spawning, setSpawning] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { spawn, spawning, error } = useSpawnSession()
 
-  const spawnAt = useCallback(
-    async (viewportCenter: { x: number; y: number }) => {
-      if (!activeWorkspaceId) {
-        setError('Add a workspace first.')
-        return
-      }
-      setSpawning(true)
-      setError(null)
-      try {
-        const { ptyId, tmuxWindow } = await spawnSession(activeWorkspaceId, 120, 30)
-        const { camera: cam } = useCanvas.getState()
-        const world = worldFromViewport(viewportCenter.x, viewportCenter.y, cam)
-        addWindow({
-          id: crypto.randomUUID(),
-          sessionId: ptyId,
-          tmuxWindow,
-          title: tmuxWindow,
-          x: world.x - DEFAULT_WIN_W / 2,
-          y: world.y - DEFAULT_WIN_H / 2,
-          width: DEFAULT_WIN_W,
-          height: DEFAULT_WIN_H,
-        })
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err))
-      } finally {
-        setSpawning(false)
-      }
-    },
-    [activeWorkspaceId, spawnSession, addWindow],
-  )
+  const [menu, setMenu] = useState<{ x: number; y: number; vp: { x: number; y: number } } | null>(null)
+
+  useEffect(() => {
+    setCanvasHost(hostRef.current)
+    return () => setCanvasHost(null)
+  }, [])
 
   const spawnFromToolbar = useCallback(() => {
     const host = hostRef.current
     if (!host) return
     const rect = host.getBoundingClientRect()
-    void spawnAt({ x: rect.width / 2, y: rect.height / 2 })
-  }, [spawnAt])
+    void spawn({ x: rect.width / 2, y: rect.height / 2 })
+  }, [spawn])
 
   useEffect(() => {
     const host = hostRef.current
@@ -134,6 +111,22 @@ export function Canvas(): JSX.Element {
     [pan],
   )
 
+  const onContextMenu = useCallback(
+    (ev: React.MouseEvent<HTMLDivElement>) => {
+      const host = hostRef.current
+      if (!host) return
+      if (ev.target !== host) return
+      ev.preventDefault()
+      const rect = host.getBoundingClientRect()
+      setMenu({
+        x: ev.clientX,
+        y: ev.clientY,
+        vp: { x: ev.clientX - rect.left, y: ev.clientY - rect.top },
+      })
+    },
+    [],
+  )
+
   const hasWindows = windows.length > 0
   const canSpawn = Boolean(activeWorkspaceId)
 
@@ -141,6 +134,7 @@ export function Canvas(): JSX.Element {
     <div
       ref={hostRef}
       onPointerDown={onViewportPointerDown}
+      onContextMenu={onContextMenu}
       className="relative overflow-hidden bg-background"
       style={{ touchAction: 'none' }}
     >
@@ -229,6 +223,35 @@ export function Canvas(): JSX.Element {
           {error}
         </div>
       ) : null}
+
+      <DropdownMenu open={menu !== null} onOpenChange={(v) => { if (!v) setMenu(null) }}>
+        <DropdownMenuTrigger asChild>
+          <span
+            aria-hidden
+            style={{
+              position: 'fixed',
+              left: menu?.x ?? 0,
+              top: menu?.y ?? 0,
+              width: 0,
+              height: 0,
+              pointerEvents: 'none',
+            }}
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" sideOffset={0}>
+          <DropdownMenuItem
+            disabled={!canSpawn || spawning}
+            onClick={() => {
+              if (!menu) return
+              void spawn(menu.vp)
+              setMenu(null)
+            }}
+          >
+            <Plus />
+            New session
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

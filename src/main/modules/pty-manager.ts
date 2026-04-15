@@ -1,16 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import * as pty from 'node-pty'
-import { BrowserWindow } from 'electron'
-import type { IpcEventChannel, IpcEvent } from '@shared/ipc'
+import { broadcast } from './event-bus'
 
 type Entry = { id: string; proc: pty.IPty; onExit?: (code: number | null) => void | Promise<void> }
 const ptys = new Map<string, Entry>()
-
-function broadcast<C extends IpcEventChannel>(channel: C, payload: IpcEvent<C>): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) win.webContents.send(channel, payload)
-  }
-}
 
 export function openPty(options: {
   command: string

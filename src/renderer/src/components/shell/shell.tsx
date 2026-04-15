@@ -7,15 +7,18 @@ import { Statusbar } from './statusbar'
 import { CommandPalette } from '@/components/palette/command-palette'
 import { PromptsModal } from '@/components/palette/prompts-modal'
 import { useCanvasPersistence } from '@/hooks/use-canvas-persistence'
+import { useTabsPersistence } from '@/hooks/use-tabs-persistence'
 import { useTabs } from '@/state/tabs'
 import { usePalette } from '@/state/palette'
 import { useUi } from '@/state/ui'
 import { useSessions } from '@/state/sessions'
+import { useCanvas } from '@/state/canvas'
 import { onEvent } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 
 export function Shell(): JSX.Element {
   useCanvasPersistence()
+  useTabsPersistence()
 
   const closeTab = useTabs((s) => s.closeTab)
   const activeId = useTabs((s) => s.activeId)
@@ -24,9 +27,12 @@ export function Shell(): JSX.Element {
   const toggleSidebar = useUi((s) => s.toggleSidebar)
 
   useEffect(() => {
-    const markExited = useSessions.getState().markExited
     return onEvent('pty:exit', (p) => {
-      markExited(p.ptyId, p.exitCode)
+      useSessions.getState().markExited(p.ptyId, p.exitCode)
+      const { windows, removeWindow } = useCanvas.getState()
+      for (const w of windows) {
+        if (w.sessionId === p.ptyId) removeWindow(w.id)
+      }
     })
   }, [])
 
@@ -60,9 +66,11 @@ export function Shell(): JSX.Element {
         <div className="overflow-hidden">
           <Sidebar />
         </div>
-        <div className="grid min-w-0 grid-rows-[40px_1fr_24px]">
+        <div className="grid min-w-0 grid-rows-[40px_minmax(0,1fr)_24px]">
           <HeaderTabs />
-          <TabRouter />
+          <div className="grid min-h-0 overflow-hidden [&>*]:h-full">
+            <TabRouter />
+          </div>
           <Statusbar />
         </div>
       </div>

@@ -27,6 +27,7 @@ export function WindowFrame({ id, title, x, y, width, height, zIndex, onClose, c
   const onTitlebarPointerDown = useCallback(
     (ev: React.PointerEvent<HTMLDivElement>) => {
       if (ev.button !== 0) return
+      if (ev.target instanceof Element && ev.target.closest('button')) return
       ev.stopPropagation()
       focusWindow(id)
       const startX = ev.clientX

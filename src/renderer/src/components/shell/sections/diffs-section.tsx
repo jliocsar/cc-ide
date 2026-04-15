@@ -36,29 +36,28 @@ function DiffsForWorktree({ worktree }: { worktree: WorktreeDTO }): JSX.Element 
   }, [worktree.path, refresh])
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-          <span className="truncate font-mono lowercase">{worktree.branch ?? '(detached)'}</span>
-          <span>·</span>
-          <span>{files.length} file{files.length === 1 ? '' : 's'}</span>
-        </div>
+    <div className="flex min-w-0 flex-col">
+      <div className="flex items-center gap-2 px-3 py-1">
+        <span className="min-w-0 truncate rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] lowercase text-foreground">
+          {worktree.branch ?? '(detached)'}
+        </span>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          {files.length} file{files.length === 1 ? '' : 's'}
+        </span>
         <Button
           size="icon-xs"
           variant="ghost"
+          className="ml-auto"
           onClick={() => void refresh(worktree.path)}
           aria-label="Refresh diffs"
         >
           <RefreshCw className={cn(status === 'loading' && 'animate-spin')} />
         </Button>
       </div>
-      <div className="flex flex-col gap-px">
+      <div className="flex flex-col">
         {files.map((f) => (
           <ChangedFileRow key={`${f.stage}:${f.path}`} file={f} worktreePath={worktree.path} />
         ))}
-        {status === 'ready' && files.length === 0 ? (
-          <div className="px-2 py-1 font-mono text-[11px] text-muted-foreground">clean</div>
-        ) : null}
       </div>
     </div>
   )
@@ -87,7 +86,7 @@ function ChangedFileRow({ file, worktreePath }: { file: ChangedFileDTO; worktree
         if (!activeWorkspaceId) return
         openDiff(activeWorkspaceId, worktreePath, file.path, file.stage)
       }}
-      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+      className="flex min-w-0 cursor-pointer items-center gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
     >
       <GitCompare className="size-3 shrink-0" />
       <div className="min-w-0 flex-1 truncate font-mono">{file.path}</div>

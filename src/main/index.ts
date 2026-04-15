@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { join } from 'node:path'
 import { registerIpcHandlers } from './ipc'
+import { disposeAllWatchers } from './modules/watchers'
 
 if (is.dev) {
   app.commandLine.appendSwitch('remote-debugging-port', '9223')
@@ -25,7 +26,9 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
-    if (is.dev) mainWindow.webContents.openDevTools({ mode: 'detach' })
+    if (is.dev && process.env['CC_IDE_DEVTOOLS'] === '1') {
+      mainWindow.webContents.openDevTools({ mode: 'detach' })
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -53,6 +56,10 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('before-quit', () => {
+  disposeAllWatchers()
 })
 
 app.on('window-all-closed', () => {
