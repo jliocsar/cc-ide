@@ -46,7 +46,11 @@ export function WindowFrame({
     (ev: React.PointerEvent<HTMLDivElement>) => {
       if (ev.button !== 0) return
       if (editing) return
-      if (ev.target instanceof Element && ev.target.closest('button, input')) return
+      if (
+        ev.target instanceof Element &&
+        ev.target.closest('button, input, [data-rename-target]')
+      )
+        return
       ev.stopPropagation()
       focusWindow(id)
       const startX = ev.clientX
@@ -108,6 +112,7 @@ export function WindowFrame({
   const shortName = tmuxWindow
     ? tmuxWindow.split(':').slice(1).join(':') || tmuxWindow
     : null
+  const displayTitle = shortName ?? (title.includes(':') ? title.split(':').slice(1).join(':') || title : title)
 
   return (
     <div
@@ -147,6 +152,7 @@ export function WindowFrame({
           />
         ) : (
           <span
+            data-rename-target={tmuxWindow ? '' : undefined}
             className={cn('truncate', tmuxWindow && 'cursor-text')}
             onDoubleClick={(e) => {
               if (!tmuxWindow) return
@@ -154,7 +160,7 @@ export function WindowFrame({
               setEditing(true)
             }}
           >
-            {title}
+            {displayTitle}
           </span>
         )}
         {badge}

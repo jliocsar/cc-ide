@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,12 +13,14 @@ import { WindowFrame } from './window-frame'
 import { XtermView } from '@/components/terminal/xterm-view'
 import { useCanvas, type CanvasWindow } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
+import { clientToCanvasViewport } from '@/lib/canvas-host'
 import { useReviewComments, planTabId, diffTabId } from '@/state/review-comments'
 import { invoke } from '@/lib/ipc'
 import { readDropPayload, buildDropString, type DropPayload } from '@/lib/drop-payload'
 
 export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
   const removeWindow = useCanvas((s) => s.removeWindow)
+  const zoomAt = useCanvas((s) => s.zoomAt)
   const session = useSessions((s) =>
     w.sessionId ? s.sessions.find((x) => x.ptyId === w.sessionId) : undefined,
   )
@@ -27,6 +29,24 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const shortName = w.tmuxWindow.split(':').slice(1).join(':') || w.tmuxWindow
+  const terminalHostRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const host = terminalHostRef.current
+    if (!host) return
+    const onWheel = (ev: WheelEvent) => {
+      if (!(ev.ctrlKey || ev.metaKey)) return
+      ev.preventDefault()
+      ev.stopPropagation()
+      const vp = clientToCanvasViewport(ev.clientX, ev.clientY)
+      if (!vp) return
+      const factor = Math.exp(-ev.deltaY * 0.0015)
+      zoomAt(factor, vp.x, vp.y)
+    }
+    host.addEventListener('wheel', onWheel, { capture: true, passive: false })
+    return () => host.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions)
+  }, [zoomAt])
 
   async function handleDrop(payload: DropPayload) {
     if (!session || session.exited) return
@@ -101,6 +121,7 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
           </div>
         ) : (
           <div
+            ref={terminalHostRef}
             className="relative h-full"
             onDragOver={(e) => {
               if (!session || session.exited) return
@@ -132,7 +153,7 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Close {w.tmuxWindow}?</AlertDialogTitle>
+            <AlertDialogTitle>Close {shortName}?</AlertDialogTitle>
             <AlertDialogDescription>
               <strong>Detach</strong> closes this view; the Claude session keeps running in tmux and can be reattached.
               <br />
