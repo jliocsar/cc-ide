@@ -128,8 +128,35 @@ export const ipcContract = {
     response: z.object({ ptyId: z.string(), tmuxWindow: z.string() }),
   },
   'session:spawnClaude': {
-    request: z.object({ workspaceId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
+    request: z.object({
+      workspaceId: z.string(),
+      cols: z.number().int().positive(),
+      rows: z.number().int().positive(),
+      worktree: z
+        .union([
+          z.object({ kind: z.literal('primary') }),
+          z.object({ kind: z.literal('existing'), path: z.string() }),
+          z.object({ kind: z.literal('new'), branch: z.string(), base: z.string() }),
+        ])
+        .optional(),
+    }),
     response: z.object({ ptyId: z.string(), tmuxWindow: z.string() }),
+  },
+  'git:listBranches': {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({ branches: z.array(z.string()), current: z.string().nullable() }),
+  },
+  'worktrees:listNonEphemeral': {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({
+      worktrees: z.array(
+        z.object({
+          path: z.string(),
+          branch: z.string().nullable(),
+          isPrimary: z.boolean(),
+        }),
+      ),
+    }),
   },
   'pty:write': {
     request: z.object({ ptyId: z.string(), data: z.string() }),
@@ -276,12 +303,20 @@ export const ptyDataEventSchema = z.object({ ptyId: z.string(), data: z.string()
 export const ptyExitEventSchema = z.object({ ptyId: z.string(), exitCode: z.number().nullable() })
 export const workspaceScopedEventSchema = z.object({ workspaceId: z.string() })
 
+export const worktreeCleanedEventSchema = z.object({
+  workspaceId: z.string(),
+  worktreePath: z.string(),
+  branch: z.string(),
+  action: z.enum(['deleted', 'promoted']),
+})
+
 export const eventChannels = {
   'pty:data': ptyDataEventSchema,
   'pty:exit': ptyExitEventSchema,
   'sessions:changed': workspaceScopedEventSchema,
   'worktrees:changed': workspaceScopedEventSchema,
   'plans:changed': workspaceScopedEventSchema,
+  'worktree:cleaned': worktreeCleanedEventSchema,
 } as const
 
 export type IpcEventChannel = keyof typeof eventChannels

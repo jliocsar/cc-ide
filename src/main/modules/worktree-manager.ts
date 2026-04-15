@@ -167,3 +167,43 @@ export async function deleteWorktree(repoPath: string, worktreePath: string): Pr
   const r = await run(['worktree', 'remove', worktreePath], repoPath)
   if (r.code !== 0) throw new Error(`git worktree remove failed: ${r.stderr.trim()}`)
 }
+
+/**
+ * "Untouched" = clean working tree AND HEAD === base (no commits ahead).
+ * Used by the ephemeral-worktree cleanup path: if either is false, the worktree
+ * is kept (the user did something worth preserving).
+ */
+export async function isWorktreeUntouched(
+  worktreePath: string,
+  base: string,
+): Promise<boolean> {
+  const status = await run(['status', '--porcelain'], worktreePath)
+  if (status.code !== 0) return false
+  if (status.stdout.trim().length > 0) return false
+  const ahead = await run(['rev-list', '--count', `${base}..HEAD`], worktreePath)
+  if (ahead.code !== 0) return false
+  const n = parseInt(ahead.stdout.trim(), 10)
+  return !isNaN(n) && n === 0
+}
+
+/** Safe branch delete: `-d` refuses if unmerged. Returns true on success. */
+export async function deleteBranchIfMerged(repoPath: string, branch: string): Promise<boolean> {
+  const r = await run(['branch', '-d', branch], repoPath)
+  return r.code === 0
+}
+
+export async function listLocalBranches(repoPath: string): Promise<string[]> {
+  const r = await run(['for-each-ref', '--format=%(refname:short)', 'refs/heads/'], repoPath)
+  if (r.code !== 0) throw new Error(`git for-each-ref failed: ${r.stderr.trim()}`)
+  return r.stdout
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+}
+
+export async function currentBranch(repoPath: string): Promise<string | null> {
+  const r = await run(['rev-parse', '--abbrev-ref', 'HEAD'], repoPath)
+  if (r.code !== 0) return null
+  const b = r.stdout.trim()
+  return b === 'HEAD' ? null : b
+}

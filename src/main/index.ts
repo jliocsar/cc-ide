@@ -3,6 +3,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { join } from 'node:path'
 import { registerIpcHandlers } from './ipc'
 import { disposeAllWatchers } from './modules/watchers'
+import { disposeAll as disposeSessionWatcher } from './modules/session-watcher'
 
 if (is.dev) {
   app.commandLine.appendSwitch('remote-debugging-port', '9223')
@@ -60,6 +61,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   disposeAllWatchers()
+  disposeSessionWatcher()
 })
 
 app.on('window-all-closed', () => {

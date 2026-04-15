@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
+import { toast } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Sidebar } from './sidebar'
 import { HeaderTabs } from './header-tabs'
 import { TabRouter } from './tab-router'
 import { Statusbar } from './statusbar'
+import { SpawnModal } from './spawn-modal'
 import { CommandPalette } from '@/components/palette/command-palette'
 import { PromptsModal } from '@/components/palette/prompts-modal'
 import { useCanvasPersistence } from '@/hooks/use-canvas-persistence'
@@ -32,6 +34,21 @@ export function Shell(): JSX.Element {
       const { windows, removeWindow } = useCanvas.getState()
       for (const w of windows) {
         if (w.sessionId === p.ptyId) removeWindow(w.id)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    return onEvent('worktree:cleaned', (p) => {
+      const name = p.worktreePath.split('/').slice(-2).join('/')
+      if (p.action === 'deleted') {
+        toast.success(`Cleaned up unused worktree ${name}`, {
+          description: `Branch ${p.branch} was empty; removed.`,
+        })
+      } else {
+        toast.info(`Kept worktree ${name}`, {
+          description: `Branch ${p.branch} had work; promoted.`,
+        })
       }
     })
   }, [])
@@ -76,6 +93,7 @@ export function Shell(): JSX.Element {
       </div>
       <CommandPalette />
       <PromptsModal />
+      <SpawnModal />
     </TooltipProvider>
   )
 }

@@ -1,5 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { randomUUID } from 'node:crypto'
+import { join, resolve } from 'node:path'
+import { promises as fs } from 'node:fs'
 import { channels, ipcContract, type IpcChannel, type IpcRequest, type IpcResponse } from '@shared/ipc'
 import * as workspaceRegistry from './modules/workspace-registry'
 import * as tmux from './modules/tmux-adapter'
@@ -11,12 +13,59 @@ import * as diffProvider from './modules/diff-provider'
 import * as promptsStore from './modules/prompts-store'
 import * as planFsTree from './modules/plan-fs-tree'
 import * as tabsStore from './modules/tabs-store'
+import * as ephemeralWorktrees from './modules/ephemeral-worktrees'
+import * as sessionWatcher from './modules/session-watcher'
 import { generateClaudeWindowName } from './modules/cat-name-gen'
+import { broadcast } from './modules/event-bus'
 import {
   ensurePlansWatcher,
   ensureSessionWatcher,
   ensureWorktreeWatcher,
 } from './modules/watchers'
+
+function slugifyBranch(branch: string): string {
+  return branch
+    .toLowerCase()
+    .replace(/[^a-z0-9/_-]+/g, '-')
+    .replace(/\//g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+async function uniqueWorktreePath(repoPath: string, slug: string): Promise<string> {
+  const base = join(repoPath, '.claude', 'worktrees')
+  let candidate = join(base, slug)
+  let n = 2
+  while (true) {
+    const exists = await fs.stat(candidate).catch(() => null)
+    if (!exists) return candidate
+    candidate = join(base, `${slug}-${n}`)
+    n++
+  }
+}
+
+sessionWatcher.setExitHandler(async (t) => {
+  const entry = await ephemeralWorktrees.findByPath(t.workspaceId, t.worktreePath)
+  if (!entry) return
+  let action: 'deleted' | 'promoted' = 'promoted'
+  try {
+    const untouched = await worktreeManager.isWorktreeUntouched(t.worktreePath, t.base)
+    if (untouched) {
+      await worktreeManager.deleteWorktree(t.repoPath, t.worktreePath)
+      await worktreeManager.deleteBranchIfMerged(t.repoPath, t.branch)
+      action = 'deleted'
+    }
+  } catch (err) {
+    console.error('ephemeral cleanup failed', err)
+  }
+  await ephemeralWorktrees.remove(t.workspaceId, t.worktreePath)
+  broadcast('worktree:cleaned', {
+    workspaceId: t.workspaceId,
+    worktreePath: t.worktreePath,
+    branch: t.branch,
+    action,
+  })
+})
 
 type Handler<C extends IpcChannel> = (payload: IpcRequest<C>) => Promise<IpcResponse<C>> | IpcResponse<C>
 
@@ -82,18 +131,41 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     })
     return { ptyId, tmuxWindow }
   },
-  'session:spawnClaude': async ({ workspaceId, cols, rows }) => {
+  'session:spawnClaude': async ({ workspaceId, cols, rows, worktree }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)
     if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
     const hasTmux = await tmux.tmuxAvailable()
     if (!hasTmux) throw new Error('tmux is not installed or not in PATH')
     const primarySession = tmux.sessionNameForWorkspace(ws.id)
     await tmux.ensureSession(primarySession, ws.path)
+
+    let cwd = ws.path
+    let ephemeral: {
+      worktreePath: string
+      branch: string
+      base: string
+    } | null = null
+
+    if (worktree?.kind === 'existing') {
+      cwd = resolve(worktree.path)
+    } else if (worktree?.kind === 'new') {
+      const slug = slugifyBranch(worktree.branch) || 'wt'
+      const worktreePath = await uniqueWorktreePath(ws.path, slug)
+      await worktreeManager.createWorktree({
+        repoPath: ws.path,
+        worktreePath,
+        branch: worktree.branch,
+        baseBranch: worktree.base,
+      })
+      cwd = worktreePath
+      ephemeral = { worktreePath, branch: worktree.branch, base: worktree.base }
+    }
+
     const windowName = await generateClaudeWindowName(primarySession)
     const tmuxWindow = await tmux.spawnWindow({
       sessionName: primarySession,
       windowName,
-      cwd: ws.path,
+      cwd,
       command: 'claude',
     })
     const viewerName = `${primarySession}-v-${randomUUID().slice(0, 8)}`
@@ -102,10 +174,31 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       viewerName,
       windowTarget: tmuxWindow,
     })
+
+    if (ephemeral) {
+      await ephemeralWorktrees.add({
+        workspaceId,
+        worktreePath: ephemeral.worktreePath,
+        branch: ephemeral.branch,
+        base: ephemeral.base,
+        windowName,
+        createdAt: Date.now(),
+      })
+      sessionWatcher.track({
+        workspaceId,
+        primarySession,
+        windowName,
+        worktreePath: ephemeral.worktreePath,
+        branch: ephemeral.branch,
+        base: ephemeral.base,
+        repoPath: ws.path,
+      })
+    }
+
     const ptyId = ptyManager.openPty({
       command: 'tmux',
       args: ['attach-session', '-t', viewerName],
-      cwd: ws.path,
+      cwd,
       cols,
       rows,
       onExit: async () => {
@@ -113,6 +206,31 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       },
     })
     return { ptyId, tmuxWindow }
+  },
+
+  'git:listBranches': async ({ workspaceId }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const [branches, current] = await Promise.all([
+      worktreeManager.listLocalBranches(ws.path),
+      worktreeManager.currentBranch(ws.path),
+    ])
+    return { branches, current }
+  },
+
+  'worktrees:listNonEphemeral': async ({ workspaceId }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const [all, ephemerals] = await Promise.all([
+      worktreeManager.listWorktrees(ws.path),
+      ephemeralWorktrees.list(workspaceId),
+    ])
+    const ephemeralPaths = new Set(ephemerals.map((e) => e.worktreePath))
+    const filtered = all
+      .filter((w) => !w.isBare && !w.isLocked)
+      .filter((w) => !ephemeralPaths.has(w.path))
+      .map((w) => ({ path: w.path, branch: w.branch, isPrimary: w.isPrimary }))
+    return { worktrees: filtered }
   },
 
   'pty:write': async ({ ptyId, data }) => {
