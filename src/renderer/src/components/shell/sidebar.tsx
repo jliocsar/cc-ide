@@ -53,6 +53,13 @@ export function Sidebar(): JSX.Element {
 
   useEffect(() => {
     if (!activeId) return
+    const { refreshConversations, refreshWorktrees } = useSidebarData.getState()
+    void refreshConversations(activeId)
+    void refreshWorktrees(activeId)
+  }, [activeId])
+
+  useEffect(() => {
+    if (!activeId) return
     const state = useSidebarData.getState()
     const plansState = usePlansTree.getState()
     const unsubs = [

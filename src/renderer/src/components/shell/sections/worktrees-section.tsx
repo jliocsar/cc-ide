@@ -31,11 +31,6 @@ const GUARD_LABEL: Record<string, string> = {
 export function WorktreesSection({ workspaceId }: { workspaceId: string }): JSX.Element {
   const worktrees = useSidebarData((s) => s.worktrees)
   const error = useSidebarData((s) => s.worktreesError)
-  const refresh = useSidebarData((s) => s.refreshWorktrees)
-
-  useEffect(() => {
-    void refresh(workspaceId)
-  }, [workspaceId, refresh])
 
   return (
     <div className="flex min-w-0 flex-col">

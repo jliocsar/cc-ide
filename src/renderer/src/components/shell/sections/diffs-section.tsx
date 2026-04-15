@@ -36,9 +36,9 @@ function DiffsForWorktree({ worktree }: { worktree: WorktreeDTO }): JSX.Element 
   }, [worktree.path, refresh])
 
   return (
-    <div className="flex min-w-0 flex-col">
+    <div className="flex min-w-0 flex-col border-b border-border pb-2 last:border-b-0 last:pb-0">
       <div className="flex items-center gap-2 px-3 py-1">
-        <span className="min-w-0 truncate rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] lowercase text-foreground">
+        <span className="min-w-0 truncate rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] leading-none lowercase text-foreground">
           {worktree.branch ?? '(detached)'}
         </span>
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
