@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { invoke } from '@/lib/ipc'
+import { useCanvas } from '@/state/canvas'
 
 export type SessionRecord = {
   ptyId: string
@@ -28,6 +29,7 @@ type State = {
   registerExisting: (record: Omit<SessionRecord, 'createdAt' | 'exited' | 'exitCode'>) => void
   markExited: (ptyId: string, exitCode: number | null) => void
   setActive: (ptyId: string | null) => void
+  rename: (oldTmuxWindow: string, newName: string) => Promise<string>
 }
 
 export const useSessions = create<State>((set) => ({
@@ -77,5 +79,18 @@ export const useSessions = create<State>((set) => ({
   },
   setActive(ptyId) {
     set({ activePtyId: ptyId })
+  },
+  async rename(oldTmuxWindow, newName) {
+    const { tmuxWindow: newTmuxWindow } = await invoke('session:renameTmuxWindow', {
+      tmuxWindow: oldTmuxWindow,
+      newName,
+    })
+    set((s) => ({
+      sessions: s.sessions.map((sess) =>
+        sess.tmuxWindow === oldTmuxWindow ? { ...sess, tmuxWindow: newTmuxWindow } : sess,
+      ),
+    }))
+    useCanvas.getState().renameByTmuxWindow(oldTmuxWindow, newTmuxWindow)
+    return newTmuxWindow
   },
 }))
