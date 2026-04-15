@@ -6,3 +6,8 @@ describe('sanityCheck', () => {
     expect(sanityCheck()).toBe('ok')
   })
 })
+// shiki smoke test
+export function __smokeTest(): string {
+  const greeting: string = `hello, ${String("world")}`
+  return greeting
+}

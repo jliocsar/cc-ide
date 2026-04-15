@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Terminal, Play } from 'lucide-react'
+import { MessageSquare, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSidebarData } from '@/state/sidebar-data'
 import { useSessions } from '@/state/sessions'
@@ -57,7 +57,7 @@ export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.E
             title={s.firstUserMessage ?? s.id}
             className="group flex min-w-0 items-start gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
           >
-            <Terminal className="mt-0.5 size-3 shrink-0" />
+            <MessageSquare className="mt-0.5 size-3 shrink-0" />
             <div className="min-w-0 flex-1 overflow-hidden">
               <div className="truncate font-mono">{s.firstUserMessage ?? '(no user messages)'}</div>
               <div className="truncate text-[10px] text-muted-foreground/60">
