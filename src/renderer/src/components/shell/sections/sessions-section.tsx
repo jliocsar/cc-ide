@@ -12,7 +12,6 @@ import { getCanvasViewportCenter } from '@/lib/canvas-host'
 import { invoke } from '@/lib/ipc'
 import { validateTmuxWindowName } from '@shared/tmux-name'
 import { InlineRenameInput } from '@/components/ui/inline-rename-input'
-import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
 type MenuState = { tmuxWindow: string; ptyId: string; x: number; y: number } | null
@@ -173,23 +172,18 @@ function SessionRow({
     >
       <Terminal className="size-3 shrink-0" />
       <span className="min-w-0 truncate font-mono">{shortName}</span>
-      <span
-        className={cn(
-          'shrink-0 rounded-sm border border-green-500/30 bg-green-500/15 px-1 py-px font-mono text-[9px] uppercase tracking-wider text-green-400',
-        )}
-      >
+      <span className="shrink-0 rounded-sm border border-green-500/30 bg-green-500/15 px-1 py-px font-mono text-[9px] uppercase leading-none tracking-wider text-green-400">
         live
       </span>
-      <span className="ml-auto shrink-0">
-        <span
-          role="button"
-          tabIndex={-1}
-          onClick={onKill}
-          aria-label="Kill session"
-          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
-        >
-          <X className="size-3" />
-        </span>
+      <span className="flex-1" />
+      <span
+        role="button"
+        tabIndex={-1}
+        onClick={onKill}
+        aria-label="Kill session"
+        className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+      >
+        <X className="size-3" />
       </span>
     </button>
   )
