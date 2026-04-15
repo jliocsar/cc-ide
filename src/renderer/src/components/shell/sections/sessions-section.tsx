@@ -168,14 +168,20 @@ function SessionRow({
           onStartEdit()
         }
       }}
-      className="group flex min-w-0 items-center gap-2 px-3 py-1 text-left text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground focus-visible:bg-accent/50 focus-visible:text-foreground focus-visible:outline-none"
+      className="group flex min-w-0 items-start gap-2 px-3 py-1 text-left text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground focus-visible:bg-accent/50 focus-visible:text-foreground focus-visible:outline-none"
     >
-      <Terminal className="size-3 shrink-0" />
-      <span className="min-w-0 truncate font-mono">{shortName}</span>
-      <span className="shrink-0 rounded-sm border border-green-500/30 bg-green-500/15 px-1 py-px font-mono text-[9px] uppercase leading-none tracking-wider text-green-400">
-        live
-      </span>
-      <span className="flex-1" />
+      <Terminal className="mt-0.5 size-3 shrink-0" />
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate font-mono">{shortName}</span>
+          <span className="shrink-0 rounded-sm border border-green-500/30 bg-green-500/15 px-1 py-px font-mono text-[9px] uppercase leading-none tracking-wider text-green-400">
+            live
+          </span>
+        </div>
+        <div className="truncate text-[10px] text-muted-foreground/60">
+          {ptyId}
+        </div>
+      </div>
       <span
         role="button"
         tabIndex={-1}
