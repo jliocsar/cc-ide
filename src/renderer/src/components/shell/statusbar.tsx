@@ -15,7 +15,7 @@ export function Statusbar(): JSX.Element {
   const focused = lastPty ? sessions.find((s) => s.ptyId === lastPty) : null
 
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-border bg-card px-3 text-[11px] text-muted-foreground">
+    <div className="flex items-center justify-between gap-3 border-t border-border bg-card px-3 py-1 text-[11px] leading-none text-muted-foreground">
       <div className="flex items-center gap-3">
         <span className="flex items-center gap-1">
           <FolderGit2 className="size-3" />

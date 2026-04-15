@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { MessageSquare, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSidebarData } from '@/state/sidebar-data'
@@ -13,13 +13,8 @@ export function ConversationsSection({ workspaceId }: { workspaceId: string }): 
   const conversations = useSidebarData((s) => s.conversations)
   const status = useSidebarData((s) => s.conversationsStatus)
   const error = useSidebarData((s) => s.conversationsError)
-  const refresh = useSidebarData((s) => s.refreshConversations)
   const resumeSession = useSessions((s) => s.resume)
   const [resuming, setResuming] = useState<string | null>(null)
-
-  useEffect(() => {
-    void refresh(workspaceId)
-  }, [workspaceId, refresh])
 
   async function onResume(sessionId: string) {
     if (resuming) return

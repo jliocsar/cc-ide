@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { PixelGridLoader } from '@/components/ui/pixel-grid-loader'
 import { Sidebar } from './sidebar'
 import { HeaderTabs } from './header-tabs'
 import { TabRouter } from './tab-router'
@@ -15,6 +16,8 @@ import { usePalette } from '@/state/palette'
 import { useUi } from '@/state/ui'
 import { useSessions } from '@/state/sessions'
 import { useCanvas } from '@/state/canvas'
+import { useSidebarData } from '@/state/sidebar-data'
+import { useWorkspaces } from '@/state/workspaces'
 import { onEvent } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +30,12 @@ export function Shell(): JSX.Element {
   const togglePalette = usePalette((s) => s.togglePalette)
   const sidebarVisible = useUi((s) => s.sidebarVisible)
   const toggleSidebar = useUi((s) => s.toggleSidebar)
+  const activeWorkspaceId = useWorkspaces((s) => s.activeId)
+  const conversationsStatus = useSidebarData((s) => s.conversationsStatus)
+  const worktreesStatus = useSidebarData((s) => s.worktreesStatus)
+  const sidebarLoading =
+    !!activeWorkspaceId &&
+    (conversationsStatus === 'loading' || worktreesStatus === 'loading')
 
   useEffect(() => {
     return onEvent('pty:exit', (p) => {
@@ -94,6 +103,14 @@ export function Shell(): JSX.Element {
       <CommandPalette />
       <PromptsModal />
       <SpawnModal />
+      {sidebarLoading ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm lowercase text-muted-foreground/60">cc-ide</span>
+            <PixelGridLoader className="mb-[2px]" />
+          </div>
+        </div>
+      ) : null}
     </TooltipProvider>
   )
 }

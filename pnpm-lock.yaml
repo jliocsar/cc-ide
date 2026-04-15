@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      3px-grid:
+        specifier: github:MetaHeavies/3-pixel-grid
+        version: https://codeload.github.com/MetaHeavies/3-pixel-grid/tar.gz/b86f80e4482b448efe557299a91f350e02bf422a
       '@electron-toolkit/preload':
         specifier: ^3.0.1
         version: 3.0.2(electron@33.4.11)
@@ -101,6 +104,10 @@ importers:
         version: 2.1.9(@types/node@22.19.17)(lightningcss@1.32.0)
 
 packages:
+
+  3px-grid@https://codeload.github.com/MetaHeavies/3-pixel-grid/tar.gz/b86f80e4482b448efe557299a91f350e02bf422a:
+    resolution: {tarball: https://codeload.github.com/MetaHeavies/3-pixel-grid/tar.gz/b86f80e4482b448efe557299a91f350e02bf422a}
+    version: 1.0.0
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -2727,6 +2734,8 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
+
+  3px-grid@https://codeload.github.com/MetaHeavies/3-pixel-grid/tar.gz/b86f80e4482b448efe557299a91f350e02bf422a: {}
 
   '@babel/code-frame@7.29.0':
     dependencies:

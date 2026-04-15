@@ -1,5 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -210,9 +221,27 @@ function PromptEditor({
           onBlur={(e) => void commit('title', e.target.value)}
           placeholder="Title"
         />
-        <Button size="icon-sm" variant="ghost" onClick={() => void onRemove(prompt.id)} aria-label="Delete">
-          <Trash2 />
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="icon-sm" variant="ghost" aria-label="Delete">
+              <Trash2 />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete prompt?</AlertDialogTitle>
+              <AlertDialogDescription>
+                &ldquo;{prompt.title || 'untitled'}&rdquo; will be permanently removed. This can&rsquo;t be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={() => void onRemove(prompt.id)}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
       <Textarea
         value={body}
