@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { GitCompare, RefreshCw } from 'lucide-react'
+import { FileDiff, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSidebarData, EMPTY_FILES } from '@/state/sidebar-data'
 import { useTabs } from '@/state/tabs'
@@ -88,7 +88,7 @@ function ChangedFileRow({ file, worktreePath }: { file: ChangedFileDTO; worktree
       }}
       className="flex min-w-0 cursor-pointer items-center gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
     >
-      <GitCompare className="size-3 shrink-0" />
+      <FileDiff className="size-3 shrink-0" />
       <div className="min-w-0 flex-1 truncate font-mono">{file.path}</div>
       {rangeCount > 0 ? (
         <span className="rounded bg-primary/20 px-1 font-mono text-[10px] text-primary">{rangeCount}</span>

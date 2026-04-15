@@ -13,8 +13,8 @@ import {
   Plus,
   CheckCircle2,
   Circle,
-  Terminal,
-  GitBranch,
+  MessagesSquare,
+  TreePine,
   ListChecks,
   GitCompare,
   Trash2,
@@ -181,8 +181,8 @@ function SessionsAccordion({ workspaceId }: { workspaceId: string }): JSX.Elemen
   return (
     <AccordionItem value="sessions" className="border-b-0">
       <SectionHeader
-        icon={Terminal}
-        label="Sessions"
+        icon={MessagesSquare}
+        label="Conversations"
         count={status === 'loading' ? '…' : sessions.length}
         actions={
           <>
@@ -228,7 +228,7 @@ function WorktreesAccordion({ workspaceId }: { workspaceId: string }): JSX.Eleme
   return (
     <AccordionItem value="worktrees" className="border-b-0">
       <SectionHeader
-        icon={GitBranch}
+        icon={TreePine}
         label="Worktrees"
         count={status === 'loading' ? '…' : worktrees.length}
         actions={
