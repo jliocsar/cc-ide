@@ -182,6 +182,10 @@ export const ipcContract = {
     request: z.object({ tmuxWindow: z.string() }),
     response: z.object({ ok: z.literal(true) }),
   },
+  'session:renameTmuxWindow': {
+    request: z.object({ tmuxWindow: z.string(), newName: z.string() }),
+    response: z.object({ tmuxWindow: z.string() }),
+  },
   'session:attachExisting': {
     request: z.object({
       workspaceId: z.string(),
