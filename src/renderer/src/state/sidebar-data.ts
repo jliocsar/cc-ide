@@ -11,9 +11,9 @@ export const EMPTY_FILES: readonly ChangedFileDTO[] = Object.freeze([])
 type Status = 'idle' | 'loading' | 'ready' | 'error'
 
 type State = {
-  sessions: SessionSummaryDTO[]
-  sessionsStatus: Status
-  sessionsError: string | null
+  conversations: SessionSummaryDTO[]
+  conversationsStatus: Status
+  conversationsError: string | null
 
   worktrees: WorktreeDTO[]
   worktreesStatus: Status
@@ -22,32 +22,32 @@ type State = {
   diffsByWorktree: Record<string, ChangedFileDTO[]>
   diffsStatus: Record<string, Status>
 
-  refreshSessions: (workspaceId: string) => Promise<void>
+  refreshConversations: (workspaceId: string) => Promise<void>
   refreshWorktrees: (workspaceId: string) => Promise<void>
   refreshDiffsFor: (worktreePath: string) => Promise<void>
   clear: () => void
 }
 
 export const useSidebarData = create<State>((set) => ({
-  sessions: [],
-  sessionsStatus: 'idle',
-  sessionsError: null,
+  conversations: [],
+  conversationsStatus: 'idle',
+  conversationsError: null,
   worktrees: [],
   worktreesStatus: 'idle',
   worktreesError: null,
   diffsByWorktree: {},
   diffsStatus: {},
 
-  async refreshSessions(workspaceId) {
-    set({ sessionsStatus: 'loading', sessionsError: null })
+  async refreshConversations(workspaceId) {
+    set({ conversationsStatus: 'loading', conversationsError: null })
     try {
-      const { sessions } = await invoke('sessions:list', { workspaceId })
-      set({ sessions, sessionsStatus: 'ready' })
+      const { conversations } = await invoke('conversations:list', { workspaceId })
+      set({ conversations, conversationsStatus: 'ready' })
     } catch (err) {
       set({
-        sessions: [],
-        sessionsStatus: 'error',
-        sessionsError: err instanceof Error ? err.message : String(err),
+        conversations: [],
+        conversationsStatus: 'error',
+        conversationsError: err instanceof Error ? err.message : String(err),
       })
     }
   },
@@ -83,9 +83,9 @@ export const useSidebarData = create<State>((set) => ({
 
   clear() {
     set({
-      sessions: [],
-      sessionsStatus: 'idle',
-      sessionsError: null,
+      conversations: [],
+      conversationsStatus: 'idle',
+      conversationsError: null,
       worktrees: [],
       worktreesStatus: 'idle',
       worktreesError: null,
