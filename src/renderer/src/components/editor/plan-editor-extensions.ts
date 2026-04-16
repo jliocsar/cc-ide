@@ -1,12 +1,15 @@
 import {
   Compartment,
   EditorState,
+  RangeSet,
   StateEffect,
   StateField,
   type Extension,
 } from '@codemirror/state'
 import {
   EditorView,
+  GutterMarker,
+  gutterLineClass,
   keymap,
   lineNumbers,
   Decoration,
@@ -158,7 +161,6 @@ export const planEditorTheme = EditorView.theme(
       backgroundColor: 'transparent',
       color: 'var(--muted-foreground)',
       border: 'none',
-      paddingRight: '6px',
     },
     '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--foreground)' },
     '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--foreground)' },
@@ -189,16 +191,26 @@ export const planEditorTheme = EditorView.theme(
     '.cm-callout-important, .cm-callout-important-body': { borderLeftColor: 'oklch(0.72 0.19 310)' },
     '.cm-callout-warning, .cm-callout-warning-body': { borderLeftColor: 'oklch(0.78 0.16 80)' },
     '.cm-callout-caution, .cm-callout-caution-body': { borderLeftColor: 'oklch(0.7 0.2 25)' },
-    '.cm-lineNumbers .cm-gutterElement': { padding: '0 8px 0 4px' },
+    '.cm-lineNumbers .cm-gutterElement': {
+      padding: '0 14px 0 4px',
+      borderLeft: '2px solid transparent',
+    },
     '.cm-plan-range': {
       backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 18%, transparent)',
-      borderLeft: '2px solid oklch(0.6 0.2 250)',
     },
     '.cm-plan-range-commented': {
       backgroundColor: 'color-mix(in oklab, var(--primary) 10%, transparent)',
-      borderLeft: '2px solid var(--primary)',
+    },
+    '.cm-lineNumbers .cm-gutterElement.cm-plan-range-gutter': {
+      backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 18%, transparent)',
+      borderLeftColor: 'oklch(0.6 0.2 250)',
+    },
+    '.cm-lineNumbers .cm-gutterElement.cm-plan-range-commented-gutter': {
+      backgroundColor: 'color-mix(in oklab, var(--primary) 10%, transparent)',
+      borderLeftColor: 'var(--primary)',
     },
     '.cm-review-mode': { cursor: 'pointer' },
+    '&:has(.cm-content.cm-review-mode) .cm-gutters': { cursor: 'pointer' },
     // In Review mode: no visible caret, no active-line highlight, no
     // text-selection tint. The editor is a read-only surface for line clicks.
     '.cm-content.cm-review-mode': { caretColor: 'transparent' },
@@ -224,6 +236,22 @@ export type RangeDraftLite = {
 
 export const setRangesEffect = StateEffect.define<RangeDraftLite[]>()
 
+class PlanRangeGutterMarker extends GutterMarker {
+  override elementClass: string
+  constructor(cls: string) {
+    super()
+    this.elementClass = cls
+  }
+  override eq(other: GutterMarker): boolean {
+    return other instanceof PlanRangeGutterMarker && other.elementClass === this.elementClass
+  }
+}
+
+const planRangeGutterMarker = new PlanRangeGutterMarker('cm-plan-range-gutter')
+const planRangeCommentedGutterMarker = new PlanRangeGutterMarker(
+  'cm-plan-range-commented-gutter',
+)
+
 export const rangeDecorationField = StateField.define<RangeDraftLite[]>({
   create: () => [],
   update(value, tr) {
@@ -232,7 +260,7 @@ export const rangeDecorationField = StateField.define<RangeDraftLite[]>({
     }
     return value
   },
-  provide: (f) =>
+  provide: (f) => [
     EditorView.decorations.compute([f], (state) => {
       const ranges = state.field(f)
       const doc = state.doc
@@ -254,6 +282,25 @@ export const rangeDecorationField = StateField.define<RangeDraftLite[]>({
         true,
       )
     }),
+    gutterLineClass.compute([f], (state) => {
+      const ranges = state.field(f)
+      const doc = state.doc
+      const entries: { from: number; marker: GutterMarker }[] = []
+      for (const r of ranges) {
+        for (let i = 0; i < r.len; i++) {
+          const lineNo = r.start + i
+          if (lineNo < 1 || lineNo > doc.lines) continue
+          const line = doc.line(lineNo)
+          entries.push({
+            from: line.from,
+            marker: r.hasComment ? planRangeCommentedGutterMarker : planRangeGutterMarker,
+          })
+        }
+      }
+      entries.sort((a, b) => a.from - b.from)
+      return RangeSet.of(entries.map((e) => e.marker.range(e.from)))
+    }),
+  ],
 })
 
 export type ReviewHandlers = {
@@ -262,52 +309,70 @@ export type ReviewHandlers = {
   onToggle: (lineNo: number) => boolean
 }
 
-export function reviewPointerExtension(handlers: ReviewHandlers): Extension {
-  let dragging = false
-
-  function lineAt(view: EditorView, x: number, y: number): number | null {
-    const pos = view.posAtCoords({ x, y })
-    if (pos === null) return null
-    return view.state.doc.lineAt(pos).number
+function lineFromY(view: EditorView, y: number): number | null {
+  const rect = view.scrollDOM.getBoundingClientRect()
+  if (y < rect.top || y > rect.bottom) return null
+  const editorY = y - rect.top + view.scrollDOM.scrollTop
+  try {
+    const block = view.lineBlockAtHeight(editorY)
+    return view.state.doc.lineAt(block.from).number
+  } catch {
+    return null
   }
+}
 
-  return [
-    EditorView.domEventHandlers({
-      pointerdown(e, view) {
-        if (e.button !== 0) return false
-        if (!(e.metaKey || e.ctrlKey)) return false
-        const lineNo = lineAt(view, e.clientX, e.clientY)
-        if (lineNo === null) return false
-        if (handlers.onToggle(lineNo)) {
+export function reviewPointerExtension(handlers: ReviewHandlers): Extension {
+  const plugin = ViewPlugin.fromClass(
+    class {
+      view: EditorView
+      dragging = false
+      onDown: (e: PointerEvent) => void
+      onMove: (e: PointerEvent) => void
+      onUp: (e: PointerEvent) => void
+
+      constructor(view: EditorView) {
+        this.view = view
+        this.onDown = (e) => {
+          if (e.button !== 0) return
+          if (!(e.metaKey || e.ctrlKey)) return
+          const lineNo = lineFromY(view, e.clientY)
+          if (lineNo === null) return
+          if (handlers.onToggle(lineNo)) {
+            e.preventDefault()
+            return
+          }
+          handlers.onStart(lineNo)
+          this.dragging = true
+          ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
           e.preventDefault()
-          return true
         }
-        handlers.onStart(lineNo)
-        dragging = true
-        ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
-        e.preventDefault()
-        return true
-      },
-      pointermove(e, view) {
-        if (!dragging) return false
-        const lineNo = lineAt(view, e.clientX, e.clientY)
-        if (lineNo === null) return false
-        handlers.onExtend(lineNo)
-        return false
-      },
-      pointerup(e) {
-        if (!dragging) return false
-        dragging = false
-        ;(e.target as HTMLElement).releasePointerCapture?.(e.pointerId)
-        return false
-      },
-      pointercancel() {
-        dragging = false
-        return false
-      },
-    }),
-    EditorView.contentAttributes.of({ class: 'cm-review-mode' }),
-  ]
+        this.onMove = (e) => {
+          if (!this.dragging) return
+          const lineNo = lineFromY(view, e.clientY)
+          if (lineNo === null) return
+          handlers.onExtend(lineNo)
+        }
+        this.onUp = (e) => {
+          if (!this.dragging) return
+          this.dragging = false
+          ;(e.target as HTMLElement).releasePointerCapture?.(e.pointerId)
+        }
+        view.dom.addEventListener('pointerdown', this.onDown)
+        view.dom.addEventListener('pointermove', this.onMove)
+        view.dom.addEventListener('pointerup', this.onUp)
+        view.dom.addEventListener('pointercancel', this.onUp)
+      }
+
+      destroy(): void {
+        this.view.dom.removeEventListener('pointerdown', this.onDown)
+        this.view.dom.removeEventListener('pointermove', this.onMove)
+        this.view.dom.removeEventListener('pointerup', this.onUp)
+        this.view.dom.removeEventListener('pointercancel', this.onUp)
+      }
+    },
+  )
+
+  return [plugin, EditorView.contentAttributes.of({ class: 'cm-review-mode' })]
 }
 
 export function buildPlanExtensions(opts: {

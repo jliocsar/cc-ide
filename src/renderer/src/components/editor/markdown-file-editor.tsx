@@ -213,6 +213,7 @@ export function MarkdownFileEditor({
             ? reviewPointerExtension({
                 onStart: handleReviewStart,
                 onExtend: handleReviewExtend,
+                onToggle: handleReviewToggle,
               })
             : [],
         ),

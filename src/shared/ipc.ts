@@ -415,7 +415,9 @@ export const worktreeCleanedEventSchema = z.object({
   action: z.enum(["deleted", "promoted"]),
 });
 
-export const settingsChangedEventSchema = z.object({ settings: settingsSchema });
+export const settingsChangedEventSchema = z.object({
+  settings: settingsSchema,
+});
 
 export const eventChannels = {
   "pty:data": ptyDataEventSchema,
