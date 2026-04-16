@@ -515,6 +515,28 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     await dropsStore.writeDrops(workspaceId, entries)
     return { ok: true }
   },
+  'window:minimize': async () => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    win?.minimize()
+    return { ok: true }
+  },
+  'window:maximize': async () => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    if (win) {
+      if (win.isMaximized()) win.unmaximize()
+      else win.maximize()
+    }
+    return { ok: true }
+  },
+  'window:close': async () => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    win?.close()
+    return { ok: true }
+  },
+  'window:isMaximized': async () => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    return { maximized: win?.isMaximized() ?? false }
+  },
   'session:attachExisting': async ({ workspaceId, tmuxWindow, cols, rows }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)
     if (!ws) return { ptyId: null, exists: false }

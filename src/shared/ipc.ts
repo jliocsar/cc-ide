@@ -506,6 +506,22 @@ export const ipcContract = {
     }),
     response: z.object({ ok: z.literal(true) }),
   },
+  "window:minimize": {
+    request: z.object({}),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "window:maximize": {
+    request: z.object({}),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "window:close": {
+    request: z.object({}),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "window:isMaximized": {
+    request: z.object({}),
+    response: z.object({ maximized: z.boolean() }),
+  },
 } as const;
 
 export type IpcContract = typeof ipcContract;
@@ -539,9 +555,14 @@ export const settingsChangedEventSchema = z.object({
   settings: settingsSchema,
 });
 
+export const windowMaximizedEventSchema = z.object({
+  maximized: z.boolean(),
+});
+
 export const eventChannels = {
   "pty:data": ptyDataEventSchema,
   "pty:exit": ptyExitEventSchema,
+  "window:maximized-change": windowMaximizedEventSchema,
   "conversations:changed": workspaceScopedEventSchema,
   "worktrees:changed": workspaceScopedEventSchema,
   "plans:changed": workspaceScopedEventSchema,

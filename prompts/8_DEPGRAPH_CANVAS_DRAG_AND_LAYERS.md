@@ -7,4 +7,3 @@ I want to add 2 new features to the Dependency Graph canvas:
 2. I want the label/name of each node in the canvas to be smaller/darker color
 3. I want each node to have enough room to fit: itself + its label/name + a buffer/room of a few pixels
     - Dragging and dropping nodes should re-adjust them to fit in a space like this
-4
