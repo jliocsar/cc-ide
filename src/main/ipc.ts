@@ -12,6 +12,7 @@ import * as worktreeManager from './modules/worktree-manager'
 import * as diffProvider from './modules/diff-provider'
 import * as promptsStore from './modules/prompts-store'
 import * as planFsTree from './modules/plan-fs-tree'
+import * as promptsFsTree from './modules/prompts-fs-tree'
 import * as tabsStore from './modules/tabs-store'
 import * as settingsStore from './modules/settings-store'
 import * as ephemeralWorktrees from './modules/ephemeral-worktrees'
@@ -21,6 +22,7 @@ import { validateTmuxWindowName, slugifyFirstMessage } from '@shared/tmux-name'
 import { broadcast } from './modules/event-bus'
 import {
   ensurePlansWatcher,
+  ensurePromptsWatcher,
   ensureSessionWatcher,
   ensureWorktreeWatcher,
 } from './modules/watchers'
@@ -341,49 +343,114 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     const diff = await diffProvider.getFileDiff(worktreePath, path, stage)
     return { diff }
   },
-  'prompts:list': async ({ query, sort }) => {
+  'globalPrompts:list': async ({ query, sort }) => {
     const prompts = await promptsStore.listPrompts({ query, sort })
     return { prompts }
   },
-  'prompts:create': async ({ title, body, favorite }) => {
+  'globalPrompts:create': async ({ title, body, favorite }) => {
     const prompt = await promptsStore.createPrompt({ title, body, favorite })
     return { prompt }
   },
-  'prompts:update': async ({ id, patch }) => {
+  'globalPrompts:update': async ({ id, patch }) => {
     const prompt = await promptsStore.updatePrompt(id, patch)
     return { prompt }
   },
-  'prompts:delete': async ({ id }) => {
+  'globalPrompts:delete': async ({ id }) => {
     await promptsStore.deletePrompt(id)
     return { ok: true }
   },
+  'prompts:tree': async ({ workspaceId }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    void ensurePromptsWatcher(workspaceId, ws.path)
+    const tree = await promptsFsTree.listTree(ws.path)
+    return { tree }
+  },
+  'prompts:read': async ({ workspaceId, relPath }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const content = await promptsFsTree.readPrompt(ws.path, relPath)
+    return { content }
+  },
+  'prompts:write': async ({ workspaceId, relPath, content }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await promptsFsTree.writePrompt(ws.path, relPath, content)
+    return { ok: true }
+  },
+  'prompts:create': async ({ workspaceId, relPath }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await promptsFsTree.createPrompt(ws.path, relPath)
+    return { ok: true }
+  },
+  'prompts:createFolder': async ({ workspaceId, relPath }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await promptsFsTree.createFolder(ws.path, relPath)
+    return { ok: true }
+  },
+  'prompts:rename': async ({ workspaceId, fromRel, toRel, overwrite }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await promptsFsTree.rename(ws.path, fromRel, toRel, { overwrite })
+    return { ok: true }
+  },
+  'prompts:delete': async ({ workspaceId, relPath }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await promptsFsTree.deletePath(ws.path, relPath)
+    return { ok: true }
+  },
   'plans:tree': async ({ workspaceId }) => {
-    void ensurePlansWatcher(workspaceId)
-    const tree = await planFsTree.listTree(workspaceId)
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const migration = await planFsTree.migrateLegacyIfNeeded(workspaceId, ws.path)
+    if (migration === 'migrated') {
+      console.log(`[plans] migrated legacy plans for workspace ${workspaceId} → ${ws.path}/.cc-ide/plans`)
+    } else if (migration === 'skipped-dest-populated') {
+      console.warn(
+        `[plans] legacy plans at ~/.cc-ide/plans/${workspaceId} left in place: destination ${ws.path}/.cc-ide/plans already has content`,
+      )
+    }
+    void ensurePlansWatcher(workspaceId, ws.path)
+    const tree = await planFsTree.listTree(ws.path)
     return { tree }
   },
   'plans:read': async ({ workspaceId, relPath }) => {
-    const content = await planFsTree.readPlan(workspaceId, relPath)
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const content = await planFsTree.readPlan(ws.path, relPath)
     return { content }
   },
   'plans:write': async ({ workspaceId, relPath, content }) => {
-    await planFsTree.writePlan(workspaceId, relPath, content)
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await planFsTree.writePlan(ws.path, relPath, content)
     return { ok: true }
   },
   'plans:create': async ({ workspaceId, relPath }) => {
-    await planFsTree.createPlan(workspaceId, relPath)
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await planFsTree.createPlan(ws.path, relPath)
     return { ok: true }
   },
   'plans:createFolder': async ({ workspaceId, relPath }) => {
-    await planFsTree.createFolder(workspaceId, relPath)
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await planFsTree.createFolder(ws.path, relPath)
     return { ok: true }
   },
   'plans:rename': async ({ workspaceId, fromRel, toRel, overwrite }) => {
-    await planFsTree.rename(workspaceId, fromRel, toRel, { overwrite })
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await planFsTree.rename(ws.path, fromRel, toRel, { overwrite })
     return { ok: true }
   },
   'plans:delete': async ({ workspaceId, relPath }) => {
-    await planFsTree.deletePath(workspaceId, relPath)
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await planFsTree.deletePath(ws.path, relPath)
     return { ok: true }
   },
   'tabs:load': async ({ workspaceId }) => {

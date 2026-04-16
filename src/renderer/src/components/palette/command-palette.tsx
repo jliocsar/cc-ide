@@ -39,7 +39,7 @@ export function CommandPalette(): JSX.Element {
       <DialogContent className="overflow-hidden p-0">
         <DialogTitle className="sr-only">Command palette</DialogTitle>
         <DialogDescription className="sr-only">
-          Run a command, open prompts, or switch workspace.
+          Run a command, open the Global Prompt Store, or switch workspace.
         </DialogDescription>
         <Command shouldFilter className="bg-background">
           <CommandInput
@@ -57,7 +57,7 @@ export function CommandPalette(): JSX.Element {
                   }}
                 >
                   <MessageSquare className="mr-2 size-4" />
-                  Open Prompts
+                  Open Global Prompt Store
                 </CommandItem>
                 <CommandItem onSelect={() => setPage('switch-workspace')}>
                   <FolderGit2 className="mr-2 size-4" />

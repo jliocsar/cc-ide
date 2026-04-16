@@ -8,7 +8,8 @@ import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { EMPTY_RANGES, planTabId, useReviewComments, type RangeDraft } from '@/state/review-comments'
 import { usePlanTabUi, type PlanMode } from '@/state/plan-tab-ui'
-import { PlanEditor } from '@/components/editor/plan-editor'
+import { MarkdownFileEditor } from '@/components/editor/markdown-file-editor'
+import { invoke as invokeIpc } from '@/lib/ipc'
 
 export function PlanViewer({
   workspaceId,
@@ -79,11 +80,13 @@ export function PlanViewer({
         )}
       >
         <div className="h-full min-h-0 overflow-hidden border-r border-border">
-          <PlanEditor
+          <MarkdownFileEditor
             tabId={tabId}
-            workspaceId={workspaceId}
-            relPath={relPath}
             initialContent={content}
+            reviewCapable
+            onSave={async (next) => {
+              await invokeIpc('plans:write', { workspaceId, relPath, content: next })
+            }}
           />
         </div>
         {sidebarCollapsed ? (

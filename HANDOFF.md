@@ -1,8 +1,8 @@
 # Handoff — start here
 
-Welcome to `cc-ide`. The MVP shipped across 6 phases; Phase 7 closed out live-debug bugs; Phase 8 shipped the remaining backlog (#8–#12) plus UX asks; **Phase 9 made plans editable** (CM6 + Vim/VSCode keybinds + Edit/Review modes, see "What Phase 9 added" below). **v0.1 ready.**
+Welcome to `cc-ide`. MVP shipped across 6 phases; Phase 7 closed live-debug bugs; Phase 8 shipped backlog (#8–#12) + UX; Phase 9 made plans editable (CM6 + Vim/VSCode keybinds + Edit/Review modes). **Phase 10 added project-scoped prompts and moved plans storage into the workspace** — see "What Phase 10 added" below. **v0.1 ready.**
 
-No open work items other than the future-features trackers (#3–#7) and a short list of Phase 9 deferrals (below). Don't start those without talking to JC.
+No open work items other than the future-features trackers (#3–#7), the Phase 9 deferrals (below), and a short list of Phase 10 follow-ups (below). Don't start those without talking to JC.
 
 ## Read in this order
 
@@ -17,8 +17,8 @@ Read everything above before touching code. ~20 minutes total.
 
 ## Current state
 
-- `main` branch at Phase 9 close-out.
-- 143 tests across 16 files, all green. `pnpm typecheck` clean. `pnpm build` clean.
+- `main` branch at Phase 10 close-out.
+- 174 tests across 17 files, all green. `pnpm typecheck` clean. `pnpm build` clean.
 - `pnpm dev` on port 5173; CDP on 9223 for `agent-browser` (gated by `CC_IDE_DEVTOOLS=1` — no more auto-detached devtools).
 
 ## What Phase 8 added
@@ -56,6 +56,31 @@ Plans opened from the sidebar are now editable inside their tab, with two modes 
 - **Selection / active-line / cursor contrast**: theme rules in `plan-editor-extensions.ts` tune text contrast against bright backgrounds. Notably `.cm-fat-cursor` (Vim block cursor) is forced to `color: var(--primary-foreground)` so the single character under the block stays legible — upstream Replit defaults inherit the char's original color, causing white-on-white in dark mode.
 - **New deps**: `codemirror`, `@codemirror/{state,view,commands,search,language,lang-markdown}`, `@lezer/highlight`, `@replit/codemirror-vim`. All approved by JC before install. `@codemirror/vim` is NOT a real package — do not reinstall under that name.
 
+## What Phase 10 added
+
+Two things: project-scoped prompts (new surface) and a fix to plans storage so the `@.cc-ide/plans/<rel>.md` drop path resolves to a real file that Claude can read.
+
+- **Project-scoped prompts** — new sidebar section between Plans and Diffs. Files live at `<workspace>/.cc-ide/prompts/**/*.md`. Tree structure, full CRUD (create file, create folder, rename, delete, drag-to-move-with-spring-expand), mirrors Plans exactly. Opens in a tab with `MarkdownFileEditor` (see below), always in edit mode — no review flow. Drag a prompt into a terminal and it pastes `@.cc-ide/prompts/<rel>.md\n` — Claude resolves the real file because it's inside the workspace.
+  - Main: `src/main/modules/prompts-fs-tree.ts` (+ `*.test.ts`, 23 tests).
+  - IPC: `prompts:list|read|write|create|createFolder|rename|delete`, event `prompts:changed`.
+  - Renderer state: `src/renderer/src/state/prompts-tree.ts`.
+  - Sidebar: `src/renderer/src/components/shell/sections/prompts-section.tsx` + `PromptsAccordion` in `sidebar.tsx`.
+  - Viewer: `src/renderer/src/components/viewers/prompt-viewer.tsx` (was a phase-6 stub — now real).
+- **Global Prompt Store** (rename only). What used to be "Prompt Store" (Ctrl+K) is now "Global Prompt Store." Same modal, same `~/.cc-ide/prompts.json` storage, same body-paste-to-terminal behavior. IPC channels renamed: `prompts:list|create|update|delete` → `globalPrompts:*` to make room for the new file-tree-shaped `prompts:*` family. Command-palette label updated.
+- **Plans storage fix (data migration)**. Plans used to live at `~/.cc-ide/plans/<workspaceId>/` but the drop path was `.cc-ide/plans/<rel>.md` relative to the workspace — the path was symbolic fiction and only worked because review drops inline the comment bodies. Plans now live at `<workspace>/.cc-ide/plans/**/*.md`, same shape as prompts. `plan-fs-tree.ts` takes `workspacePath` instead of `workspaceId`. A one-shot migration (`migrateLegacyIfNeeded(workspaceId, workspacePath)`) runs on the first `plans:tree` call per workspace and moves legacy content into place. Safe: refuses to migrate if the destination already has content (legacy is left intact + a warning is logged — no silent data loss). 7 new migration tests.
+  - Tell users to add `.cc-ide/` to their `.gitignore`.
+- **`MarkdownFileEditor`** — `PlanEditor` renamed to `MarkdownFileEditor` in `src/renderer/src/components/editor/markdown-file-editor.tsx`. Accepts `onSave: (content: string) => Promise<void>` + optional `reviewCapable: boolean` (default false). Plan viewer passes `reviewCapable` and an `onSave` that calls `plans:write`; prompt viewer passes a prompt-save. Vim `:w` still routes through the module-level `activeSaveTarget`; both editors share the handler. The old `plan-editor-extensions.ts` is unchanged.
+- **Tab kind `prompt` repurposed**. Was speculative plumbing with meta `{promptId}` and zero callers. Now meta `{workspaceId, relPath}`, tab id `prompt:${workspaceId}:${relPath}`, fully wired. `rewritePromptTabsForMove` mirrors `rewritePlanTabsForMove`; both are now driven by a shared `remapKind` helper in `state/tabs.ts`.
+- **`DropPayload` extended** with `kind: 'prompt'`. Synth path `.cc-ide/prompts/${relPath}`. Zero-range drops emit `@<path>\n` via the existing `buildDropString`. `xterm-window.handleDrop` short-circuits for prompt payloads — no `useReviewComments` lookup.
+- **Prompts fs watcher** (`watchers.ts`) — `ensurePromptsWatcher(workspaceId, workspacePath)` watches `<workspace>/.cc-ide/prompts/` and emits `prompts:changed`. Sidebar subscribes in `sidebar.tsx` alongside the plans watcher. `ensurePlansWatcher` got the same signature update (now takes workspacePath).
+
+### Phase 10 deferrals / follow-ups
+
+- **Plans migration UX**: the `skipped-dest-populated` path just logs a warning. If a user somehow has both legacy AND new content, they need to merge manually. Low priority — unlikely to hit in practice.
+- **Prompts sidebar sort**: tree lists dirs then files alphabetical. No favorites, no recency sort (prompts intentionally simpler than the global store).
+- **`.gitignore` hint**: we don't auto-detect or suggest adding `.cc-ide/` to `.gitignore`. Consider a one-time toast on first prompt/plan creation.
+- **Own-write watcher suppression (still open from Phase 9)** is now more visible with two fs watchers firing on every save.
+
 ### Phase 9 deferrals (intentionally out of scope, worth tracking)
 
 - **Sidebar collapse UI for review comments**. Entry fields `sidebarCollapsed` and `autoExpandedOnce` exist on `plan-tab-ui` already; UI (edge chevron + 32px rail with range-count badge) was not wired. Cheap follow-up.
@@ -63,6 +88,25 @@ Plans opened from the sidebar are now editable inside their tab, with two modes 
 - **External-change detection banner**. If the plan file mtime changes on disk while a tab is dirty (e.g. Claude rewrote it from a terminal session), we should surface a "[Reload and lose changes] [Keep mine]" banner. Currently the buffer wins silently on save.
 - **Own-write watcher suppression**. The plans fs watcher still fires on our own `plans:write` calls, causing a sidebar re-render per save. Compare write timestamps in `watchers.ts` and skip events within a short window.
 - **agent-browser live walkthrough.** Build + typecheck + unit tests were green when Phase 9 shipped, but a live click-through of the mode toggle, keybind swap, drag-to-terminal with ranges, and Vim `:w` flow wasn't run. Recommended before the first v0.1 release cut.
+
+### Files that changed in Phase 10
+
+- `src/main/modules/prompts-fs-tree.ts` + `.test.ts` (new, 23 tests)
+- `src/main/modules/plan-fs-tree.ts` — refactored to `workspacePath`, added `migrateLegacyIfNeeded` + `__setLegacyBaseForTests`
+- `src/main/modules/plan-fs-tree.test.ts` — rewritten for the new signature + 7 migration tests
+- `src/main/modules/watchers.ts` — `ensurePromptsWatcher`, `ensurePlansWatcher` takes workspacePath
+- `src/main/ipc.ts` — `prompts:*` handlers, `globalPrompts:*` rename, plans handlers resolve workspaceId→workspacePath + run migration
+- `src/shared/ipc.ts` — `prompts:*` file-tree channels, `globalPrompts:*` rename, `prompts:changed` event
+- `src/renderer/src/state/prompts-tree.ts` (new), `state/prompts.ts` — channel rename, `state/tabs.ts` — prompt tab meta + `remapKind`
+- `src/renderer/src/components/shell/sections/prompts-section.tsx` (new), `shell/sidebar.tsx` — `PromptsAccordion`
+- `src/renderer/src/components/editor/markdown-file-editor.tsx` (renamed from `plan-editor.tsx`, now parameterized)
+- `src/renderer/src/components/viewers/plan-viewer.tsx` — uses `MarkdownFileEditor`
+- `src/renderer/src/components/viewers/prompt-viewer.tsx` — real viewer, was a stub
+- `src/renderer/src/components/shell/tab-router.tsx` — prompt tab wired with `{workspaceId, relPath}`
+- `src/renderer/src/components/canvas/xterm-window.tsx` — prompt-drop short-circuit
+- `src/renderer/src/components/palette/{prompts-modal,command-palette}.tsx` — "Global Prompt Store" labels
+- `src/renderer/src/lib/drop-payload.ts` — `kind: 'prompt'`
+- `.claude/references/data-paths.md` — new workspace-owned paths section, migration note
 
 ### Files that changed in Phase 9
 
@@ -98,9 +142,10 @@ Ask JC. He'd rather clarify in 30 seconds than have you build the wrong thing. P
 ## Next up
 
 Nothing on the critical path. Possible next moves, pick with JC:
-- Close the open polish issues on GitHub (Phase 8 fixes are in code — needs a PR + issue close).
+- Close the open polish issues on GitHub (Phase 8 + 10 fixes are in code — needs a PR + issue close).
 - Knock out the Phase 9 deferrals above (sidebar collapse, batch save dialog, external-change banner, own-write watcher suppression, agent-browser walkthrough).
+- Knock out the Phase 10 follow-ups above (`.gitignore` hint, watcher suppression more relevant with two fs roots now).
 - Start a future-features spike (#3–#7) — sandboxing, teammates, voice, etc. All require PRD alignment first.
-- Quality pass: bump test coverage on the new watchers + tabs-store + cat-name-gen modules. Phase 9 added ~60 tests (settings-store, review-range-map); watchers still have no integration test.
+- Quality pass: bump test coverage on the new watchers + tabs-store + cat-name-gen modules. Watchers still have no integration test.
 
 Good luck. Clean tree.

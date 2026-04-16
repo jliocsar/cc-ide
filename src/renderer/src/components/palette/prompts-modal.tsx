@@ -69,7 +69,7 @@ export function PromptsModal(): JSX.Element {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="grid h-[640px] max-h-[80vh] grid-rows-[auto_1fr] gap-0 overflow-hidden p-0 sm:max-w-[820px]">
         <DialogHeader className="border-b border-border p-3">
-          <DialogTitle>Prompts</DialogTitle>
+          <DialogTitle>Global Prompt Store</DialogTitle>
           <DialogDescription className="sr-only">Cross-project prompts library</DialogDescription>
           <div className="flex items-center gap-2 pt-2">
             <Input

@@ -10,9 +10,11 @@ type WorkspaceWatchers = {
   sessions?: FSWatcher
   worktrees?: FSWatcher
   plans?: FSWatcher
+  prompts?: FSWatcher
   sessionsTimer?: ReturnType<typeof setTimeout>
   worktreesTimer?: ReturnType<typeof setTimeout>
   plansTimer?: ReturnType<typeof setTimeout>
+  promptsTimer?: ReturnType<typeof setTimeout>
 }
 
 const registry = new Map<string, WorkspaceWatchers>()
@@ -82,10 +84,13 @@ export async function ensureWorktreeWatcher(workspaceId: string, workspacePath: 
   entry.worktrees = w
 }
 
-export async function ensurePlansWatcher(workspaceId: string): Promise<void> {
+export async function ensurePlansWatcher(
+  workspaceId: string,
+  workspacePath: string,
+): Promise<void> {
   const entry = getOrCreate(workspaceId)
   if (entry.plans) return
-  const dir = join(homedir(), '.cc-ide', 'plans', workspaceId)
+  const dir = join(workspacePath, '.cc-ide', 'plans')
   const w = await tryWatch(dir, { recursive: true }, () => {
     if (entry.plansTimer) clearTimeout(entry.plansTimer)
     entry.plansTimer = setTimeout(() => {
@@ -95,14 +100,32 @@ export async function ensurePlansWatcher(workspaceId: string): Promise<void> {
   entry.plans = w
 }
 
+export async function ensurePromptsWatcher(
+  workspaceId: string,
+  workspacePath: string,
+): Promise<void> {
+  const entry = getOrCreate(workspaceId)
+  if (entry.prompts) return
+  const dir = join(workspacePath, '.cc-ide', 'prompts')
+  const w = await tryWatch(dir, { recursive: true }, () => {
+    if (entry.promptsTimer) clearTimeout(entry.promptsTimer)
+    entry.promptsTimer = setTimeout(() => {
+      broadcast('prompts:changed', { workspaceId })
+    }, DEBOUNCE_MS)
+  })
+  entry.prompts = w
+}
+
 export function disposeAllWatchers(): void {
   for (const entry of registry.values()) {
     entry.sessions?.close()
     entry.worktrees?.close()
     entry.plans?.close()
+    entry.prompts?.close()
     if (entry.sessionsTimer) clearTimeout(entry.sessionsTimer)
     if (entry.worktreesTimer) clearTimeout(entry.worktreesTimer)
     if (entry.plansTimer) clearTimeout(entry.plansTimer)
+    if (entry.promptsTimer) clearTimeout(entry.promptsTimer)
   }
   registry.clear()
 }

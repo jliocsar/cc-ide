@@ -1,9 +1,8 @@
 import { promises as fs } from 'node:fs'
-import { homedir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
 import { posix } from 'node:path'
 
-export type PlanFile = {
+export type PromptFile = {
   kind: 'file'
   name: string
   relPath: string
@@ -11,28 +10,18 @@ export type PlanFile = {
   updatedAt: number
 }
 
-export type PlanDir = {
+export type PromptDir = {
   kind: 'dir'
   name: string
   relPath: string
-  children: PlanNode[]
+  children: PromptNode[]
 }
 
-export type PlanNode = PlanFile | PlanDir
+export type PromptNode = PromptFile | PromptDir
 
-let legacyBaseOverride: string | null = null
-
-export function __setLegacyBaseForTests(path: string | null): void {
-  legacyBaseOverride = path
-}
-
-function legacyBase(): string {
-  return legacyBaseOverride ?? join(homedir(), '.cc-ide', 'plans')
-}
-
-function plansRoot(workspacePath: string): string {
+function promptsRoot(workspacePath: string): string {
   if (!workspacePath) throw new Error('workspacePath is required')
-  return join(workspacePath, '.cc-ide', 'plans')
+  return join(workspacePath, '.cc-ide', 'prompts')
 }
 
 function resolveSafe(workspacePath: string, relPath: string): string {
@@ -41,14 +30,14 @@ function resolveSafe(workspacePath: string, relPath: string): string {
   const normalized = posix.normalize(relPath.replace(/\\/g, '/'))
   if (normalized.startsWith('/')) throw new Error(`relPath must not be absolute: ${relPath}`)
   if (normalized === '..' || normalized.startsWith('../')) {
-    throw new Error(`relPath escapes plans root: ${relPath}`)
+    throw new Error(`relPath escapes prompts root: ${relPath}`)
   }
-  const root = plansRoot(workspacePath)
+  const root = promptsRoot(workspacePath)
   const platformRel = normalized === '.' ? '' : normalized.split('/').join(sep)
   const abs = resolve(root, platformRel)
   const rootResolved = resolve(root)
   if (abs !== rootResolved && !abs.startsWith(rootResolved + sep)) {
-    throw new Error(`relPath escapes plans root: ${relPath}`)
+    throw new Error(`relPath escapes prompts root: ${relPath}`)
   }
   return abs
 }
@@ -57,57 +46,7 @@ async function ensureDir(path: string): Promise<void> {
   await fs.mkdir(path, { recursive: true })
 }
 
-async function dirIsEmpty(path: string): Promise<boolean> {
-  try {
-    const entries = await fs.readdir(path)
-    return entries.length === 0
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return true
-    throw err
-  }
-}
-
-async function dirHasContent(path: string): Promise<boolean> {
-  try {
-    const entries = await fs.readdir(path)
-    return entries.length > 0
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return false
-    throw err
-  }
-}
-
-async function moveContents(src: string, dst: string): Promise<void> {
-  const entries = await fs.readdir(src)
-  for (const name of entries) {
-    await fs.rename(join(src, name), join(dst, name))
-  }
-}
-
-export type MigrationResult = 'migrated' | 'skipped-no-source' | 'skipped-dest-populated'
-
-export async function migrateLegacyIfNeeded(
-  workspaceId: string,
-  workspacePath: string,
-): Promise<MigrationResult> {
-  if (!workspaceId || workspaceId.includes('/') || workspaceId.includes('\\')) {
-    throw new Error(`invalid workspaceId: ${workspaceId}`)
-  }
-  const legacy = join(legacyBase(), workspaceId)
-  const dest = plansRoot(workspacePath)
-  const legacyHasContent = await dirHasContent(legacy)
-  if (!legacyHasContent) return 'skipped-no-source'
-  const destEmpty = await dirIsEmpty(dest)
-  if (!destEmpty) return 'skipped-dest-populated'
-  await ensureDir(dest)
-  await moveContents(legacy, dest)
-  await fs.rmdir(legacy).catch(() => {
-    // Non-fatal: legacy dir might contain hidden files we don't own.
-  })
-  return 'migrated'
-}
-
-async function readDirRecursive(absDir: string, relDir: string): Promise<PlanNode[]> {
+async function readDirRecursive(absDir: string, relDir: string): Promise<PromptNode[]> {
   let entries
   try {
     entries = await fs.readdir(absDir, { withFileTypes: true })
@@ -115,8 +54,8 @@ async function readDirRecursive(absDir: string, relDir: string): Promise<PlanNod
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
     throw err
   }
-  const dirs: PlanDir[] = []
-  const files: PlanFile[] = []
+  const dirs: PromptDir[] = []
+  const files: PromptFile[] = []
   for (const entry of entries) {
     const childAbs = join(absDir, entry.name)
     const childRel = relDir === '' ? entry.name : `${relDir}/${entry.name}`
@@ -139,19 +78,19 @@ async function readDirRecursive(absDir: string, relDir: string): Promise<PlanNod
   return [...dirs, ...files]
 }
 
-export async function listTree(workspacePath: string): Promise<PlanDir> {
-  const root = plansRoot(workspacePath)
+export async function listTree(workspacePath: string): Promise<PromptDir> {
+  const root = promptsRoot(workspacePath)
   await ensureDir(root)
   const children = await readDirRecursive(root, '')
   return { kind: 'dir', name: '', relPath: '', children }
 }
 
-export async function readPlan(workspacePath: string, relPath: string): Promise<string> {
+export async function readPrompt(workspacePath: string, relPath: string): Promise<string> {
   const abs = resolveSafe(workspacePath, relPath)
   return fs.readFile(abs, 'utf8')
 }
 
-export async function writePlan(
+export async function writePrompt(
   workspacePath: string,
   relPath: string,
   content: string,
@@ -163,7 +102,7 @@ export async function writePlan(
   await fs.rename(tmp, abs)
 }
 
-export async function createPlan(workspacePath: string, relPath: string): Promise<void> {
+export async function createPrompt(workspacePath: string, relPath: string): Promise<void> {
   if (!relPath || !relPath.trim()) throw new Error('relPath is required')
   const withExt = relPath.endsWith('.md') ? relPath : `${relPath}.md`
   const abs = resolveSafe(workspacePath, withExt)
@@ -173,7 +112,7 @@ export async function createPlan(workspacePath: string, relPath: string): Promis
     await handle.close()
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
-      throw new Error(`plan already exists: ${withExt}`)
+      throw new Error(`prompt already exists: ${withExt}`)
     }
     throw err
   }

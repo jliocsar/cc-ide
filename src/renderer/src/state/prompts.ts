@@ -29,7 +29,7 @@ export const usePrompts = create<State>((set, get) => ({
   async refresh() {
     set({ loading: true, error: null })
     try {
-      const { prompts } = await invoke('prompts:list', { query: get().query, sort: get().sort })
+      const { prompts } = await invoke('globalPrompts:list', { query: get().query, sort: get().sort })
       set({ prompts, loading: false })
     } catch (err) {
       set({ loading: false, error: err instanceof Error ? err.message : String(err) })
@@ -47,19 +47,19 @@ export const usePrompts = create<State>((set, get) => ({
   },
 
   async create(input) {
-    const { prompt } = await invoke('prompts:create', input)
+    const { prompt } = await invoke('globalPrompts:create', input)
     await get().refresh()
     return prompt
   },
 
   async update(id, patch) {
-    const { prompt } = await invoke('prompts:update', { id, patch })
+    const { prompt } = await invoke('globalPrompts:update', { id, patch })
     await get().refresh()
     return prompt
   },
 
   async remove(id) {
-    await invoke('prompts:delete', { id })
+    await invoke('globalPrompts:delete', { id })
     await get().refresh()
   },
 }))
