@@ -114,7 +114,22 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
     const observer = new ResizeObserver(resize)
     observer.observe(host)
     fit.fit()
-    void invoke('pty:resize', { ptyId, cols: term.cols, rows: term.rows })
+    // Force tmux to repaint the screen. Workspace-switch remounts reuse the
+    // pty but create a fresh xterm Terminal — tmux doesn't know to redraw
+    // because nothing changed from its perspective. The fix is to trigger a
+    // real SIGWINCH: resize to slightly different dims, then back. tmux
+    // responds with a full-screen redraw, which fills the new xterm. Same
+    // mechanism that makes alt+tab "work" (window resize on focus change).
+    const targetCols = term.cols
+    const targetRows = term.rows
+    void invoke('pty:resize', {
+      ptyId,
+      cols: Math.max(1, targetCols - 1),
+      rows: targetRows,
+    })
+    setTimeout(() => {
+      void invoke('pty:resize', { ptyId, cols: targetCols, rows: targetRows })
+    }, 30)
     term.focus()
 
     return () => {
