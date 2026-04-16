@@ -33,11 +33,10 @@ export function Shell(): JSX.Element {
   const sidebarVisible = useUi((s) => s.sidebarVisible)
   const toggleSidebar = useUi((s) => s.toggleSidebar)
   const activeWorkspaceId = useWorkspaces((s) => s.activeId)
-  const conversationsStatus = useSidebarData((s) => s.conversationsStatus)
-  const worktreesStatus = useSidebarData((s) => s.worktreesStatus)
+  const conversationsLoaded = useSidebarData((s) => s.conversationsLoaded)
+  const worktreesLoaded = useSidebarData((s) => s.worktreesLoaded)
   const sidebarLoading =
-    !!activeWorkspaceId &&
-    (conversationsStatus === 'loading' || worktreesStatus === 'loading')
+    !!activeWorkspaceId && (!conversationsLoaded || !worktreesLoaded)
 
   useEffect(() => {
     return onEvent('pty:exit', (p) => {

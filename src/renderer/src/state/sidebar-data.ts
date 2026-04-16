@@ -14,10 +14,12 @@ type State = {
   conversations: SessionSummaryDTO[]
   conversationsStatus: Status
   conversationsError: string | null
+  conversationsLoaded: boolean
 
   worktrees: WorktreeDTO[]
   worktreesStatus: Status
   worktreesError: string | null
+  worktreesLoaded: boolean
 
   diffsByWorktree: Record<string, ChangedFileDTO[]>
   diffsStatus: Record<string, Status>
@@ -32,9 +34,11 @@ export const useSidebarData = create<State>((set) => ({
   conversations: [],
   conversationsStatus: 'idle',
   conversationsError: null,
+  conversationsLoaded: false,
   worktrees: [],
   worktreesStatus: 'idle',
   worktreesError: null,
+  worktreesLoaded: false,
   diffsByWorktree: {},
   diffsStatus: {},
 
@@ -42,7 +46,7 @@ export const useSidebarData = create<State>((set) => ({
     set({ conversationsStatus: 'loading', conversationsError: null })
     try {
       const { conversations } = await invoke('conversations:list', { workspaceId })
-      set({ conversations, conversationsStatus: 'ready' })
+      set({ conversations, conversationsStatus: 'ready', conversationsLoaded: true })
     } catch (err) {
       set({
         conversations: [],
@@ -56,7 +60,7 @@ export const useSidebarData = create<State>((set) => ({
     set({ worktreesStatus: 'loading', worktreesError: null })
     try {
       const { worktrees } = await invoke('worktrees:list', { workspaceId })
-      set({ worktrees, worktreesStatus: 'ready' })
+      set({ worktrees, worktreesStatus: 'ready', worktreesLoaded: true })
     } catch (err) {
       set({
         worktrees: [],
@@ -86,9 +90,11 @@ export const useSidebarData = create<State>((set) => ({
       conversations: [],
       conversationsStatus: 'idle',
       conversationsError: null,
+      conversationsLoaded: false,
       worktrees: [],
       worktreesStatus: 'idle',
       worktreesError: null,
+      worktreesLoaded: false,
       diffsByWorktree: {},
       diffsStatus: {},
     })
