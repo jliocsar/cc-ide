@@ -35,6 +35,7 @@ export function useCanvasPersistence(): void {
       useCanvas.getState().hydrate((state as PersistedCanvas | null) ?? null)
       lastBoundRef.current = activeId
 
+      relinkExistingSessions(activeId)
       await rehydrateLiveSessions(activeId)
 
       suspendSave = false
@@ -47,6 +48,27 @@ export function useCanvasPersistence(): void {
       void invoke('canvas:save', { workspaceId: activeId, state: snap }).catch(() => {})
     }
   }, [activeId])
+}
+
+// Canvas snapshot strips sessionId, so on workspace re-entry every window
+// arrives back as `sessionId: null` (dormant). If the matching SessionRecord
+// is still alive in `useSessions`, reuse its ptyId — otherwise rehydrate
+// would spawn a NEW viewer pty for the same tmux window and registerExisting
+// would push a second SessionRecord, duplicating the row in the sidebar.
+function relinkExistingSessions(workspaceId: string): void {
+  const { sessions } = useSessions.getState()
+  const byTmuxWindow = new Map<string, string>()
+  for (const s of sessions) {
+    if (s.workspaceId !== workspaceId || s.exited) continue
+    byTmuxWindow.set(s.tmuxWindow, s.ptyId)
+  }
+  if (byTmuxWindow.size === 0) return
+  const { windows, updateWindow } = useCanvas.getState()
+  for (const w of windows) {
+    if (w.sessionId !== null) continue
+    const ptyId = byTmuxWindow.get(w.tmuxWindow)
+    if (ptyId) updateWindow(w.id, { sessionId: ptyId })
+  }
 }
 
 async function rehydrateLiveSessions(workspaceId: string): Promise<void> {
