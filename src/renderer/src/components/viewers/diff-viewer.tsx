@@ -104,6 +104,22 @@ export function DiffViewer({
       </div>
     )
   }
+  if (diff.hunks.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center bg-background p-6">
+        <div className="flex max-w-md flex-col items-center gap-2 rounded-md border border-border bg-card px-6 py-5 text-center font-mono text-[12px] text-muted-foreground">
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
+            no diff
+          </span>
+          <span className="text-foreground">file is no longer in this diff</span>
+          <span className="text-[11px] text-muted-foreground/80">
+            it was likely committed, reverted, or restaged. close this tab to
+            dismiss.
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="grid h-full grid-cols-[minmax(0,1fr)_360px] grid-rows-[minmax(0,1fr)] bg-background">
