@@ -9,6 +9,15 @@ export type CommentFile = {
   ranges: CommentRange[]
 }
 
+// Wraps the path in double quotes when it contains whitespace so downstream
+// parsers (Claude) treat it as a single token. Embedded `"` is escaped with
+// `\"`. Paths without whitespace are emitted bare to keep the common case
+// untouched.
+export function formatDropPath(path: string): string {
+  if (!/\s/.test(path)) return path
+  return `"${path.replace(/"/g, '\\"')}"`
+}
+
 export function serializeComments(files: CommentFile[]): string {
   const withContent = files.filter((f) => f.ranges.length > 0)
   if (withContent.length === 0) return ''
@@ -26,7 +35,7 @@ export function serializeComments(files: CommentFile[]): string {
       .sort((a, b) => a.r.start - b.r.start || a.i - b.i)
       .map(({ r }) => r)
 
-    const lines: string[] = [`@${file.path}`]
+    const lines: string[] = [`@${formatDropPath(file.path)}`]
     for (const range of orderedRanges) {
       lines.push(`@@ ${range.start},${range.len} @@`)
       lines.push(range.comment)

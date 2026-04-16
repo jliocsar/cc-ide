@@ -1,4 +1,8 @@
-import { serializeComments, type CommentRange } from '@shared/comment-serializer'
+import {
+  formatDropPath,
+  serializeComments,
+  type CommentRange,
+} from '@shared/comment-serializer'
 
 export type DropPayload =
   | { kind: 'plan'; workspaceId: string; relPath: string }
@@ -15,7 +19,7 @@ export const DROP_MIME = 'application/x-cc-ide-drop'
 
 export function setDropPayload(dt: DataTransfer, payload: DropPayload): void {
   dt.setData(DROP_MIME, JSON.stringify(payload))
-  dt.setData('text/plain', dropPathFor(payload))
+  dt.setData('text/plain', formatDropPath(dropPathFor(payload)))
   dt.effectAllowed = 'copy'
 }
 
@@ -37,6 +41,6 @@ export function dropPathFor(payload: DropPayload): string {
 
 export function buildDropString(payload: DropPayload, ranges: CommentRange[]): string {
   const path = dropPathFor(payload)
-  if (ranges.length === 0) return `@${path}\n`
+  if (ranges.length === 0) return `@${formatDropPath(path)}\n`
   return serializeComments([{ path, ranges }])
 }

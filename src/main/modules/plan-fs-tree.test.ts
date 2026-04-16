@@ -46,21 +46,20 @@ describe('listTree', () => {
   it('sorts dirs before files, alphabetical within group', async () => {
     await createFolder(workspace, 'zzz')
     await createFolder(workspace, 'aaa')
-    await createPlan(workspace, 'beta')
-    await createPlan(workspace, 'alpha')
+    await createPlan(workspace, 'beta.md')
+    await createPlan(workspace, 'alpha.md')
     const root = await listTree(workspace)
     expect(root.children.map((c) => c.name)).toEqual(['aaa', 'zzz', 'alpha.md', 'beta.md'])
   })
 })
 
 describe('createPlan', () => {
-  it('appends .md if missing', async () => {
-    await createPlan(workspace, 'foo')
-    const root = await listTree(workspace)
-    expect(root.children[0]!.name).toBe('foo.md')
+  it('rejects a name that does not end in .md', async () => {
+    await expect(createPlan(workspace, 'foo')).rejects.toThrow(/must end in \.md/)
+    await expect(createPlan(workspace, 'foo.txt')).rejects.toThrow(/must end in \.md/)
   })
 
-  it('respects existing .md suffix', async () => {
+  it('accepts a .md filename', async () => {
     await createPlan(workspace, 'foo.md')
     const root = await listTree(workspace)
     expect(root.children).toHaveLength(1)
@@ -68,8 +67,8 @@ describe('createPlan', () => {
   })
 
   it('throws if file already exists', async () => {
-    await createPlan(workspace, 'foo')
-    await expect(createPlan(workspace, 'foo')).rejects.toThrow(/already exists/)
+    await createPlan(workspace, 'foo.md')
+    await expect(createPlan(workspace, 'foo.md')).rejects.toThrow(/already exists/)
   })
 
   it('throws on empty relPath', async () => {
@@ -107,36 +106,36 @@ describe('readPlan / writePlan', () => {
 
 describe('rename', () => {
   it('renames a file in place', async () => {
-    await createPlan(workspace, 'old')
+    await createPlan(workspace, 'old.md')
     await rename(workspace, 'old.md', 'new.md')
     const root = await listTree(workspace)
     expect(root.children[0]!.name).toBe('new.md')
   })
 
   it('moves a file across directories', async () => {
-    await createPlan(workspace, 'foo')
+    await createPlan(workspace, 'foo.md')
     await createFolder(workspace, 'sub')
     await rename(workspace, 'foo.md', 'sub/foo.md')
     expect(await readPlan(workspace, 'sub/foo.md')).toBe('')
   })
 
   it('throws if destination exists', async () => {
-    await createPlan(workspace, 'a')
-    await createPlan(workspace, 'b')
+    await createPlan(workspace, 'a.md')
+    await createPlan(workspace, 'b.md')
     await expect(rename(workspace, 'a.md', 'b.md')).rejects.toThrow(/already exists/)
   })
 
   it('overwrites destination file when overwrite: true', async () => {
-    await createPlan(workspace, 'a')
+    await createPlan(workspace, 'a.md')
     await writePlan(workspace, 'a.md', 'fresh')
-    await createPlan(workspace, 'b')
+    await createPlan(workspace, 'b.md')
     await writePlan(workspace, 'b.md', 'stale')
     await rename(workspace, 'a.md', 'b.md', { overwrite: true })
     expect(await readPlan(workspace, 'b.md')).toBe('fresh')
   })
 
   it('refuses to overwrite a folder even with overwrite: true', async () => {
-    await createPlan(workspace, 'a')
+    await createPlan(workspace, 'a.md')
     await createFolder(workspace, 'b')
     await expect(
       rename(workspace, 'a.md', 'b', { overwrite: true }),
@@ -150,7 +149,7 @@ describe('rename', () => {
   })
 
   it('no-op when fromRel === toRel', async () => {
-    await createPlan(workspace, 'a')
+    await createPlan(workspace, 'a.md')
     await rename(workspace, 'a.md', 'a.md')
     expect(await readPlan(workspace, 'a.md')).toBe('')
   })
@@ -158,7 +157,7 @@ describe('rename', () => {
 
 describe('deletePath', () => {
   it('removes a file; idempotent on missing', async () => {
-    await createPlan(workspace, 'tmp')
+    await createPlan(workspace, 'tmp.md')
     await deletePath(workspace, 'tmp.md')
     await deletePath(workspace, 'tmp.md')
     const root = await listTree(workspace)

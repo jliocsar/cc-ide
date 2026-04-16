@@ -17,6 +17,17 @@ import { setDropPayload, type DropPayload } from '@/lib/drop-payload'
 
 const TAB_REORDER_MIME = 'application/x-cc-ide-tab-reorder'
 
+let cachedTransparentDragImage: HTMLImageElement | null = null
+
+function transparentDragImage(): HTMLImageElement {
+  if (cachedTransparentDragImage) return cachedTransparentDragImage
+  const img = new Image()
+  img.src =
+    'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+  cachedTransparentDragImage = img
+  return img
+}
+
 function dragPayloadFor(tab: Tab): DropPayload | null {
   if (tab.kind === 'plan') return { kind: 'plan', workspaceId: tab.meta.workspaceId, relPath: tab.meta.relPath }
   if (tab.kind === 'diff')
@@ -46,7 +57,7 @@ export function HeaderTabs(): JSX.Element {
   const dirtyMap = usePlanTabUi((s) => s.byTab)
   const pendingCloseId = usePlanTabUi((s) => s.pendingCloseId)
   const setPendingCloseId = usePlanTabUi((s) => s.setPendingCloseId)
-  const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   function requestClose(id: string): void {
     const isDirty = dirtyMap[id]?.dirty ?? false
@@ -72,26 +83,34 @@ export function HeaderTabs(): JSX.Element {
               draggable={!!payload || canReorder}
               onDragStart={(e) => {
                 if (payload) setDropPayload(e.dataTransfer, payload)
-                if (canReorder) e.dataTransfer.setData(TAB_REORDER_MIME, tab.id)
+                if (canReorder) {
+                  e.dataTransfer.setData(TAB_REORDER_MIME, tab.id)
+                  // Hide the OS-rendered drag image so the live reorder is the
+                  // only visual feedback. setDragImage(0,0) keeps the OS happy
+                  // about having an image to attach to.
+                  e.dataTransfer.setDragImage(transparentDragImage(), 0, 0)
+                  setDraggingId(tab.id)
+                }
                 e.dataTransfer.effectAllowed = 'copyMove'
               }}
+              onDragEnd={() => setDraggingId(null)}
               onDragOver={(e) => {
                 if (!e.dataTransfer.types.includes(TAB_REORDER_MIME)) return
                 if (tab.pinned) return
                 e.preventDefault()
                 e.dataTransfer.dropEffect = 'move'
-                setDragOverId(tab.id)
-              }}
-              onDragLeave={(e) => {
-                if (dragOverId === tab.id) setDragOverId((prev) => (prev === tab.id ? null : prev))
-                void e
+                if (draggingId && draggingId !== tab.id) {
+                  reorderTab(draggingId, tab.id)
+                }
               }}
               onDrop={(e) => {
                 const srcId = e.dataTransfer.getData(TAB_REORDER_MIME)
-                setDragOverId(null)
+                setDraggingId(null)
                 if (!srcId) return
                 e.preventDefault()
-                reorderTab(srcId, tab.id)
+                // The live reorder during dragover already moved the tab into
+                // place; the drop is just the commit signal.
+                if (srcId !== tab.id) reorderTab(srcId, tab.id)
               }}
               onClick={() => setActive(tab.id)}
               onAuxClick={(e) => {
@@ -102,7 +121,7 @@ export function HeaderTabs(): JSX.Element {
                 active
                   ? 'bg-background text-foreground'
                   : 'text-muted-foreground hover:text-foreground',
-                dragOverId === tab.id ? 'bg-accent/40' : null,
+                draggingId === tab.id ? 'opacity-60' : null,
               )}
             >
               <Icon className="size-3.5" />

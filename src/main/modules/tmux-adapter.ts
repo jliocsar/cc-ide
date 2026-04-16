@@ -36,6 +36,9 @@ export async function ensureSession(sessionName: string, cwd: string): Promise<v
     '50',
   ])
   if (create.code !== 0) throw new Error(`tmux new-session failed: ${create.stderr.trim()}`)
+  // Server option: tmux emits OSC 52 sequences on copy-mode yank. xterm-view
+  // intercepts those and writes them to the system clipboard.
+  await run(['set-option', '-s', 'set-clipboard', 'on'])
 }
 
 async function killIdleIfExists(sessionName: string): Promise<void> {
