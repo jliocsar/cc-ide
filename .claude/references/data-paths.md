@@ -5,9 +5,20 @@
 | Path | Written by | Purpose |
 |---|---|---|
 | `workspaces.json` | `workspace-registry.ts` | registry: `{ version: 1, workspaces: Workspace[] }` |
-| `prompts.json` | `prompts-store.ts` | cross-project prompts library: `{ version: 1, prompts: Prompt[] }` |
+| `prompts.json` | `prompts-store.ts` | global prompt store (cross-project library): `{ version: 1, prompts: Prompt[] }` |
 | `canvas/<workspaceId>.json` | `canvas-store.ts` | per-workspace canvas snapshot (camera + windows) |
-| `plans/<workspaceId>/**/*.md` | `plan-fs-tree.ts` | plan tree, user-managed |
+| `plans/<workspaceId>/**/*.md` | `plan-fs-tree.ts` | **legacy plan location** — auto-migrated on first `plans:tree` call. Don't write here. |
+
+## Workspace-owned (writable) under `<workspace>/.cc-ide/`
+
+| Path | Written by | Purpose |
+|---|---|---|
+| `<workspace>/.cc-ide/plans/**/*.md` | `plan-fs-tree.ts` | plan tree, user-managed. Users should add `.cc-ide/` to `.gitignore`. |
+| `<workspace>/.cc-ide/prompts/**/*.md` | `prompts-fs-tree.ts` | project-scoped prompt tree, user-managed. |
+
+Both are inside the workspace so the drop-format path `.cc-ide/plans/<rel>.md` / `.cc-ide/prompts/<rel>.md` resolves to a real file that Claude can read.
+
+**Plans migration**: `migrateLegacyIfNeeded(workspaceId, workspacePath)` in `plan-fs-tree.ts` moves `~/.cc-ide/plans/<workspaceId>/*` → `<workspace>/.cc-ide/plans/*` on first access. Skips if the destination already has content (legacy is left intact for manual resolution).
 
 All JSON writes are atomic: write `.tmp` → `rename`. All readers tolerate ENOENT and corrupt JSON by returning empty defaults (Zod `safeParse` in the load path).
 

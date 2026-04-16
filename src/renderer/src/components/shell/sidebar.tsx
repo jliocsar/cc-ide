@@ -16,6 +16,7 @@ import {
   TreePine,
   ListChecks,
   GitCompare,
+  MessageSquareText,
   Trash2,
   RefreshCw,
   FolderPlus,
@@ -27,6 +28,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useWorkspaces } from '@/state/workspaces'
 import { useSidebarData } from '@/state/sidebar-data'
 import { usePlansTree } from '@/state/plans-tree'
+import { usePromptsTree } from '@/state/prompts-tree'
 import { useUi } from '@/state/ui'
 import { onEvent } from '@/lib/ipc'
 import { ConversationsSection } from './sections/conversations-section'
@@ -37,6 +39,7 @@ import {
 } from './sections/worktrees-section'
 import { DiffsSection } from './sections/diffs-section'
 import { PlansSection, PlanCreateDialog } from './sections/plans-section'
+import { PromptsSection, PromptCreateDialog } from './sections/prompts-section'
 import { useSpawnModal } from '@/state/spawn-modal'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
@@ -65,6 +68,7 @@ export function Sidebar(): JSX.Element {
     if (!activeId) return
     const state = useSidebarData.getState()
     const plansState = usePlansTree.getState()
+    const promptsState = usePromptsTree.getState()
     const unsubs = [
       onEvent('conversations:changed', (p) => {
         if (p.workspaceId === activeId) void state.refreshConversations(activeId)
@@ -74,6 +78,9 @@ export function Sidebar(): JSX.Element {
       }),
       onEvent('plans:changed', (p) => {
         if (p.workspaceId === activeId) void plansState.refresh()
+      }),
+      onEvent('prompts:changed', (p) => {
+        if (p.workspaceId === activeId) void promptsState.refresh()
       }),
     ]
     return () => {
@@ -206,6 +213,7 @@ export function Sidebar(): JSX.Element {
               <ConversationsAccordion workspaceId={activeId} />
               <WorktreesAccordion workspaceId={activeId} />
               <PlansAccordion workspaceId={activeId} />
+              <PromptsAccordion workspaceId={activeId} />
               <AccordionItem value="diffs" className="border-b-0">
                 <SectionHeader icon={GitCompare} label="Diffs" />
                 <AccordionContent className="pb-0">
@@ -402,6 +410,67 @@ function PlansAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
         <PlansSection workspaceId={workspaceId} onCreateFromRow={setCreateOpen} />
       </AccordionContent>
       <PlanCreateDialog
+        open={createOpen !== null}
+        request={createOpen}
+        onClose={() => setCreateOpen(null)}
+        workspaceId={workspaceId}
+      />
+    </AccordionItem>
+  )
+}
+
+function PromptsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
+  const status = usePromptsTree((s) => s.status)
+  const refresh = usePromptsTree((s) => s.refresh)
+  const [createOpen, setCreateOpen] = useState<null | { mode: 'file' | 'folder'; parent: string }>(null)
+
+  return (
+    <AccordionItem value="prompts" className="border-b-0">
+      <SectionHeader
+        icon={MessageSquareText}
+        label="Prompts"
+        actions={
+          <>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation()
+                void refresh()
+              }}
+              aria-label="Refresh prompts"
+            >
+              <RefreshCw className={cn(status === 'loading' && 'animate-spin')} />
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation()
+                setCreateOpen({ mode: 'folder', parent: '' })
+              }}
+              aria-label="New folder"
+            >
+              <FolderPlus />
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation()
+                setCreateOpen({ mode: 'file', parent: '' })
+              }}
+              aria-label="New prompt"
+            >
+              <Plus />
+            </Button>
+          </>
+        }
+      />
+      <AccordionContent className="pb-0">
+        <PromptsSection workspaceId={workspaceId} onCreateFromRow={setCreateOpen} />
+      </AccordionContent>
+      <PromptCreateDialog
         open={createOpen !== null}
         request={createOpen}
         onClose={() => setCreateOpen(null)}

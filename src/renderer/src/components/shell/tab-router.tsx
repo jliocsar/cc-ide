@@ -24,6 +24,11 @@ export function TabRouter(): JSX.Element {
         />
       )
     case 'prompt':
-      return <PromptViewer promptId={active.meta.promptId} />
+      return (
+        <PromptViewer
+          workspaceId={active.meta.workspaceId}
+          relPath={active.meta.relPath}
+        />
+      )
   }
 }

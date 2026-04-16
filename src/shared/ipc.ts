@@ -266,14 +266,14 @@ export const ipcContract = {
     }),
     response: z.object({ diff: fileDiffSchema }),
   },
-  "prompts:list": {
+  "globalPrompts:list": {
     request: z.object({
       query: z.string().optional(),
       sort: sortModeSchema.optional(),
     }),
     response: z.object({ prompts: z.array(promptSchema) }),
   },
-  "prompts:create": {
+  "globalPrompts:create": {
     request: z.object({
       title: z.string(),
       body: z.string(),
@@ -281,7 +281,7 @@ export const ipcContract = {
     }),
     response: z.object({ prompt: promptSchema }),
   },
-  "prompts:update": {
+  "globalPrompts:update": {
     request: z.object({
       id: z.string(),
       patch: z.object({
@@ -292,8 +292,45 @@ export const ipcContract = {
     }),
     response: z.object({ prompt: promptSchema }),
   },
-  "prompts:delete": {
+  "globalPrompts:delete": {
     request: z.object({ id: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "prompts:tree": {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({ tree: z.unknown() }),
+  },
+  "prompts:read": {
+    request: z.object({ workspaceId: z.string(), relPath: z.string() }),
+    response: z.object({ content: z.string() }),
+  },
+  "prompts:write": {
+    request: z.object({
+      workspaceId: z.string(),
+      relPath: z.string(),
+      content: z.string(),
+    }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "prompts:create": {
+    request: z.object({ workspaceId: z.string(), relPath: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "prompts:createFolder": {
+    request: z.object({ workspaceId: z.string(), relPath: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "prompts:rename": {
+    request: z.object({
+      workspaceId: z.string(),
+      fromRel: z.string(),
+      toRel: z.string(),
+      overwrite: z.boolean().optional(),
+    }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "prompts:delete": {
+    request: z.object({ workspaceId: z.string(), relPath: z.string() }),
     response: z.object({ ok: z.literal(true) }),
   },
   "plans:tree": {
@@ -386,6 +423,7 @@ export const eventChannels = {
   "conversations:changed": workspaceScopedEventSchema,
   "worktrees:changed": workspaceScopedEventSchema,
   "plans:changed": workspaceScopedEventSchema,
+  "prompts:changed": workspaceScopedEventSchema,
   "worktree:cleaned": worktreeCleanedEventSchema,
   "settings:changed": settingsChangedEventSchema,
 } as const;

@@ -2,6 +2,7 @@ import { serializeComments, type CommentRange } from '@shared/comment-serializer
 
 export type DropPayload =
   | { kind: 'plan'; workspaceId: string; relPath: string }
+  | { kind: 'prompt'; workspaceId: string; relPath: string }
   | {
       kind: 'diff'
       workspaceId: string
@@ -30,6 +31,7 @@ export function readDropPayload(dt: DataTransfer): DropPayload | null {
 
 export function dropPathFor(payload: DropPayload): string {
   if (payload.kind === 'plan') return `.cc-ide/plans/${payload.relPath}`
+  if (payload.kind === 'prompt') return `.cc-ide/prompts/${payload.relPath}`
   return payload.path
 }
 

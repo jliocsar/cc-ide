@@ -23,7 +23,7 @@ export type Tab =
       kind: 'prompt'
       title: string
       pinned: false
-      meta: { promptId: string }
+      meta: { workspaceId: string; relPath: string }
     }
 
 const BOARD: Tab = { id: 'board', kind: 'board', title: 'Board', pinned: true }
@@ -48,7 +48,7 @@ type State = {
     path: string,
     stage: 'staged' | 'unstaged',
   ) => void
-  openPrompt: (promptId: string, title: string) => void
+  openPrompt: (workspaceId: string, relPath: string) => void
   closeTab: (id: string) => void
   setActive: (id: string) => void
   reorderTab: (dragId: string, targetId: string) => void
@@ -57,6 +57,7 @@ type State = {
   hydrateWorkspace: (id: string, state: TabsSnapshot | null) => void
   snapshotWorkspace: (id: string) => TabsSnapshot
   rewritePlanTabsForMove: (workspaceId: string, fromRel: string, toRel: string) => void
+  rewritePromptTabsForMove: (workspaceId: string, fromRel: string, toRel: string) => void
 }
 
 function planTabId(workspaceId: string, relPath: string): string {
@@ -67,8 +68,8 @@ function diffTabId(worktreePath: string, path: string, stage: string): string {
   return `diff:${worktreePath}:${stage}:${path}`
 }
 
-function promptTabId(promptId: string): string {
-  return `prompt:${promptId}`
+function promptTabId(workspaceId: string, relPath: string): string {
+  return `prompt:${workspaceId}:${relPath}`
 }
 
 function normalize(raw: TabsSnapshot | null): TabsSnapshot {
@@ -129,11 +130,18 @@ export const useTabs = create<State>((set, get) => {
       })
     },
 
-    openPrompt(promptId, title) {
-      const id = promptTabId(promptId)
+    openPrompt(workspaceId, relPath) {
+      const id = promptTabId(workspaceId, relPath)
       commit((curr) => {
         if (curr.tabs.some((t) => t.id === id)) return { ...curr, activeId: id }
-        const tab: Tab = { id, kind: 'prompt', title, pinned: false, meta: { promptId } }
+        const title = relPath.split('/').pop() || relPath
+        const tab: Tab = {
+          id,
+          kind: 'prompt',
+          title,
+          pinned: false,
+          meta: { workspaceId, relPath },
+        }
         return { tabs: [...curr.tabs, tab], activeId: id }
       })
     },
@@ -195,42 +203,58 @@ export const useTabs = create<State>((set, get) => {
     },
 
     rewritePlanTabsForMove(workspaceId, fromRel, toRel) {
-      function remap(tab: Tab): Tab {
-        if (tab.kind !== 'plan') return tab
-        if (tab.meta.workspaceId !== workspaceId) return tab
-        const rel = tab.meta.relPath
-        let next: string | null = null
-        if (rel === fromRel) next = toRel
-        else if (rel.startsWith(fromRel + '/')) next = toRel + rel.slice(fromRel.length)
-        if (next === null) return tab
-        return {
-          ...tab,
-          id: planTabId(workspaceId, next),
-          title: next.split('/').pop() || next,
-          meta: { ...tab.meta, relPath: next },
-        }
-      }
-      function remapSnapshot(snap: TabsSnapshot): TabsSnapshot {
-        const tabs = snap.tabs.map(remap)
-        const oldToNew = new Map<string, string>()
-        snap.tabs.forEach((t, i) => {
-          const r = tabs[i]
-          if (r && t.id !== r.id) oldToNew.set(t.id, r.id)
-        })
-        const activeId = oldToNew.get(snap.activeId) ?? snap.activeId
-        return { tabs, activeId }
-      }
-      const s = get()
-      const byWs = { ...s._byWorkspace }
-      if (byWs[workspaceId]) byWs[workspaceId] = remapSnapshot(byWs[workspaceId])
-      const isActive = s._activeWorkspaceId === workspaceId
-      const liveSnap: TabsSnapshot = isActive
-        ? (byWs[workspaceId] ?? { tabs: s.tabs, activeId: s.activeId })
-        : { tabs: s.tabs, activeId: s.activeId }
-      set({
-        _byWorkspace: byWs,
-        ...(isActive ? { tabs: liveSnap.tabs, activeId: liveSnap.activeId } : {}),
-      })
+      remapKind('plan', workspaceId, fromRel, toRel, planTabId, get, set)
+    },
+
+    rewritePromptTabsForMove(workspaceId, fromRel, toRel) {
+      remapKind('prompt', workspaceId, fromRel, toRel, promptTabId, get, set)
     },
   }
 })
+
+function remapKind(
+  kind: 'plan' | 'prompt',
+  workspaceId: string,
+  fromRel: string,
+  toRel: string,
+  mkId: (workspaceId: string, relPath: string) => string,
+  get: () => State,
+  set: (partial: Partial<State>) => void,
+): void {
+  function remap(tab: Tab): Tab {
+    if (tab.kind !== kind) return tab
+    if (tab.meta.workspaceId !== workspaceId) return tab
+    const rel = tab.meta.relPath
+    let next: string | null = null
+    if (rel === fromRel) next = toRel
+    else if (rel.startsWith(fromRel + '/')) next = toRel + rel.slice(fromRel.length)
+    if (next === null) return tab
+    return {
+      ...tab,
+      id: mkId(workspaceId, next),
+      title: next.split('/').pop() || next,
+      meta: { ...tab.meta, relPath: next },
+    } as Tab
+  }
+  function remapSnapshot(snap: TabsSnapshot): TabsSnapshot {
+    const tabs = snap.tabs.map(remap)
+    const oldToNew = new Map<string, string>()
+    snap.tabs.forEach((t, i) => {
+      const r = tabs[i]
+      if (r && t.id !== r.id) oldToNew.set(t.id, r.id)
+    })
+    const activeId = oldToNew.get(snap.activeId) ?? snap.activeId
+    return { tabs, activeId }
+  }
+  const s = get()
+  const byWs = { ...s._byWorkspace }
+  if (byWs[workspaceId]) byWs[workspaceId] = remapSnapshot(byWs[workspaceId])
+  const isActive = s._activeWorkspaceId === workspaceId
+  const liveSnap: TabsSnapshot = isActive
+    ? (byWs[workspaceId] ?? { tabs: s.tabs, activeId: s.activeId })
+    : { tabs: s.tabs, activeId: s.activeId }
+  set({
+    _byWorkspace: byWs,
+    ...(isActive ? { tabs: liveSnap.tabs, activeId: liveSnap.activeId } : {}),
+  })
+}

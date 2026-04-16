@@ -3,7 +3,6 @@ import { toast } from 'sonner'
 import { EditorState, Prec } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { Vim, getCM } from '@replit/codemirror-vim'
-import { invoke } from '@/lib/ipc'
 import { useSettings } from '@/state/settings'
 import {
   usePlanTabUi,
@@ -27,9 +26,9 @@ import {
 
 type Props = {
   tabId: string
-  workspaceId: string
-  relPath: string
   initialContent: string
+  onSave: (content: string) => Promise<void>
+  reviewCapable?: boolean
 }
 
 type ActiveSaveTarget = {
@@ -57,17 +56,18 @@ function rangesToLite(ranges: readonly RangeDraft[]): RangeDraftLite[] {
   }))
 }
 
-export function PlanEditor({
+export function MarkdownFileEditor({
   tabId,
-  workspaceId,
-  relPath,
   initialContent,
+  onSave,
+  reviewCapable = false,
 }: Props): JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
   const compartmentsRef = useRef<PlanCompartments | null>(null)
   const keybinds = useSettings((s) => s.settings.editor.keybinds)
-  const mode = usePlanTabUi((s) => s.byTab[tabId]?.mode ?? 'review')
+  const planMode = usePlanTabUi((s) => s.byTab[tabId]?.mode ?? 'review')
+  const mode: PlanMode = reviewCapable ? planMode : 'edit'
   const contentRef = useRef(initialContent)
   contentRef.current = initialContent
   const lastSavedRef = useRef(initialContent)
@@ -79,7 +79,7 @@ export function PlanEditor({
       return
     }
     try {
-      await invoke('plans:write', { workspaceId, relPath, content })
+      await onSave(content)
       lastSavedRef.current = content
       usePlanTabUi.getState().setDirty(tabId, false)
     } catch (err) {
@@ -94,8 +94,10 @@ export function PlanEditor({
     ensureVimWriteRegistered()
     const compartments = createPlanCompartments()
     compartmentsRef.current = compartments
-    const initialMode: PlanMode = usePlanTabUi.getState().byTab[tabId]?.mode ?? 'review'
-    const isReview = initialMode === 'review'
+    const initialMode: PlanMode = reviewCapable
+      ? usePlanTabUi.getState().byTab[tabId]?.mode ?? 'review'
+      : 'edit'
+    const isReview = reviewCapable && initialMode === 'review'
     const initialKeybinds = useSettings.getState().settings.editor.keybinds
     const reviewPointer = isReview
       ? reviewPointerExtension({ onStart: handleReviewStart, onExtend: handleReviewExtend })
@@ -147,6 +149,7 @@ export function PlanEditor({
           if (!u.docChanged) return
           const content = u.state.doc.toString()
           usePlanTabUi.getState().setDirty(tabId, content !== lastSavedRef.current)
+          if (!reviewCapable) return
           const store = useReviewComments.getState()
           const current = store.byTab[tabId] ?? EMPTY_RANGES
           if (current.length === 0) return
@@ -164,18 +167,21 @@ export function PlanEditor({
     viewRef.current = view
     activeSaveTarget = { view, save: () => saveView(view) }
 
-    const initialRanges = useReviewComments.getState().byTab[tabId] ?? EMPTY_RANGES
-    view.dispatch({ effects: setRangesEffect.of(rangesToLite(initialRanges as RangeDraft[])) })
+    let unsub: (() => void) | null = null
+    if (reviewCapable) {
+      const initialRanges = useReviewComments.getState().byTab[tabId] ?? EMPTY_RANGES
+      view.dispatch({ effects: setRangesEffect.of(rangesToLite(initialRanges as RangeDraft[])) })
 
-    const unsub = useReviewComments.subscribe((s, prev) => {
-      const next = s.byTab[tabId] ?? EMPTY_RANGES
-      const old = prev.byTab[tabId] ?? EMPTY_RANGES
-      if (next === old) return
-      view.dispatch({ effects: setRangesEffect.of(rangesToLite(next as RangeDraft[])) })
-    })
+      unsub = useReviewComments.subscribe((s, prev) => {
+        const next = s.byTab[tabId] ?? EMPTY_RANGES
+        const old = prev.byTab[tabId] ?? EMPTY_RANGES
+        if (next === old) return
+        view.dispatch({ effects: setRangesEffect.of(rangesToLite(next as RangeDraft[])) })
+      })
+    }
 
     return () => {
-      unsub()
+      if (unsub) unsub()
       if (activeSaveTarget?.view === view) activeSaveTarget = null
       view.destroy()
       viewRef.current = null
@@ -197,7 +203,7 @@ export function PlanEditor({
     const view = viewRef.current
     const c = compartmentsRef.current
     if (!view || !c) return
-    const isReview = mode === 'review'
+    const isReview = reviewCapable && mode === 'review'
     view.dispatch({
       effects: [
         c.readOnly.reconfigure(EditorState.readOnly.of(isReview)),
@@ -213,7 +219,7 @@ export function PlanEditor({
       ],
     })
     if (!isReview) view.focus()
-  }, [mode])
+  }, [mode, reviewCapable])
 
   function handleReviewStart(lineNo: number): void {
     useReviewComments.getState().startSingle(tabId, lineNo)
