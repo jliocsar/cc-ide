@@ -47,10 +47,15 @@ async function readPrompts(): Promise<Prompt[]> {
 
 async function writePrompts(prompts: Prompt[]): Promise<void> {
   await ensureDir()
-  const tmp = PROMPTS_PATH + '.tmp'
+  const tmp = `${PROMPTS_PATH}.${randomUUID()}.tmp`
   const body = JSON.stringify({ version: 1, prompts }, null, 2)
-  await fs.writeFile(tmp, body, 'utf8')
-  await fs.rename(tmp, PROMPTS_PATH)
+  try {
+    await fs.writeFile(tmp, body, 'utf8')
+    await fs.rename(tmp, PROMPTS_PATH)
+  } catch (err) {
+    await fs.rm(tmp, { force: true }).catch(() => {})
+    throw err
+  }
 }
 
 export async function listPrompts(options?: {

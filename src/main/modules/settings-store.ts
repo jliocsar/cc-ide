@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -47,10 +48,15 @@ export async function readSettings(): Promise<Settings> {
 
 async function writeSettings(settings: Settings): Promise<void> {
   await ensureDir()
-  const tmp = SETTINGS_PATH + '.tmp'
+  const tmp = `${SETTINGS_PATH}.${randomUUID()}.tmp`
   const body = JSON.stringify({ version: 1, settings }, null, 2)
-  await fs.writeFile(tmp, body, 'utf8')
-  await fs.rename(tmp, SETTINGS_PATH)
+  try {
+    await fs.writeFile(tmp, body, 'utf8')
+    await fs.rename(tmp, SETTINGS_PATH)
+  } catch (err) {
+    await fs.rm(tmp, { force: true }).catch(() => {})
+    throw err
+  }
 }
 
 type DeepPartial<T> = {

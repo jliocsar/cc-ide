@@ -1,8 +1,8 @@
 # Handoff — start here
 
-Welcome to `cc-ide`. MVP shipped across 6 phases; Phase 7 closed live-debug bugs; Phase 8 shipped backlog (#8–#12) + UX; Phase 9 made plans editable (CM6 + Vim/VSCode keybinds + Edit/Review modes). **Phase 10 added project-scoped prompts and moved plans storage into the workspace** — see "What Phase 10 added" below. **v0.1 ready.**
+Welcome to `cc-ide`. MVP shipped across 6 phases; Phase 7 closed live-debug bugs; Phase 8 shipped backlog (#8–#12) + UX; Phase 9 made plans editable (CM6 + Vim/VSCode keybinds + Edit/Review modes). Phase 10 added project-scoped prompts and moved plans storage into the workspace. **Phase 11 (this session) shipped a UX/correctness sweep — read "What Phase 11 added" below.** **v0.1 ready.**
 
-No open work items other than the future-features trackers (#3–#7), the Phase 9 deferrals (below), and a short list of Phase 10 follow-ups (below). Don't start those without talking to JC.
+No open work items other than the future-features trackers (#3–#7), the Phase 9 deferrals (below), and a short list of Phase 10/11 follow-ups (below). Don't start those without talking to JC.
 
 ## Read in this order
 
@@ -17,8 +17,8 @@ Read everything above before touching code. ~20 minutes total.
 
 ## Current state
 
-- `main` branch at Phase 10 close-out.
-- 174 tests across 17 files, all green. `pnpm typecheck` clean. `pnpm build` clean.
+- `main` branch at Phase 11 close-out.
+- 187 tests across 18 files, all green. `pnpm typecheck` clean. `pnpm build` clean.
 - `pnpm dev` on port 5173; CDP on 9223 for `agent-browser` (gated by `CC_IDE_DEVTOOLS=1` — no more auto-detached devtools).
 
 ## What Phase 8 added
