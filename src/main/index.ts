@@ -3,6 +3,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { join } from 'node:path'
 import { registerIpcHandlers } from './ipc'
 import { disposeAllWatchers } from './modules/watchers'
+import * as depgraph from './modules/depgraph'
 import { disposeAll as disposeSessionWatcher } from './modules/session-watcher'
 
 if (is.dev) {
@@ -62,6 +63,7 @@ app.whenReady().then(() => {
 app.on('before-quit', () => {
   disposeAllWatchers()
   disposeSessionWatcher()
+  void depgraph.disposeAll()
 })
 
 app.on('window-all-closed', () => {

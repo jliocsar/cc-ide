@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
+import { BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { promises as fs } from 'node:fs'
@@ -15,6 +15,8 @@ import * as planFsTree from './modules/plan-fs-tree'
 import * as promptsFsTree from './modules/prompts-fs-tree'
 import * as tabsStore from './modules/tabs-store'
 import * as settingsStore from './modules/settings-store'
+import * as dropsStore from './modules/drops-store'
+import * as depgraph from './modules/depgraph'
 import * as ephemeralWorktrees from './modules/ephemeral-worktrees'
 import * as sessionWatcher from './modules/session-watcher'
 import { generateClaudeWindowName } from './modules/cat-name-gen'
@@ -137,10 +139,17 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       sessionName: primarySession,
       windowName,
       cwd: ws.path,
-      command: `claude --resume ${sessionId}`,
+      // Wrap in an interactive zsh so the user's ~/.zshrc loads (PATH,
+      // aliases, etc.). After claude exits (e.g. /exit), `tmux kill-window`
+      // forces the window closed — bypasses any user shell config that
+      // would otherwise leave a zsh prompt sitting in the pane. `exec` on
+      // the inner zsh keeps a parent shell from lingering between tmux's
+      // default-shell invocation and our zsh -ic call.
+      command: `exec zsh -ic 'claude --resume ${sessionId}; tmux kill-window'`,
     })
     const viewerName = `${primarySession}-v-${randomUUID().slice(0, 8)}`
     await tmux.createViewerSession({ primarySession, viewerName, windowTarget: tmuxWindow })
+    await tmux.hardenViewerSession(viewerName)
     const ptyId = ptyManager.openPty({
       command: 'tmux',
       args: ['attach-session', '-t', viewerName],
@@ -195,7 +204,9 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       sessionName: primarySession,
       windowName,
       cwd,
-      command: 'claude',
+      // see the resume flow above for why this is wrapped in `exec zsh -ic`
+      // + `tmux kill-window` for clean window teardown on /exit.
+      command: `exec zsh -ic 'claude; tmux kill-window'`,
     })
     const viewerName = `${primarySession}-v-${randomUUID().slice(0, 8)}`
     await tmux.createViewerSession({
@@ -203,6 +214,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       viewerName,
       windowTarget: tmuxWindow,
     })
+    await tmux.hardenViewerSession(viewerName)
 
     if (ephemeral) {
       await ephemeralWorktrees.add({
@@ -474,6 +486,35 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     clipboard.writeText(text)
     return { ok: true }
   },
+  'shell:openPath': async ({ absolutePath }) => {
+    const err = await shell.openPath(absolutePath)
+    if (err) throw new Error(err)
+    return { ok: true }
+  },
+  'graph:subscribe': async ({ workspaceId }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await depgraph.subscribe(workspaceId, ws.path)
+    return { ok: true }
+  },
+  'graph:unsubscribe': async ({ workspaceId }) => {
+    await depgraph.unsubscribe(workspaceId)
+    return { ok: true }
+  },
+  'graph:refresh': async ({ workspaceId }) => {
+    const ws = await workspaceRegistry.getWorkspace(workspaceId)
+    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    await depgraph.refresh(workspaceId, ws.path)
+    return { ok: true }
+  },
+  'drops:list': async ({ workspaceId }) => {
+    const entries = await dropsStore.listDrops(workspaceId)
+    return { entries }
+  },
+  'drops:write': async ({ workspaceId, entries }) => {
+    await dropsStore.writeDrops(workspaceId, entries)
+    return { ok: true }
+  },
   'session:attachExisting': async ({ workspaceId, tmuxWindow, cols, rows }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)
     if (!ws) return { ptyId: null, exists: false }
@@ -484,6 +525,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     if (!primarySession) return { ptyId: null, exists: false }
     const viewerName = `${primarySession}-v-${randomUUID().slice(0, 8)}`
     await tmux.createViewerSession({ primarySession, viewerName, windowTarget: tmuxWindow })
+    await tmux.hardenViewerSession(viewerName)
     const ptyId = ptyManager.openPty({
       command: 'tmux',
       args: ['attach-session', '-t', viewerName],

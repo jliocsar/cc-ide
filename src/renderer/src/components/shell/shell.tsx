@@ -12,6 +12,7 @@ import { PromptsModal } from '@/components/palette/prompts-modal'
 import { SettingsModal } from '@/components/settings/settings-modal'
 import { useCanvasPersistence } from '@/hooks/use-canvas-persistence'
 import { useTabsPersistence } from '@/hooks/use-tabs-persistence'
+import { useDropsPersistence } from '@/hooks/use-drops-persistence'
 import { useTabs } from '@/state/tabs'
 import { usePalette } from '@/state/palette'
 import { usePlanTabUi } from '@/state/plan-tab-ui'
@@ -26,6 +27,7 @@ import { cn } from '@/lib/utils'
 export function Shell(): JSX.Element {
   useCanvasPersistence()
   useTabsPersistence()
+  useDropsPersistence()
 
   const closeTab = useTabs((s) => s.closeTab)
   const activeId = useTabs((s) => s.activeId)

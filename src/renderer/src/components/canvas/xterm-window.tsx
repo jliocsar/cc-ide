@@ -50,7 +50,7 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
 
   async function handleDrop(payload: DropPayload) {
     if (!session || session.exited) return
-    if (payload.kind === 'prompt') {
+    if (payload.kind === 'prompt' || payload.kind === 'file') {
       const dropText = buildDropString(payload, [])
       await invoke('pty:write', { ptyId: session.ptyId, data: dropText })
       return

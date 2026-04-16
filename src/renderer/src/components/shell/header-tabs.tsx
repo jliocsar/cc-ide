@@ -1,8 +1,18 @@
 import { useState } from 'react'
-import { LayoutGrid, X, FileText, GitCompare, MessageSquare } from 'lucide-react'
+import {
+  LayoutGrid,
+  X,
+  FileText,
+  GitCompare,
+  MessageSquare,
+  ChevronDown,
+  Network,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTabs, type Tab } from '@/state/tabs'
 import { usePlanTabUi } from '@/state/plan-tab-ui'
+import { useBoardUi, type BoardMode } from '@/state/board-ui'
+import { useWorkspaces } from '@/state/workspaces'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +23,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { setDropPayload, type DropPayload } from '@/lib/drop-payload'
 
 const TAB_REORDER_MIME = 'application/x-cc-ide-tab-reorder'
@@ -129,6 +145,7 @@ export function HeaderTabs(): JSX.Element {
                 {dirty ? <span className="mr-1 text-foreground">•</span> : null}
                 {tab.title}
               </span>
+              {tab.kind === 'board' ? <BoardModeChevron /> : null}
               {!tab.pinned ? (
                 <button
                   type="button"
@@ -173,5 +190,44 @@ export function HeaderTabs(): JSX.Element {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+function BoardModeChevron(): JSX.Element | null {
+  const workspaceId = useWorkspaces((s) => s.activeId)
+  const mode = useBoardUi((s) =>
+    workspaceId ? s.modeByWorkspace[workspaceId] ?? 'sessions' : 'sessions',
+  )
+  const setMode = useBoardUi((s) => s.setMode)
+  if (!workspaceId) return null
+
+  function pick(next: BoardMode): void {
+    if (!workspaceId) return
+    setMode(workspaceId, next)
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          aria-label="Switch board mode"
+        >
+          <ChevronDown className="size-3" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" sideOffset={4}>
+        <DropdownMenuItem onClick={() => pick('sessions')}>
+          <LayoutGrid />
+          Sessions {mode === 'sessions' ? '•' : ''}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => pick('graph')}>
+          <Network />
+          Dependency Graph {mode === 'graph' ? '•' : ''}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

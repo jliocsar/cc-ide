@@ -113,6 +113,95 @@ export const settingsPatchSchema = z.object({
     .optional(),
 });
 
+// ──────────────────── Dependency graph ────────────────────
+
+export const graphEdgeKindSchema = z.enum([
+  "static",
+  "type",
+  "dynamic",
+  "reexport",
+  "asset",
+]);
+export type GraphEdgeKindDTO = z.infer<typeof graphEdgeKindSchema>;
+
+export const graphNodeLangSchema = z.enum([
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "json",
+  "css",
+  "dts",
+  "external",
+]);
+export type GraphNodeLangDTO = z.infer<typeof graphNodeLangSchema>;
+
+export const graphNodeSchema = z.object({
+  id: z.string(),
+  kind: z.enum(["file", "external"]),
+  lang: graphNodeLangSchema,
+  loc: z.number().optional(),
+  external: z.object({ packageName: z.string() }).optional(),
+});
+export type GraphNodeDTO = z.infer<typeof graphNodeSchema>;
+
+// Kinds serialize as sorted array on the wire; reconstructed as Set in-memory
+// where needed. Keep the wire form flat/serializable.
+export const graphEdgeWireSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  kinds: z.array(graphEdgeKindSchema),
+});
+export type GraphEdgeWireDTO = z.infer<typeof graphEdgeWireSchema>;
+
+export const graphDeltaSchema = z.object({
+  addNodes: z.array(graphNodeSchema).optional(),
+  removeNodes: z.array(z.string()).optional(),
+  addEdges: z.array(graphEdgeWireSchema).optional(),
+  removeEdges: z
+    .array(z.object({ from: z.string(), to: z.string() }))
+    .optional(),
+  updateEdgeKinds: z.array(graphEdgeWireSchema).optional(),
+});
+export type GraphDeltaDTO = z.infer<typeof graphDeltaSchema>;
+
+export const graphSnapshotSchema = z.object({
+  workspaceId: z.string(),
+  nodes: z.array(graphNodeSchema),
+  edges: z.array(graphEdgeWireSchema),
+  scanDone: z.boolean(),
+});
+export type GraphSnapshotDTO = z.infer<typeof graphSnapshotSchema>;
+
+export const graphDeltaEventSchema = z.object({
+  workspaceId: z.string(),
+  delta: graphDeltaSchema,
+});
+export const graphScanProgressEventSchema = z.object({
+  workspaceId: z.string(),
+  filesScanned: z.number(),
+  filesTotal: z.number().nullable(),
+});
+export const graphScanEndEventSchema = z.object({
+  workspaceId: z.string(),
+  finalNodeCount: z.number(),
+  finalEdgeCount: z.number(),
+});
+export const graphErrorEventSchema = z.object({
+  workspaceId: z.string(),
+  message: z.string(),
+});
+
+// ──────────────────── Drops ────────────────────
+
+export const dropEntrySchema = z.object({
+  id: z.string(),
+  workspaceId: z.string(),
+  relPath: z.string(),
+  addedAt: z.number(),
+});
+export type DropEntryDTO = z.infer<typeof dropEntrySchema>;
+
 export const ipcContract = {
   "app:ping": {
     request: z.object({ at: z.number() }),
@@ -390,6 +479,33 @@ export const ipcContract = {
     request: z.object({ text: z.string() }),
     response: z.object({ ok: z.literal(true) }),
   },
+  "shell:openPath": {
+    request: z.object({ absolutePath: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "graph:subscribe": {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "graph:unsubscribe": {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "graph:refresh": {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  "drops:list": {
+    request: z.object({ workspaceId: z.string() }),
+    response: z.object({ entries: z.array(dropEntrySchema) }),
+  },
+  "drops:write": {
+    request: z.object({
+      workspaceId: z.string(),
+      entries: z.array(dropEntrySchema),
+    }),
+    response: z.object({ ok: z.literal(true) }),
+  },
 } as const;
 
 export type IpcContract = typeof ipcContract;
@@ -432,6 +548,11 @@ export const eventChannels = {
   "prompts:changed": workspaceScopedEventSchema,
   "worktree:cleaned": worktreeCleanedEventSchema,
   "settings:changed": settingsChangedEventSchema,
+  "graph:snapshot": graphSnapshotSchema,
+  "graph:delta": graphDeltaEventSchema,
+  "graph:scanProgress": graphScanProgressEventSchema,
+  "graph:scanEnd": graphScanEndEventSchema,
+  "graph:error": graphErrorEventSchema,
 } as const;
 
 export type IpcEventChannel = keyof typeof eventChannels;

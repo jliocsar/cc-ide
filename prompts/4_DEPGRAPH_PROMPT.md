@@ -1,4 +1,5 @@
-/grill-me Ultrathink this my friend:
+/grill-me Ultrathink this my friend -- also check @HANDOFF.md:
+
 If we were to create a special type of tab in this app to add a DAG of dependencies/modules imports;
 We re-use the same canvas structure -- but instead we show a Obsidian-flavored graph mapping dependencies (i.e. how the code base files connect to each other, stopping at the 3rd party imports/not going into node_modules for example);
 Basically the current "Board" tab in the app would have a chevron to the right of the label, where when clicked on it allows you to pick "Board" and "Dependency Graph" as the tab -- basically changing the content of the Board tab to the Dep Graph instead

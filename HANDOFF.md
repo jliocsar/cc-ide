@@ -56,6 +56,116 @@ Plans opened from the sidebar are now editable inside their tab, with two modes 
 - **Selection / active-line / cursor contrast**: theme rules in `plan-editor-extensions.ts` tune text contrast against bright backgrounds. Notably `.cm-fat-cursor` (Vim block cursor) is forced to `color: var(--primary-foreground)` so the single character under the block stays legible — upstream Replit defaults inherit the char's original color, causing white-on-white in dark mode.
 - **New deps**: `codemirror`, `@codemirror/{state,view,commands,search,language,lang-markdown}`, `@lezer/highlight`, `@replit/codemirror-vim`. All approved by JC before install. `@codemirror/vim` is NOT a real package — do not reinstall under that name.
 
+## What Phase 11 added
+
+UX + correctness sweep across 11 bugs/features in one session. Mostly small per-file changes — but a few shape the project's invariants going forward.
+
+### Drop-format contract change (BREAKING — read this)
+
+**Paths with whitespace in the drop format are now wrapped in double quotes.** Embedded `"` in such paths is escaped as `\"`. Paths without whitespace stay bare.
+
+- Old: `@.cc-ide/plans/My Plan.md` (Claude tokenized at the space → broken)
+- New: `@".cc-ide/plans/My Plan.md"`
+
+Why: Claude tokenizes on whitespace, so unquoted spaces broke the parse. The serializer's old "no escaping or quoting, even when it contains spaces" guarantee is **gone** — the previous golden test that locked it has been replaced by tests asserting the new behavior.
+
+Files: `src/shared/comment-serializer.ts` (`formatDropPath` helper), `src/shared/comment-serializer.test.ts` (3 new/changed tests), `src/renderer/src/lib/drop-payload.ts` (`buildDropString` no-ranges branch + `setDropPayload` text/plain fallback both use `formatDropPath`), `.claude/rules/drop-format.md` (rule rewritten).
+
+### `.md` enforcement on plans + prompts (BREAKING — main side)
+
+Files in plans/prompts trees MUST end in `.md`. Folders unaffected.
+
+- Old: `createPlan(workspace, 'foo')` auto-appended `.md`.
+- New: `createPlan(workspace, 'foo')` throws `plan filename must end in .md: foo`.
+
+Renderer rejects at create + rename time via the new `validateMarkdownFilename` in `src/shared/markdown-name.ts`. Sidebar rename now routes through `InlineRenameInput` with a shadcn `Tooltip` showing the validation reason (replaces the old native `title=` attr + raw `<input>`). 11 new tests in `markdown-name.test.ts`. Plan/prompt fs-tree tests rewritten to pass `.md` explicitly.
+
+### Board now mounted always
+
+`tab-router.tsx` was unmounting Canvas every time the user switched to a non-board tab — disposing every xterm Terminal instance, leaving terminals black on return until the user interacted. Canvas now mounts once and stays mounted; non-board tabs render as an overlay above. Crucially the Canvas root uses `visibility:hidden + position:absolute` (NOT `display:none` — xterm's FitAddon needs measurable size).
+
+Plus: `[&>*]:h-full [&>*]:w-full` selectors in the new wrappers because Canvas's own root has no intrinsic height — it relied on the previous direct grid-child relationship.
+
+### xterm-view rework
+
+- **Resize debounce**: `pty:resize` now fires 150ms after the last fit (`xterm-view.tsx`). `fit.fit()` still runs every observation. Old behavior flooded tmux + claude with SIGWINCH 60Hz during a window-frame drag, leaving the buffer half-rendered.
+- **Workspace-switch redraw kick**: when the xterm Terminal remounts onto an existing pty, tmux thinks nothing changed and doesn't redraw — leaving the new xterm blank ("alt+tab to fix"). Solution: the resize trick — issue `pty:resize cols-1` then immediately `pty:resize cols`, forcing a real SIGWINCH cascade. Tmux responds with a full screen redraw. (Tried `tmux refresh-client -t <session>` first — turns out `-t` requires a client TTY, not a session name. Pure renderer trick is simpler and works.)
+- **Clipboard sync**: tmux server option `set-clipboard on` set in `tmux-adapter.ensureSession` so tmux emits OSC 52 on copy-mode yank. New `clipboard:write` IPC channel routes to `electron.clipboard.writeText`. xterm-view registers `term.parser.registerOscHandler(52, ...)` (with `allowProposedApi: true` on the Terminal) and a `term.attachCustomKeyEventHandler` for Ctrl+Shift+C / Cmd+C. **Both** mouse-select and tmux copy-mode now land in the system clipboard.
+
+### Viewer tmux sessions are hardened + isolated
+
+Two changes to make canvas windows behave like raw terminals:
+
+**Hardening** — `tmux.hardenViewerSession(viewerName)` runs after every `createViewerSession`:
+
+- `set-option -t <viewer> status off` — hides the tmux tab bar.
+- `set-option -t <viewer> prefix None` + `prefix2 None` — disables all tmux key bindings inside the viewer pty. User can't `prefix+c` to create windows, can't `prefix+%`/`"` to split, can't `prefix+d` to detach.
+
+**Isolation** — `createViewerSession` no longer uses `new-session -t primary` (linked group). Instead it creates a standalone session with a placeholder window, then `link-window -k -s primary:target -t viewer:0` to slot in only the target. This matters because:
+
+- Linked groups share ALL windows. When one Claude exited, the viewer auto-switched to a sibling window — leaving the canvas window showing a different live Claude (visible bug once `status off` hid the switch).
+- Standalone session with one linked window means: target window dies → viewer has 0 windows → viewer session dies → pty exits → Shell's `pty:exit` listener removes the canvas window cleanly. New windows added to primary stay invisible to existing viewers.
+
+All per-session — primary untouched, user's `~/.tmux.conf` never read by us. Only applies to NEW viewer sessions; existing ones must be respawned.
+
+### Sessions: dedupe across workspace switches
+
+Switching workspaces back-and-forth used to add a duplicate `SessionRecord` per round-trip. Cause: canvas snapshot strips `sessionId`, hydrate restores with `sessionId: null` (dormant), `rehydrateLiveSessions` then spawns a NEW viewer pty + calls `registerExisting` → second record for the same `tmuxWindow`.
+
+Fix: new `relinkExistingSessions(workspaceId)` in `use-canvas-persistence.ts` runs immediately after hydrate. It finds dormant windows whose `tmuxWindow` matches an existing live `SessionRecord` and reuses that `ptyId`. Only windows with no matching record fall through to the spawn-fresh path. Side benefit: keeps the same viewer pty alive across switches, so xterm reconnects to the same screen state (paired with the redraw kick above).
+
+### Atomic-write race fix (canvas/tabs/settings/prompts stores)
+
+All four store modules used the same atomic-write pattern: write to `<id>.json.tmp`, rename to `<id>.json`. Two concurrent saves for the same key (e.g. debounced + workspace-switch forced save) collided on the shared tmp path → first rename consumed it, second ENOENTed. Fix: per-write randomized tmp suffix (`<id>.<uuid>.tmp`) so each write owns its tmp; later rename wins (correct for debounced-save semantics). Wrapped in try/catch with best-effort tmp cleanup on failure.
+
+### Diff viewer "no diff" empty state
+
+When a diff tab's file gets committed, `diff.hunks` becomes `[]` — the viewer used to render a blank white panel. Now shows a centered card explaining the file is no longer in the diff and to close the tab manually. The tab itself stays open (user closes when ready).
+
+### Tab drag UX
+
+`header-tabs.tsx` reorder used to feel sluggish — HTML5 DnD's OS-rendered drag image (a screenshot of the tab) felt heavy and reorder only happened on `drop`. Now: 1×1 transparent drag image via `setDragImage` kills the screenshot, and `reorderTab` fires on `dragover` for live reorder. Dragged tab gets `opacity-60`. Drop-onto-terminal flow (different MIME) is untouched.
+
+### Vim selection visible
+
+`plan-editor-extensions.ts:168` selection alpha 12% → 30%. The 12% was barely perceptible against the dark bg, especially in vim visual mode.
+
+### xterm lineHeight is 1.2 (UNCHANGED — but verified)
+
+Briefly tried changing `lineHeight: 1.2` → 1 to fix a click-Y-axis selection bug (clicking bottom of terminal selected the top). lineHeight wasn't the cause — restored to 1.2 since JC prefers the visual breathing room. **Click-Y bug is still open** — see Phase 11 deferrals.
+
+### Files that changed in Phase 11
+
+- `src/shared/comment-serializer.ts` + `.test.ts` — `formatDropPath`, contract change
+- `src/shared/markdown-name.ts` + `.test.ts` (new, 11 tests)
+- `src/shared/ipc.ts` — added `clipboard:write` channel
+- `src/main/ipc.ts` — `clipboard:write` handler
+- `src/main/modules/tmux-adapter.ts` — `set-clipboard on` in `ensureSession` + `hardenViewerSession`
+- `src/main/modules/canvas-store.ts` — randomized tmp + try/catch
+- `src/main/modules/tabs-store.ts` — same
+- `src/main/modules/settings-store.ts` — same
+- `src/main/modules/prompts-store.ts` — same
+- `src/main/modules/plan-fs-tree.ts` — reject non-`.md` in createPlan + rename
+- `src/main/modules/prompts-fs-tree.ts` — same
+- `src/main/modules/{plan,prompts}-fs-tree.test.ts` — rewritten createPlan/createPrompt tests
+- `src/renderer/src/components/shell/tab-router.tsx` — board mount-always pattern
+- `src/renderer/src/components/shell/header-tabs.tsx` — live-reorder + transparent drag image
+- `src/renderer/src/components/shell/sections/plans-section.tsx` — InlineRenameInput integration
+- `src/renderer/src/components/shell/sections/prompts-section.tsx` — same
+- `src/renderer/src/components/ui/inline-rename-input.tsx` — added shadcn Tooltip wrap
+- `src/renderer/src/components/terminal/xterm-view.tsx` — debounced resize + clipboard handlers + workspace-switch redraw kick
+- `src/renderer/src/components/editor/plan-editor-extensions.ts` — selection alpha 12 → 30
+- `src/renderer/src/components/viewers/diff-viewer.tsx` — no-diff empty state
+- `src/renderer/src/lib/drop-payload.ts` — quote in buildDropString + text/plain
+- `src/renderer/src/hooks/use-canvas-persistence.ts` — `relinkExistingSessions`
+- `.claude/rules/drop-format.md` — rule rewritten
+
+### Phase 11 deferrals
+
+- **Click-Y axis bug in xterm** still open. Symptom: clicking near the bottom of an xterm window selects text near the top (Y miscalculation in xterm's hit-test). Tried lineHeight first — not the cause. Needs live debug via `agent-browser connect 9223` (start dev with `CC_IDE_DEVTOOLS=1`). Likely candidate: parent CSS transform on the canvas viewport (`scale()`) interfering with xterm's `getBoundingClientRect`-based hit-testing.
+- **Orphan tmux viewer sessions accumulate**. `tmux ls` showed many `ccide-*-v-*` sessions still alive long after their ptys died. The `pty.onExit` callback runs `killViewerSession`, but if Electron crashes or is killed before that fires, the sessions leak. Consider a startup sweep: list `*-v-*` sessions whose names don't match any active pty and kill them.
+- **`set-clipboard on` is set every `ensureSession`** even though it's a server-level option (idempotent). Cosmetic — could move to a one-shot init.
+
 ## What Phase 10 added
 
 Two things: project-scoped prompts (new surface) and a fix to plans storage so the `@.cc-ide/plans/<rel>.md` drop path resolves to a real file that Claude can read.

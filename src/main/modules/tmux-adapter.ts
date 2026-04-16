@@ -20,24 +20,26 @@ const IDLE_WINDOW = '__ccide_idle__'
 
 export async function ensureSession(sessionName: string, cwd: string): Promise<void> {
   const has = await run(['has-session', '-t', sessionName])
-  if (has.code === 0) return
-  const create = await run([
-    'new-session',
-    '-d',
-    '-s',
-    sessionName,
-    '-n',
-    IDLE_WINDOW,
-    '-c',
-    cwd,
-    '-x',
-    '200',
-    '-y',
-    '50',
-  ])
-  if (create.code !== 0) throw new Error(`tmux new-session failed: ${create.stderr.trim()}`)
-  // Server option: tmux emits OSC 52 sequences on copy-mode yank. xterm-view
-  // intercepts those and writes them to the system clipboard.
+  if (has.code !== 0) {
+    const create = await run([
+      'new-session',
+      '-d',
+      '-s',
+      sessionName,
+      '-n',
+      IDLE_WINDOW,
+      '-c',
+      cwd,
+      '-x',
+      '200',
+      '-y',
+      '50',
+    ])
+    if (create.code !== 0) throw new Error(`tmux new-session failed: ${create.stderr.trim()}`)
+  }
+  // Idempotent: re-applied even on re-attach so upgrades pick up without
+  // killing the tmux server. set-clipboard on → tmux emits OSC 52 on
+  // copy-mode yank (xterm-view handler writes to system clipboard).
   await run(['set-option', '-s', 'set-clipboard', 'on'])
 }
 
@@ -101,21 +103,59 @@ export async function createViewerSession(options: {
   viewerName: string
   windowTarget: string
 }): Promise<string> {
-  const { primarySession, viewerName, windowTarget } = options
-  const create = await run(['new-session', '-d', '-s', viewerName, '-t', primarySession])
-  if (create.code !== 0 && !create.stderr.includes('duplicate session')) {
+  const { viewerName, windowTarget } = options
+  // Create a standalone viewer session with a placeholder window. Then link
+  // ONLY the target window into the viewer at index 0 (-k kills the
+  // placeholder so the link succeeds at that exact slot).
+  //
+  // Why not `new-session -t primary` (linked group)? Linked groups share ALL
+  // windows. When the target window dies, the viewer auto-switches to a
+  // sibling — leaving the canvas window pointed at some OTHER live Claude.
+  // Standalone session + single linked window means: target dies → viewer
+  // has 0 windows → viewer session dies → pty exits → canvas window closes.
+  const create = await run([
+    'new-session',
+    '-d',
+    '-s',
+    viewerName,
+    '-n',
+    '__viewer_init__',
+  ])
+  if (create.code !== 0) {
     throw new Error(`tmux new-session (viewer) failed: ${create.stderr.trim()}`)
   }
-  const select = await run(['select-window', '-t', `${viewerName}:${windowTarget.split(':')[1]}`])
-  if (select.code !== 0) {
+  const link = await run([
+    'link-window',
+    '-k',
+    '-s',
+    windowTarget,
+    '-t',
+    `${viewerName}:0`,
+  ])
+  if (link.code !== 0) {
     await run(['kill-session', '-t', viewerName])
-    throw new Error(`tmux select-window on viewer failed: ${select.stderr.trim()}`)
+    throw new Error(`tmux link-window on viewer failed: ${link.stderr.trim()}`)
   }
   return viewerName
 }
 
 export async function killViewerSession(viewerName: string): Promise<void> {
   await run(['kill-session', '-t', viewerName])
+}
+
+// Per-session hardening for canvas viewers. Applied after createViewerSession.
+// - status off: no tmux tab bar / status line — the canvas window is the chrome.
+// - prefix None + prefix2 None: every tmux key binding is disabled inside the
+//   viewer pty. User can't create windows (prefix+c), split panes (prefix+%/"),
+//   detach (prefix+d), or anything else. The viewer becomes a "raw terminal"
+//   pointed at the running claude. The user's global ~/.tmux.conf is not
+//   touched — these are session-scoped options on the user's existing server.
+export async function hardenViewerSession(viewerName: string): Promise<void> {
+  await Promise.all([
+    run(['set-option', '-t', viewerName, 'status', 'off']),
+    run(['set-option', '-t', viewerName, 'prefix', 'None']),
+    run(['set-option', '-t', viewerName, 'prefix2', 'None']),
+  ])
 }
 
 export async function tmuxAvailable(): Promise<boolean> {

@@ -40,6 +40,8 @@ import {
 import { DiffsSection } from './sections/diffs-section'
 import { PlansSection, PlanCreateDialog } from './sections/plans-section'
 import { PromptsSection, PromptCreateDialog } from './sections/prompts-section'
+import { DropsSection } from './sections/drops-section'
+import { useDrops, selectDropsFor } from '@/state/drops'
 import { useSpawnModal } from '@/state/spawn-modal'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
@@ -220,6 +222,7 @@ export function Sidebar(): JSX.Element {
                   <DiffsSection worktrees={worktrees} />
                 </AccordionContent>
               </AccordionItem>
+              <DropsAccordion workspaceId={activeId} />
             </>
           ) : null}
         </Accordion>
@@ -476,6 +479,23 @@ function PromptsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element
         onClose={() => setCreateOpen(null)}
         workspaceId={workspaceId}
       />
+    </AccordionItem>
+  )
+}
+
+function DropsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element | null {
+  const entries = useDrops(selectDropsFor(workspaceId))
+  if (entries.length === 0) return null
+  return (
+    <AccordionItem value="drops" className="border-b-0">
+      <SectionHeader
+        icon={MessageSquareText}
+        label="Drops"
+        count={entries.length}
+      />
+      <AccordionContent className="pb-0">
+        <DropsSection workspaceId={workspaceId} />
+      </AccordionContent>
     </AccordionItem>
   )
 }
