@@ -12,7 +12,7 @@ The drop format is the contract between the IDE and whatever Claude instance rec
 <comment>
 ```
 
-- Path line: single `@` prefix, then the path with no escaping or quoting, even when it contains spaces.
+- Path line: single `@` prefix, then the path. If the path contains whitespace, wrap the path (NOT the `@`) in double quotes — `@"path with spaces.md"`. Embedded `"` inside a quoted path is escaped as `\"`. Paths without whitespace are emitted bare. Quoting is required because Claude tokenizes on whitespace.
 - For plans: path is `.cc-ide/plans/<rel>.md`.
 - For diffs: path is the repo-relative file path.
 - Hunk headers: always emit `@@ start,len @@`, including when `len === 1` (write `,1` explicitly).

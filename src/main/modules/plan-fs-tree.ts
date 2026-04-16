@@ -165,15 +165,15 @@ export async function writePlan(
 
 export async function createPlan(workspacePath: string, relPath: string): Promise<void> {
   if (!relPath || !relPath.trim()) throw new Error('relPath is required')
-  const withExt = relPath.endsWith('.md') ? relPath : `${relPath}.md`
-  const abs = resolveSafe(workspacePath, withExt)
+  if (!/\.md$/i.test(relPath)) throw new Error(`plan filename must end in .md: ${relPath}`)
+  const abs = resolveSafe(workspacePath, relPath)
   await ensureDir(join(abs, '..'))
   try {
     const handle = await fs.open(abs, 'wx')
     await handle.close()
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
-      throw new Error(`plan already exists: ${withExt}`)
+      throw new Error(`plan already exists: ${relPath}`)
     }
     throw err
   }
@@ -205,6 +205,10 @@ export async function rename(
   if (existing) {
     if (!opts?.overwrite) throw new Error(`destination already exists: ${toRel}`)
     if (existing.isDirectory()) throw new Error(`cannot overwrite a folder: ${toRel}`)
+  }
+  const fromStat = await fs.stat(fromAbs).catch(() => null)
+  if (fromStat?.isFile() && !/\.md$/i.test(toRel)) {
+    throw new Error(`plan filename must end in .md: ${toRel}`)
   }
   await ensureDir(join(toAbs, '..'))
   await fs.rename(fromAbs, toAbs)

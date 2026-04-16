@@ -386,6 +386,10 @@ export const ipcContract = {
     request: z.object({ patch: settingsPatchSchema }),
     response: z.object({ settings: settingsSchema }),
   },
+  "clipboard:write": {
+    request: z.object({ text: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
 } as const;
 
 export type IpcContract = typeof ipcContract;

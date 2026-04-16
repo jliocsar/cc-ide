@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { promises as fs } from 'node:fs'
@@ -469,6 +469,10 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     const settings = await settingsStore.updateSettings(patch)
     broadcast('settings:changed', { settings })
     return { settings }
+  },
+  'clipboard:write': async ({ text }) => {
+    clipboard.writeText(text)
+    return { ok: true }
   },
   'session:attachExisting': async ({ workspaceId, tmuxWindow, cols, rows }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)

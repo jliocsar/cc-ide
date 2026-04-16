@@ -135,16 +135,42 @@ end
 `)
   })
 
-  it('does not escape or quote a path containing a space', () => {
+  it('wraps a path containing whitespace in double quotes', () => {
     const out = serializeComments([
       {
         path: 'src/some dir/file name.ts',
         ranges: [{ start: 1, len: 1, comment: 'spaces ok' }],
       },
     ])
-    expect(out).toBe(`@src/some dir/file name.ts
+    expect(out).toBe(`@"src/some dir/file name.ts"
 @@ 1,1 @@
 spaces ok
+`)
+  })
+
+  it('escapes embedded double quotes inside a quoted path', () => {
+    const out = serializeComments([
+      {
+        path: 'src/weird "quoted" dir/x.ts',
+        ranges: [{ start: 1, len: 1, comment: 'ok' }],
+      },
+    ])
+    expect(out).toBe(`@"src/weird \\"quoted\\" dir/x.ts"
+@@ 1,1 @@
+ok
+`)
+  })
+
+  it('does not quote a path without whitespace', () => {
+    const out = serializeComments([
+      {
+        path: 'src/dir-with-dash/file_name.ts',
+        ranges: [{ start: 1, len: 1, comment: 'no space' }],
+      },
+    ])
+    expect(out).toBe(`@src/dir-with-dash/file_name.ts
+@@ 1,1 @@
+no space
 `)
   })
 

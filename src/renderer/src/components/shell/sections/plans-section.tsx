@@ -21,12 +21,14 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { InlineRenameInput } from '@/components/ui/inline-rename-input'
 import { cn } from '@/lib/utils'
 import { invoke } from '@/lib/ipc'
 import { usePlansTree, type PlanDir, type PlanNode } from '@/state/plans-tree'
 import { useTabs } from '@/state/tabs'
 import { useReviewComments, planTabId } from '@/state/review-comments'
 import { setDropPayload } from '@/lib/drop-payload'
+import { validateFolderName, validateMarkdownFilename } from '@shared/markdown-name'
 
 const MOVE_MIME = 'application/x-cc-ide-plan-move'
 const SPRING_EXPAND_MS = 600
@@ -203,7 +205,6 @@ function PlanRow({
   const refresh = usePlansTree((s) => s.refresh)
   const openPlan = useTabs((s) => s.openPlan)
   const [renaming, setRenaming] = useState(false)
-  const [newName, setNewName] = useState(node.name)
   const [dragOver, setDragOver] = useState(false)
   const springTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -222,10 +223,8 @@ function PlanRow({
     await refresh()
   }
 
-  async function commitRename(e: React.FormEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    const trimmed = newName.trim().replace(/\//g, '')
+  async function commitRename(nextName: string): Promise<void> {
+    const trimmed = nextName.trim()
     if (!trimmed || trimmed === node.name) {
       setRenaming(false)
       return
@@ -256,13 +255,9 @@ function PlanRow({
         workspaceId={workspaceId}
         indent={indent}
         renaming={renaming}
-        newName={newName}
-        setNewName={setNewName}
         commitRename={commitRename}
-        onRename={() => {
-          setNewName(node.name)
-          setRenaming(true)
-        }}
+        onRename={() => setRenaming(true)}
+        cancelRename={() => setRenaming(false)}
         onDelete={onDelete}
         openPlan={openPlan}
       />
@@ -331,15 +326,13 @@ function PlanRow({
           <Folder className="size-3 shrink-0" />
         </button>
         {renaming ? (
-          <form onSubmit={commitRename} className="flex-1">
-            <input
-              autoFocus
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onBlur={(e) => commitRename(e as unknown as React.FormEvent)}
-              className="w-full bg-transparent font-mono text-[12px] outline-none"
-            />
-          </form>
+          <InlineRenameInput
+            className="flex-1"
+            value={node.name}
+            validate={validateFolderName}
+            onCommit={commitRename}
+            onCancel={() => setRenaming(false)}
+          />
         ) : (
           <button
             type="button"
@@ -350,10 +343,7 @@ function PlanRow({
           </button>
         )}
         <RowActions
-          onRename={() => {
-            setNewName(node.name)
-            setRenaming(true)
-          }}
+          onRename={() => setRenaming(true)}
           onDelete={onDelete}
           extras={
             <>
@@ -404,10 +394,9 @@ function FileRow({
   workspaceId,
   indent,
   renaming,
-  newName,
-  setNewName,
   commitRename,
   onRename,
+  cancelRename,
   onDelete,
   openPlan,
 }: {
@@ -415,10 +404,9 @@ function FileRow({
   workspaceId: string
   indent: React.CSSProperties
   renaming: boolean
-  newName: string
-  setNewName: (v: string) => void
-  commitRename: (e: React.FormEvent) => void
+  commitRename: (next: string) => Promise<void>
   onRename: () => void
+  cancelRename: () => void
   onDelete: (e: React.MouseEvent) => void
   openPlan: (workspaceId: string, relPath: string) => void
 }): JSX.Element {
@@ -438,15 +426,13 @@ function FileRow({
     >
       <FileText className="size-3 shrink-0" />
       {renaming ? (
-        <form onSubmit={commitRename} className="flex-1">
-          <input
-            autoFocus
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onBlur={(e) => commitRename(e as unknown as React.FormEvent)}
-            className="w-full bg-transparent font-mono text-[12px] outline-none"
-          />
-        </form>
+        <InlineRenameInput
+          className="flex-1"
+          value={node.name}
+          validate={validateMarkdownFilename}
+          onCommit={commitRename}
+          onCancel={cancelRename}
+        />
       ) : (
         <button
           type="button"
@@ -528,8 +514,16 @@ export function PlanCreateDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!request || busy) return
-    const trimmed = name.trim().replace(/\//g, '')
+    const trimmed = name.trim()
     if (!trimmed) return
+    const validation =
+      request.mode === 'folder'
+        ? validateFolderName(trimmed)
+        : validateMarkdownFilename(trimmed)
+    if (!validation.ok) {
+      setError(validation.reason)
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -564,7 +558,7 @@ export function PlanCreateDialog({
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={request?.mode === 'folder' ? 'docs' : 'my-plan'}
+            placeholder={request?.mode === 'folder' ? 'docs' : 'my-plan.md'}
           />
           {error ? <div className="font-mono text-[11px] text-destructive">{error}</div> : null}
           <DialogFooter>

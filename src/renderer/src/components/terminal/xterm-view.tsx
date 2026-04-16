@@ -44,11 +44,45 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
       allowTransparency: false,
       scrollback: 10_000,
       convertEol: false,
+      allowProposedApi: true,
     })
     const fit = new FitAddon()
     term.loadAddon(fit)
     term.open(host)
     fit.fit()
+
+    // OSC 52: tmux (with `set-clipboard on`) emits this on copy-mode yank to
+    // ask the terminal to write text to the system clipboard. Format is
+    // `Pc;Pd` where Pd is base64. Pc is the clipboard selector (we treat all
+    // selectors as the system clipboard).
+    term.parser.registerOscHandler(52, (data: string) => {
+      const semi = data.indexOf(';')
+      if (semi < 0) return false
+      const payload = data.slice(semi + 1)
+      if (!payload || payload === '?') return false
+      try {
+        const text = atob(payload)
+        void invoke('clipboard:write', { text })
+        return true
+      } catch {
+        return false
+      }
+    })
+
+    // Ctrl+Shift+C / Cmd+C with a selection: copy the xterm selection to
+    // system clipboard and DON'T forward to the pty (so we don't send SIGINT).
+    // Returning false from this handler tells xterm not to process the key.
+    term.attachCustomKeyEventHandler((ev) => {
+      if (ev.type !== 'keydown') return true
+      const isCopyShortcut =
+        (ev.ctrlKey && ev.shiftKey && (ev.key === 'C' || ev.key === 'c')) ||
+        (ev.metaKey && !ev.shiftKey && (ev.key === 'C' || ev.key === 'c'))
+      if (!isCopyShortcut) return true
+      const sel = term.getSelection()
+      if (!sel) return true
+      void invoke('clipboard:write', { text: sel })
+      return false
+    })
 
     const offData = onEvent('pty:data', (p) => {
       if (p.ptyId === ptyId) term.write(p.data)
@@ -62,16 +96,29 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
     host.addEventListener('focusin', () => useLastTerminal.getState().setLast(ptyId))
     host.addEventListener('pointerdown', () => useLastTerminal.getState().setLast(ptyId))
 
+    // pty:resize fires SIGWINCH all the way to the app inside tmux. During a
+    // window-frame drag the ResizeObserver fires every animation frame, which
+    // floods tmux + claude with redraws and leaves the buffer half-rendered.
+    // Debounce so the pty only learns about the final size; the local fit()
+    // still runs every frame so xterm's own geometry stays accurate.
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null
+    const flushPtyResize = () => {
+      resizeTimer = null
+      void invoke('pty:resize', { ptyId, cols: term.cols, rows: term.rows })
+    }
     const resize = () => {
       fit.fit()
-      void invoke('pty:resize', { ptyId, cols: term.cols, rows: term.rows })
+      if (resizeTimer !== null) clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(flushPtyResize, 150)
     }
     const observer = new ResizeObserver(resize)
     observer.observe(host)
-    resize()
+    fit.fit()
+    void invoke('pty:resize', { ptyId, cols: term.cols, rows: term.rows })
     term.focus()
 
     return () => {
+      if (resizeTimer !== null) clearTimeout(resizeTimer)
       observer.disconnect()
       inputDisposable.dispose()
       focusDisposable.dispose()

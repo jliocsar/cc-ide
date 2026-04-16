@@ -165,7 +165,7 @@ export const planEditorTheme = EditorView.theme(
     '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--foreground)' },
     '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--foreground)' },
     '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {
-      backgroundColor: 'color-mix(in oklab, var(--primary) 12%, transparent) !important',
+      backgroundColor: 'color-mix(in oklab, var(--primary) 30%, transparent) !important',
     },
     // Vim block cursor: invert the single character under the cursor so it
     // stays readable against the bright fat-cursor background.
