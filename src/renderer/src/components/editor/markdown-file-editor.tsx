@@ -100,7 +100,7 @@ export function MarkdownFileEditor({
     const isReview = reviewCapable && initialMode === 'review'
     const initialKeybinds = useSettings.getState().settings.editor.keybinds
     const reviewPointer = isReview
-      ? reviewPointerExtension({ onStart: handleReviewStart, onExtend: handleReviewExtend })
+      ? reviewPointerExtension({ onStart: handleReviewStart, onExtend: handleReviewExtend, onToggle: handleReviewToggle })
       : []
     const saveKeymap = Prec.highest(
       keymap.of([
@@ -227,6 +227,13 @@ export function MarkdownFileEditor({
 
   function handleReviewExtend(lineNo: number): void {
     useReviewComments.getState().extendLast(tabId, lineNo)
+  }
+
+  function handleReviewToggle(lineNo: number): boolean {
+    const store = useReviewComments.getState()
+    if (!store.isLineInAnyRange(tabId, lineNo)) return false
+    store.toggleLine(tabId, lineNo)
+    return true
   }
 
   return <div ref={hostRef} className="h-full w-full overflow-hidden" />

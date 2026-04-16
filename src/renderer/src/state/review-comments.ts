@@ -20,6 +20,7 @@ type State = {
   rangeContaining: (tabId: string, line: number) => RangeDraft | null
 
   startSingle: (tabId: string, line: number) => string
+  toggleLine: (tabId: string, line: number) => void
   extendLast: (tabId: string, line: number) => void
   setComment: (tabId: string, id: string, comment: string) => void
   removeRange: (tabId: string, id: string) => void
@@ -70,6 +71,59 @@ export const useReviewComments = create<State>((set, get) => ({
     return id
   },
 
+  toggleLine(tabId, line) {
+    const ranges = get().byTab[tabId] ?? []
+    const target = ranges.find((r) => line >= r.start && line <= r.start + r.len - 1)
+    if (!target) return
+
+    const end = target.start + target.len - 1
+
+    if (target.len === 1) {
+      get().removeRange(tabId, target.id)
+      return
+    }
+
+    if (line === target.start) {
+      set((s) => ({
+        byTab: {
+          ...s.byTab,
+          [tabId]: (s.byTab[tabId] ?? []).map((r) =>
+            r.id === target.id ? { ...r, start: r.start + 1, len: r.len - 1 } : r,
+          ),
+        },
+      }))
+      return
+    }
+
+    if (line === end) {
+      set((s) => ({
+        byTab: {
+          ...s.byTab,
+          [tabId]: (s.byTab[tabId] ?? []).map((r) =>
+            r.id === target.id ? { ...r, len: r.len - 1 } : r,
+          ),
+        },
+      }))
+      return
+    }
+
+    const leftLen = line - target.start
+    const rightStart = line + 1
+    const rightLen = end - line
+    const rightId = newId()
+    set((s) => ({
+      byTab: {
+        ...s.byTab,
+        [tabId]: [
+          ...(s.byTab[tabId] ?? []).map((r) =>
+            r.id === target.id ? { ...r, len: leftLen } : r,
+          ),
+          { id: rightId, start: rightStart, len: rightLen, comment: '' },
+        ],
+      },
+    }))
+  },
+
   extendLast(tabId, line) {
     const lastId = get().lastRangeId[tabId]
     const ranges = get().byTab[tabId] ?? []
@@ -85,6 +139,7 @@ export const useReviewComments = create<State>((set, get) => ({
     const oldEnd = target.start + target.len - 1
     const newStart = Math.min(target.start, line)
     const newEnd = Math.max(oldEnd, line)
+    if (newStart === target.start && newEnd === oldEnd) return
     const newLen = newEnd - newStart + 1
     set((s) => ({
       byTab: {

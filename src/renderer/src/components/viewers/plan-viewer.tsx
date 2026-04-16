@@ -71,104 +71,45 @@ export function PlanViewer({
   }
 
   return (
-    <div className="grid h-full grid-rows-[32px_minmax(0,1fr)] bg-background">
-      <PlanHeader mode={mode} onSet={(m) => setMode(tabId, m)} />
-      <div
-        className={cn(
-          'grid min-h-0',
-          sidebarCollapsed ? 'grid-cols-[1fr_32px]' : 'grid-cols-[1fr_360px]',
-        )}
-      >
-        <div className="h-full min-h-0 overflow-hidden border-r border-border">
-          <MarkdownFileEditor
-            tabId={tabId}
-            initialContent={content}
-            reviewCapable
-            onSave={async (next) => {
-              await invokeIpc('plans:write', { workspaceId, relPath, content: next })
-            }}
-          />
-        </div>
-        {sidebarCollapsed ? (
-          <CommentsRail tabId={tabId} onExpand={() => setSidebarCollapsed(tabId, false)} />
-        ) : (
-          <CommentsPanel tabId={tabId} onCollapse={() => setSidebarCollapsed(tabId, true)} />
-        )}
-      </div>
-    </div>
-  )
-}
-
-function PlanHeader({
-  mode,
-  onSet,
-}: {
-  mode: PlanMode
-  onSet: (m: PlanMode) => void
-}): JSX.Element {
-  return (
-    <div className="flex h-8 shrink-0 items-center gap-2 border-b border-border bg-card px-3 text-[11px] text-muted-foreground">
-      <div className="flex items-center rounded-md border border-border bg-background p-[2px]">
-        <ModeButton
-          active={mode === 'edit'}
-          onClick={() => onSet('edit')}
-          icon={<Pencil className="size-3" />}
-          label="Edit"
-          tooltip="Type to modify. Save with Ctrl+S."
-        />
-        <ModeButton
-          active={mode === 'review'}
-          onClick={() => onSet('review')}
-          icon={<Eye className="size-3" />}
-          label="Review"
-          tooltip="Click lines to comment. Drag tab into a terminal to send."
+    <div
+      className={cn(
+        'grid h-full min-h-0 bg-background',
+        sidebarCollapsed ? 'grid-cols-[1fr_32px]' : 'grid-cols-[1fr_360px]',
+      )}
+    >
+      <div className="h-full min-h-0 overflow-hidden border-r border-border">
+        <MarkdownFileEditor
+          tabId={tabId}
+          initialContent={content}
+          reviewCapable
+          onSave={async (next) => {
+            await invokeIpc('plans:write', { workspaceId, relPath, content: next })
+          }}
         />
       </div>
-      <span className="ml-auto font-mono text-[10px] opacity-60">Ctrl+Shift+M to toggle</span>
+      {sidebarCollapsed ? (
+        <CommentsRail tabId={tabId} onExpand={() => setSidebarCollapsed(tabId, false)} />
+      ) : (
+        <CommentsPanel
+          tabId={tabId}
+          mode={mode}
+          onSetMode={(m) => setMode(tabId, m)}
+          onCollapse={() => setSidebarCollapsed(tabId, true)}
+        />
+      )}
     </div>
-  )
-}
-
-function ModeButton({
-  active,
-  onClick,
-  icon,
-  label,
-  tooltip,
-}: {
-  active: boolean
-  onClick: () => void
-  icon: React.ReactNode
-  label: string
-  tooltip: string
-}): JSX.Element {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onClick={onClick}
-          className={cn(
-            'flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium transition-colors',
-            active
-              ? 'bg-secondary text-foreground'
-              : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-          )}
-        >
-          {icon}
-          {label}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent>{tooltip}</TooltipContent>
-    </Tooltip>
   )
 }
 
 function CommentsPanel({
   tabId,
+  mode,
+  onSetMode,
   onCollapse,
 }: {
   tabId: string
+  mode: PlanMode
+  onSetMode: (m: PlanMode) => void
   onCollapse: () => void
 }): JSX.Element {
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
@@ -179,7 +120,7 @@ function CommentsPanel({
 
   return (
     <div className="flex h-full flex-col bg-card">
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2 pr-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2 pr-3 text-[11px] text-muted-foreground">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button size="icon-xs" variant="ghost" onClick={onCollapse} aria-label="Collapse review comments">
@@ -188,6 +129,37 @@ function CommentsPanel({
           </TooltipTrigger>
           <TooltipContent>Collapse</TooltipContent>
         </Tooltip>
+        <div className="flex items-center rounded-md border border-border bg-background p-[2px]">
+          <button
+            type="button"
+            onClick={() => onSetMode('edit')}
+            className={cn(
+              'flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-medium transition-colors',
+              mode === 'edit'
+                ? 'bg-secondary text-foreground'
+                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+            )}
+          >
+            <Pencil className="size-3" />
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => onSetMode('review')}
+            className={cn(
+              'flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-medium transition-colors',
+              mode === 'review'
+                ? 'bg-secondary text-foreground'
+                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+            )}
+          >
+            <Eye className="size-3" />
+            Review
+          </button>
+        </div>
+        <span className="ml-auto font-mono text-[10px] opacity-60">Ctrl+Shift+M</span>
+      </div>
+      <div className="flex h-7 shrink-0 items-center gap-2 border-b border-border px-3 text-[11px] uppercase tracking-wider text-muted-foreground">
         <MessageSquarePlus className="size-3.5" />
         <span>Review comments</span>
         <span className="ml-auto font-mono lowercase">{ranges.length} range{ranges.length === 1 ? '' : 's'}</span>

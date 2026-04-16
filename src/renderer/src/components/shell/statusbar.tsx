@@ -20,7 +20,7 @@ export function Statusbar(): JSX.Element {
   const activeTabId = useTabs((s) => s.activeId)
   const activeTab = useTabs((s) => s.tabs.find((t) => t.id === activeTabId))
   const vimMode = usePlanTabUi((s) => s.vimModeByTab[activeTabId] ?? null)
-  const showVimPill = keybinds === 'vim' && activeTab?.kind === 'plan' && !!vimMode
+  const showVimPill = keybinds === 'vim' && (activeTab?.kind === 'plan' || activeTab?.kind === 'prompt') && !!vimMode
 
   return (
     <div className="flex items-center justify-between gap-3 border-t border-border bg-card px-3 py-1 text-[11px] leading-none text-muted-foreground">

@@ -9,7 +9,6 @@ import {
   EditorView,
   keymap,
   lineNumbers,
-  highlightActiveLine,
   Decoration,
   ViewPlugin,
   type DecorationSet,
@@ -161,14 +160,10 @@ export const planEditorTheme = EditorView.theme(
       border: 'none',
       paddingRight: '6px',
     },
-    '.cm-activeLine': {
-      backgroundColor: 'color-mix(in oklab, var(--primary) 12%, transparent)',
-    },
-    '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--foreground)' },
     '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--foreground)' },
     '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--foreground)' },
     '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {
-      backgroundColor: 'color-mix(in oklab, var(--accent) 60%, transparent) !important',
+      backgroundColor: 'color-mix(in oklab, var(--primary) 12%, transparent) !important',
     },
     // Vim block cursor: invert the single character under the cursor so it
     // stays readable against the bright fat-cursor background.
@@ -206,8 +201,6 @@ export const planEditorTheme = EditorView.theme(
     '.cm-review-mode': { cursor: 'pointer' },
     // In Review mode: no visible caret, no active-line highlight, no
     // text-selection tint. The editor is a read-only surface for line clicks.
-    '.cm-content.cm-review-mode .cm-activeLine': { backgroundColor: 'transparent' },
-    '.cm-content.cm-review-mode .cm-activeLineGutter': { backgroundColor: 'transparent' },
     '.cm-content.cm-review-mode': { caretColor: 'transparent' },
     '.cm-content.cm-review-mode ::selection': { backgroundColor: 'transparent' },
     // CM6 renders the caret as a separate `.cm-cursor` div (inside
@@ -266,6 +259,7 @@ export const rangeDecorationField = StateField.define<RangeDraftLite[]>({
 export type ReviewHandlers = {
   onStart: (lineNo: number) => void
   onExtend: (lineNo: number) => void
+  onToggle: (lineNo: number) => boolean
 }
 
 export function reviewPointerExtension(handlers: ReviewHandlers): Extension {
@@ -281,12 +275,13 @@ export function reviewPointerExtension(handlers: ReviewHandlers): Extension {
     EditorView.domEventHandlers({
       pointerdown(e, view) {
         if (e.button !== 0) return false
-        // Only start a range on Ctrl/Cmd + click. Plain click is a no-op so
-        // users can position the text caret-by-proxy without accidentally
-        // creating ranges.
         if (!(e.metaKey || e.ctrlKey)) return false
         const lineNo = lineAt(view, e.clientX, e.clientY)
         if (lineNo === null) return false
+        if (handlers.onToggle(lineNo)) {
+          e.preventDefault()
+          return true
+        }
         handlers.onStart(lineNo)
         dragging = true
         ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
@@ -325,7 +320,6 @@ export function buildPlanExtensions(opts: {
   return [
     history(),
     lineNumbers(),
-    highlightActiveLine(),
     indentOnInput(),
     markdown({ base: markdownLanguage }),
     syntaxHighlighting(monochromeHighlight),
