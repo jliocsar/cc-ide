@@ -15,9 +15,10 @@ function createWindow(): void {
     width: 1400,
     height: 900,
     show: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
     autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
-    backgroundColor: '#0a0a0a',
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
@@ -25,6 +26,14 @@ function createWindow(): void {
       nodeIntegration: false,
     },
   })
+
+  const broadcastMaximized = (): void => {
+    mainWindow.webContents.send('window:maximized-change', {
+      maximized: mainWindow.isMaximized(),
+    })
+  }
+  mainWindow.on('maximize', broadcastMaximized)
+  mainWindow.on('unmaximize', broadcastMaximized)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()

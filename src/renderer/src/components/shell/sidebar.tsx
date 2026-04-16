@@ -115,7 +115,10 @@ export function Sidebar(): JSX.Element {
 
   return (
     <aside className="flex h-full w-[260px] min-h-0 flex-col overflow-hidden border-r border-border bg-card">
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border pl-3 pr-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <div
+        className="flex h-10 shrink-0 items-center gap-2 border-b border-border pl-3 pr-2 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties & Record<string, string>}
+      >
         <span>cc-ide</span>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -125,6 +128,7 @@ export function Sidebar(): JSX.Element {
               onClick={toggleSidebar}
               aria-label="Collapse sidebar"
               className="ml-auto"
+              style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties & Record<string, string>}
             >
               <ChevronLeft />
             </Button>

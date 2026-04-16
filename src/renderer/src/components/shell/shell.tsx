@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { PixelGridLoader } from '@/components/ui/pixel-grid-loader'
@@ -21,7 +21,7 @@ import { useSessions } from '@/state/sessions'
 import { useCanvas } from '@/state/canvas'
 import { useSidebarData } from '@/state/sidebar-data'
 import { useWorkspaces } from '@/state/workspaces'
-import { onEvent } from '@/lib/ipc'
+import { invoke, onEvent } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 
 export function Shell(): JSX.Element {
@@ -39,6 +39,12 @@ export function Shell(): JSX.Element {
   const worktreesLoaded = useSidebarData((s) => s.worktreesLoaded)
   const sidebarLoading =
     !!activeWorkspaceId && (!conversationsLoaded || !worktreesLoaded)
+
+  const [maximized, setMaximized] = useState(false)
+  useEffect(() => {
+    invoke('window:isMaximized', {}).then((r) => setMaximized(r.maximized))
+    return onEvent('window:maximized-change', (e) => setMaximized(e.maximized))
+  }, [])
 
   useEffect(() => {
     return onEvent('pty:exit', (p) => {
@@ -93,19 +99,26 @@ export function Shell(): JSX.Element {
     <TooltipProvider delayDuration={150}>
       <div
         className={cn(
-          'grid h-full grid-rows-1 bg-background text-foreground transition-[grid-template-columns] duration-150',
-          sidebarVisible ? 'grid-cols-[260px_1fr]' : 'grid-cols-[40px_1fr]',
+          'flex h-screen w-screen flex-col overflow-hidden border border-border bg-background ring-1 ring-black',
+          maximized ? '' : 'm-px h-[calc(100vh-2px)] w-[calc(100vw-2px)] rounded-lg',
         )}
       >
-        <div className="overflow-hidden">
-          <Sidebar />
-        </div>
-        <div className="grid min-w-0 grid-rows-[40px_minmax(0,1fr)_24px]">
-          <HeaderTabs />
-          <div className="grid min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden [&>*]:h-full">
-            <TabRouter />
+        <div
+          className={cn(
+            'grid min-h-0 flex-1 grid-rows-1 text-foreground transition-[grid-template-columns] duration-150',
+            sidebarVisible ? 'grid-cols-[260px_1fr]' : 'grid-cols-[40px_1fr]',
+          )}
+        >
+          <div className="overflow-hidden">
+            <Sidebar />
           </div>
-          <Statusbar />
+          <div className="grid min-w-0 grid-rows-[40px_minmax(0,1fr)_24px]">
+            <HeaderTabs maximized={maximized} />
+            <div className="grid min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden [&>*]:h-full">
+              <TabRouter />
+            </div>
+            <Statusbar />
+          </div>
         </div>
       </div>
       <CommandPalette />
