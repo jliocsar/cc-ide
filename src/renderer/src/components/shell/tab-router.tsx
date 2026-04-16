@@ -1,5 +1,5 @@
 import { useTabs } from '@/state/tabs'
-import { Canvas } from '@/components/canvas/canvas'
+import { BoardView } from '@/components/canvas/board-view'
 import { PlanViewer } from '@/components/viewers/plan-viewer'
 import { DiffViewer } from '@/components/viewers/diff-viewer'
 import { PromptViewer } from '@/components/viewers/prompt-viewer'
@@ -39,7 +39,7 @@ export function TabRouter(): JSX.Element {
         )}
         aria-hidden={!boardActive}
       >
-        <Canvas />
+        <BoardView />
       </div>
       {!boardActive ? (
         <div className="relative z-10 h-full w-full [&>*]:h-full">
