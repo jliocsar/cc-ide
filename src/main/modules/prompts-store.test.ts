@@ -1,14 +1,14 @@
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   __setDataPathForTests,
-  listPrompts,
-  getPrompt,
   createPrompt,
-  updatePrompt,
   deletePrompt,
+  getPrompt,
+  listPrompts,
+  updatePrompt,
 } from './prompts-store'
 
 let tmpDir: string

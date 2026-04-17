@@ -1,20 +1,20 @@
-import { useEffect, useRef } from 'react'
-import { toast } from 'sonner'
 import { EditorState, Prec } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { Vim, getCM } from '@replit/codemirror-vim'
-import { useSettings } from '@/state/settings'
-import { usePlanTabUi, type PlanMode } from '@/state/plan-tab-ui'
-import { EMPTY_RANGES, useReviewComments, type RangeDraft } from '@/state/review-comments'
+import { getCM, Vim } from '@replit/codemirror-vim'
 import { mapRanges } from '@shared/review-range-map'
+import { useEffect, useRef } from 'react'
+import { toast } from 'sonner'
+import { type PlanMode, usePlanTabUi } from '@/state/plan-tab-ui'
+import { EMPTY_RANGES, type RangeDraft, useReviewComments } from '@/state/review-comments'
+import { useSettings } from '@/state/settings'
 import {
   buildPlanExtensions,
   createPlanCompartments,
   keymapExtensionFor,
-  reviewPointerExtension,
-  setRangesEffect,
   type PlanCompartments,
   type RangeDraftLite,
+  reviewPointerExtension,
+  setRangesEffect,
 } from './plan-editor-extensions'
 
 type Props = {

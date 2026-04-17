@@ -1,13 +1,13 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react'
-import { motion } from 'motion/react'
-import { X, Maximize2 } from 'lucide-react'
-import { useCanvas } from '@/state/canvas'
-import { useSessions } from '@/state/sessions'
-import { InlineRenameInput } from '@/components/ui/inline-rename-input'
 import { validateTmuxWindowName } from '@shared/tmux-name'
+import { Maximize2, X } from 'lucide-react'
+import { motion } from 'motion/react'
+import { type ReactNode, useCallback, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { InlineRenameInput } from '@/components/ui/inline-rename-input'
 import { springLayout } from '@/lib/motion'
 import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
+import { useCanvas } from '@/state/canvas'
+import { useSessions } from '@/state/sessions'
 
 type Props = {
   id: string

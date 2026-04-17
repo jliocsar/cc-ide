@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { XtermView } from '@/components/terminal/xterm-view'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,16 +10,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { WindowFrame } from './window-frame'
-import { XtermView } from '@/components/terminal/xterm-view'
-import { useCanvas, type CanvasWindow } from '@/state/canvas'
-import { useSessions } from '@/state/sessions'
-import { useMaximizedWindow } from '@/state/maximized-window'
-import { useWorkspaces } from '@/state/workspaces'
 import { clientToCanvasViewport, getCanvasHost } from '@/lib/canvas-host'
-import { useReviewComments, planTabId, diffTabId } from '@/state/review-comments'
+import { buildDropString, type DropPayload, readDropPayload } from '@/lib/drop-payload'
 import { invoke } from '@/lib/ipc'
-import { readDropPayload, buildDropString, type DropPayload } from '@/lib/drop-payload'
+import { type CanvasWindow, useCanvas } from '@/state/canvas'
+import { useMaximizedWindow } from '@/state/maximized-window'
+import { diffTabId, planTabId, useReviewComments } from '@/state/review-comments'
+import { useSessions } from '@/state/sessions'
+import { useWorkspaces } from '@/state/workspaces'
+import { WindowFrame } from './window-frame'
 
 export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
   const removeWindow = useCanvas((s) => s.removeWindow)

@@ -1,47 +1,46 @@
-import { useEffect } from 'react'
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  FolderGit2,
+  FolderPlus,
+  GitCompare,
+  ListChecks,
+  MessageSquareText,
+  MessagesSquare,
+  Plus,
+  RefreshCw,
+  Terminal,
+  Trash2,
+  TreePine,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import {
-  FolderGit2,
-  Plus,
-  CheckCircle2,
-  Circle,
-  MessagesSquare,
-  TreePine,
-  ListChecks,
-  GitCompare,
-  MessageSquareText,
-  Trash2,
-  RefreshCw,
-  FolderPlus,
-  Terminal,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useWorkspaces } from '@/state/workspaces'
-import { useSidebarData } from '@/state/sidebar-data'
+import { onEvent } from '@/lib/ipc'
+import { cn } from '@/lib/utils'
+import { selectDropsFor, useDrops } from '@/state/drops'
 import { usePlansTree } from '@/state/plans-tree'
 import { usePromptsTree } from '@/state/prompts-tree'
-import { useUi } from '@/state/ui'
-import { onEvent } from '@/lib/ipc'
-import { ConversationsSection } from './sections/conversations-section'
-import { SessionsSection } from './sections/sessions-section'
-import { WorktreesSection, CreateWorktreeDialog } from './sections/worktrees-section'
-import { DiffsSection } from './sections/diffs-section'
-import { PlansSection, PlanCreateDialog } from './sections/plans-section'
-import { PromptsSection, PromptCreateDialog } from './sections/prompts-section'
-import { DropsSection } from './sections/drops-section'
-import { useDrops, selectDropsFor } from '@/state/drops'
+import { useSidebarData } from '@/state/sidebar-data'
 import { useSpawnModal } from '@/state/spawn-modal'
-import { cn } from '@/lib/utils'
-import { useState } from 'react'
+import { useUi } from '@/state/ui'
+import { useWorkspaces } from '@/state/workspaces'
+import { ConversationsSection } from './sections/conversations-section'
+import { DiffsSection } from './sections/diffs-section'
+import { DropsSection } from './sections/drops-section'
+import { PlanCreateDialog, PlansSection } from './sections/plans-section'
+import { PromptCreateDialog, PromptsSection } from './sections/prompts-section'
+import { SessionsSection } from './sections/sessions-section'
+import { CreateWorktreeDialog, WorktreesSection } from './sections/worktrees-section'
 
 export function Sidebar(): JSX.Element {
   const { workspaces, activeId, loaded, refresh, pickAndAdd, setActive, remove } = useWorkspaces()

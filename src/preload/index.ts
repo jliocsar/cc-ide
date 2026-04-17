@@ -1,5 +1,5 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import type { IpcChannel, IpcRequest, IpcResponse, IpcEventChannel, IpcEvent } from '@shared/ipc'
+import type { IpcChannel, IpcEvent, IpcEventChannel, IpcRequest, IpcResponse } from '@shared/ipc'
+import { contextBridge, type IpcRendererEvent, ipcRenderer } from 'electron'
 
 const api = {
   invoke<C extends IpcChannel>(channel: C, payload: IpcRequest<C>): Promise<IpcResponse<C>> {

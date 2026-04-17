@@ -1,11 +1,11 @@
-import { FSWatcher, watch, promises as fsp } from 'node:fs'
+import { type FSWatcher, promises as fsp, watch } from 'node:fs'
 import { resolve, sep } from 'node:path'
+import { broadcast } from '../event-bus'
+import { DeltaCoalescer } from './delta-coalescer'
+import { defaultRegistry, type ParserRegistry } from './parser-registry'
+import { TsParser } from './ts-parser'
 import type { GraphDelta, GraphEdgeWire, GraphNode, NodeId } from './types'
 import { canonicalEdgeId, emptyWorkspaceGraphState, type WorkspaceGraphState } from './types'
-import { DeltaCoalescer } from './delta-coalescer'
-import { ParserRegistry, defaultRegistry } from './parser-registry'
-import { TsParser } from './ts-parser'
-import { broadcast } from '../event-bus'
 
 const PER_FILE_DEBOUNCE_MS = 150
 const FRAME_MS = 16

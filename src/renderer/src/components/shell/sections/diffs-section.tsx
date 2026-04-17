@@ -1,13 +1,13 @@
-import { useEffect } from 'react'
+import type { ChangedFileDTO, WorktreeDTO } from '@shared/ipc'
 import { FileDiff, RefreshCw } from 'lucide-react'
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { useSidebarData, EMPTY_FILES } from '@/state/sidebar-data'
-import { useTabs } from '@/state/tabs'
-import { useWorkspaces } from '@/state/workspaces'
-import { useReviewComments, diffTabId } from '@/state/review-comments'
 import { setDropPayload } from '@/lib/drop-payload'
 import { cn } from '@/lib/utils'
-import type { WorktreeDTO, ChangedFileDTO } from '@shared/ipc'
+import { diffTabId, useReviewComments } from '@/state/review-comments'
+import { EMPTY_FILES, useSidebarData } from '@/state/sidebar-data'
+import { useTabs } from '@/state/tabs'
+import { useWorkspaces } from '@/state/workspaces'
 
 export function DiffsSection({ worktrees }: { worktrees: WorktreeDTO[] }): JSX.Element {
   return (

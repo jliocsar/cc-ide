@@ -1,7 +1,6 @@
-import { promises as fs } from 'node:fs'
-import { createReadStream } from 'node:fs'
+import { createReadStream, promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, basename } from 'node:path'
+import { basename, join } from 'node:path'
 import { createInterface } from 'node:readline'
 
 const DEFAULT_ROOT = join(homedir(), '.claude', 'projects')

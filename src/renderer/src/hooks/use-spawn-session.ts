@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react'
-import { useCanvas, worldFromViewport } from '@/state/canvas'
-import { useSessions, type SpawnWorktreeOption } from '@/state/sessions'
-import { useWorkspaces } from '@/state/workspaces'
 import { getCanvasViewportCenter } from '@/lib/canvas-host'
+import { useCanvas, worldFromViewport } from '@/state/canvas'
+import { type SpawnWorktreeOption, useSessions } from '@/state/sessions'
+import { useWorkspaces } from '@/state/workspaces'
 
 const DEFAULT_WIN_W = 720
 const DEFAULT_WIN_H = 440

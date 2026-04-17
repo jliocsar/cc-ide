@@ -1,5 +1,5 @@
-import type { LanguageParser } from './types'
 import { TsParser } from './ts-parser'
+import type { LanguageParser } from './types'
 
 export class ParserRegistry {
   private readonly parsers: LanguageParser[] = []

@@ -1,11 +1,11 @@
-import { useWorkspaces } from '@/state/workspaces'
-import { useSessions } from '@/state/sessions'
+import { FolderGit2, Terminal, ZoomIn } from 'lucide-react'
 import { useCanvas } from '@/state/canvas'
 import { useLastTerminal } from '@/state/last-terminal'
-import { useSettings } from '@/state/settings'
 import { usePlanTabUi } from '@/state/plan-tab-ui'
+import { useSessions } from '@/state/sessions'
+import { useSettings } from '@/state/settings'
 import { useTabs } from '@/state/tabs'
-import { FolderGit2, Terminal, ZoomIn } from 'lucide-react'
+import { useWorkspaces } from '@/state/workspaces'
 
 export function Statusbar(): JSX.Element {
   const activeId = useWorkspaces((s) => s.activeId)

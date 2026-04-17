@@ -1,7 +1,7 @@
-import { Trash2, File as FileIcon } from 'lucide-react'
+import { File as FileIcon, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useDrops, selectDropsFor } from '@/state/drops'
 import { setDropPayload } from '@/lib/drop-payload'
+import { selectDropsFor, useDrops } from '@/state/drops'
 
 export function DropsSection({ workspaceId }: { workspaceId: string }): JSX.Element {
   const entries = useDrops(selectDropsFor(workspaceId))

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { EdgeKind } from './depgraph'
 import type { Camera } from './canvas'
+import type { EdgeKind } from './depgraph'
 
 export type BoardMode = 'sessions' | 'graph'
 

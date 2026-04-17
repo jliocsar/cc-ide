@@ -1,12 +1,12 @@
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   __setDataPathForTests,
+  defaultSettings,
   readSettings,
   updateSettings,
-  defaultSettings,
 } from './settings-store'
 
 let tmpDir: string

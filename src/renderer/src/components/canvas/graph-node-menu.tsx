@@ -1,4 +1,3 @@
-import { randomUUID } from '@/lib/uuid'
 import { ExternalLink, Pin } from 'lucide-react'
 import {
   DropdownMenu,
@@ -6,8 +5,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useDrops } from '@/state/drops'
+import { randomUUID } from '@/lib/uuid'
 import { useDepGraph } from '@/state/depgraph'
+import { useDrops } from '@/state/drops'
 
 interface Props {
   menu: { x: number; y: number; nodeId: string } | null

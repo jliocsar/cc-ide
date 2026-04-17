@@ -1,24 +1,17 @@
-import { useState } from 'react'
 import {
-  LayoutGrid,
-  X,
+  ChevronDown,
+  Copy,
   FileText,
   GitCompare,
+  LayoutGrid,
   MessageSquare,
-  ChevronDown,
-  Network,
-  Copy,
-  Minus,
   Minimize2,
+  Minus,
+  Network,
   Square,
+  X,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { invoke } from '@/lib/ipc'
-import { useTabs, type Tab } from '@/state/tabs'
-import { usePlanTabUi } from '@/state/plan-tab-ui'
-import { useBoardUi, type BoardMode } from '@/state/board-ui'
-import { useWorkspaces } from '@/state/workspaces'
-import { useMaximizedWindow } from '@/state/maximized-window'
+import { useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +28,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { setDropPayload, type DropPayload } from '@/lib/drop-payload'
+import { type DropPayload, setDropPayload } from '@/lib/drop-payload'
+import { invoke } from '@/lib/ipc'
+import { cn } from '@/lib/utils'
+import { type BoardMode, useBoardUi } from '@/state/board-ui'
+import { useMaximizedWindow } from '@/state/maximized-window'
+import { usePlanTabUi } from '@/state/plan-tab-ui'
+import { type Tab, useTabs } from '@/state/tabs'
+import { useWorkspaces } from '@/state/workspaces'
 
 const TAB_REORDER_MIME = 'application/x-cc-ide-tab-reorder'
 

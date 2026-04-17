@@ -1,4 +1,4 @@
-import type { IpcChannel, IpcRequest, IpcResponse, IpcEventChannel, IpcEvent } from '@shared/ipc'
+import type { IpcChannel, IpcEvent, IpcEventChannel, IpcRequest, IpcResponse } from '@shared/ipc'
 
 export function invoke<C extends IpcChannel>(
   channel: C,

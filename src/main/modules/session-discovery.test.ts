@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { randomUUID } from 'node:crypto'
-import { pathToSlug, listSessions, listSessionsBySlug } from './session-discovery'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { listSessions, listSessionsBySlug, pathToSlug } from './session-discovery'
 
 // ---------------------------------------------------------------------------
 // Helpers

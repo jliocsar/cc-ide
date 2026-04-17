@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { execFile } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { randomUUID } from 'node:crypto'
-import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { listChangedFiles, getFileDiff } from './diff-provider.js'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { getFileDiff, listChangedFiles } from './diff-provider.js'
 
 const exec = promisify(execFile)
 

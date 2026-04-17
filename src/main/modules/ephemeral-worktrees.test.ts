@@ -5,11 +5,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   __setRootForTests,
   add,
+  type EphemeralEntry,
   findByPath,
   findByWindow,
   list,
   remove,
-  type EphemeralEntry,
 } from './ephemeral-worktrees'
 
 let tmpRoot: string

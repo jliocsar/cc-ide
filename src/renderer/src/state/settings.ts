@@ -1,6 +1,6 @@
+import type { EditorKeybindsDTO, SettingsDTO } from '@shared/ipc'
 import { create } from 'zustand'
 import { invoke, onEvent } from '@/lib/ipc'
-import type { SettingsDTO, EditorKeybindsDTO } from '@shared/ipc'
 
 type State = {
   settings: SettingsDTO

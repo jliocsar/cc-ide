@@ -1,7 +1,7 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { tmpdir } from 'node:os'
-import { spawnSync } from 'node:child_process'
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import {
   ensureSession,
   hasWindow,
