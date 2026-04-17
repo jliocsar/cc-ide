@@ -95,6 +95,17 @@ describe('readPrompt / writePrompt', () => {
     await writePrompt(workspace, 'nested/deep/p.md', 'x')
     expect(await readPrompt(workspace, 'nested/deep/p.md')).toBe('x')
   })
+
+  it('concurrent writes to the same file do not race on the tmp suffix', async () => {
+    const path = 'race.md'
+    await Promise.all([
+      writePrompt(workspace, path, 'a'.repeat(10_000)),
+      writePrompt(workspace, path, 'b'.repeat(10_000)),
+    ])
+    const final = await readPrompt(workspace, path)
+    expect(final.length).toBe(10_000)
+    expect(final === 'a'.repeat(10_000) || final === 'b'.repeat(10_000)).toBe(true)
+  })
 })
 
 describe('rename', () => {

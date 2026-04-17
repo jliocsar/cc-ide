@@ -102,6 +102,17 @@ describe('readPlan / writePlan', () => {
     await writePlan(workspace, 'nested/deep/plan.md', 'x')
     expect(await readPlan(workspace, 'nested/deep/plan.md')).toBe('x')
   })
+
+  it('concurrent writes to the same file do not race on the tmp suffix', async () => {
+    const path = 'race.md'
+    await Promise.all([
+      writePlan(workspace, path, 'a'.repeat(10_000)),
+      writePlan(workspace, path, 'b'.repeat(10_000)),
+    ])
+    const final = await readPlan(workspace, path)
+    expect(final.length).toBe(10_000)
+    expect(final === 'a'.repeat(10_000) || final === 'b'.repeat(10_000)).toBe(true)
+  })
 })
 
 describe('rename', () => {
