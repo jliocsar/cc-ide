@@ -6,7 +6,11 @@ function r(id: string, start: number, len: number, comment = ''): LineRange {
   return { id, start, len, comment }
 }
 
-function applyInsert(oldDoc: Text, pos: number, inserted: string): {
+function applyInsert(
+  oldDoc: Text,
+  pos: number,
+  inserted: string,
+): {
   changes: ChangeSet
   newDoc: Text
 } {
@@ -15,7 +19,11 @@ function applyInsert(oldDoc: Text, pos: number, inserted: string): {
   return { changes, newDoc }
 }
 
-function applyDelete(oldDoc: Text, from: number, to: number): {
+function applyDelete(
+  oldDoc: Text,
+  from: number,
+  to: number,
+): {
   changes: ChangeSet
   newDoc: Text
 } {

@@ -18,13 +18,22 @@ describe('validateMarkdownFilename', () => {
   it('rejects names without .md extension', () => {
     expect(validateMarkdownFilename('foo')).toEqual({ ok: false, reason: 'must end in .md' })
     expect(validateMarkdownFilename('foo.txt')).toEqual({ ok: false, reason: 'must end in .md' })
-    expect(validateMarkdownFilename('foo.markdown')).toEqual({ ok: false, reason: 'must end in .md' })
+    expect(validateMarkdownFilename('foo.markdown')).toEqual({
+      ok: false,
+      reason: 'must end in .md',
+    })
   })
   it('rejects ".md" alone with no stem', () => {
-    expect(validateMarkdownFilename('.md')).toEqual({ ok: false, reason: 'name before .md is required' })
+    expect(validateMarkdownFilename('.md')).toEqual({
+      ok: false,
+      reason: 'name before .md is required',
+    })
   })
   it('rejects names containing a slash', () => {
-    expect(validateMarkdownFilename('foo/bar.md')).toEqual({ ok: false, reason: 'no slashes in filename' })
+    expect(validateMarkdownFilename('foo/bar.md')).toEqual({
+      ok: false,
+      reason: 'no slashes in filename',
+    })
   })
 })
 

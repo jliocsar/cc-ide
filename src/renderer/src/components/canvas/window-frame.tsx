@@ -54,10 +54,7 @@ export function WindowFrame({
       if (ev.ctrlKey || ev.metaKey) return
       if (maximized) return
       if (editing) return
-      if (
-        ev.target instanceof Element &&
-        ev.target.closest('button, input, [data-rename-target]')
-      )
+      if (ev.target instanceof Element && ev.target.closest('button, input, [data-rename-target]'))
         return
       ev.stopPropagation()
       focusWindow(id)
@@ -126,10 +123,9 @@ export function WindowFrame({
     [id, width, height, updateWindow, focusWindow, getZoom],
   )
 
-  const shortName = tmuxWindow
-    ? tmuxWindow.split(':').slice(1).join(':') || tmuxWindow
-    : null
-  const displayTitle = shortName ?? (title.includes(':') ? title.split(':').slice(1).join(':') || title : title)
+  const shortName = tmuxWindow ? tmuxWindow.split(':').slice(1).join(':') || tmuxWindow : null
+  const displayTitle =
+    shortName ?? (title.includes(':') ? title.split(':').slice(1).join(':') || title : title)
 
   return (
     <motion.div

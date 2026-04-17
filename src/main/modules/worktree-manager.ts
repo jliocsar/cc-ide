@@ -173,10 +173,7 @@ export async function deleteWorktree(repoPath: string, worktreePath: string): Pr
  * Used by the ephemeral-worktree cleanup path: if either is false, the worktree
  * is kept (the user did something worth preserving).
  */
-export async function isWorktreeUntouched(
-  worktreePath: string,
-  base: string,
-): Promise<boolean> {
+export async function isWorktreeUntouched(worktreePath: string, base: string): Promise<boolean> {
   const status = await run(['status', '--porcelain'], worktreePath)
   if (status.code !== 0) return false
   if (status.stdout.trim().length > 0) return false

@@ -68,8 +68,7 @@ export async function listPrompts(options?: {
     const q = options.query.trim().toLowerCase()
     if (q.length > 0) {
       prompts = prompts.filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) || p.body.toLowerCase().includes(q),
+        (p) => p.title.toLowerCase().includes(q) || p.body.toLowerCase().includes(q),
       )
     }
   }
@@ -81,12 +80,8 @@ export async function listPrompts(options?: {
       a.title.toLowerCase().localeCompare(b.title.toLowerCase()),
     )
   } else {
-    const favorites = prompts
-      .filter((p) => p.favorite)
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-    const rest = prompts
-      .filter((p) => !p.favorite)
-      .sort((a, b) => b.updatedAt - a.updatedAt)
+    const favorites = prompts.filter((p) => p.favorite).sort((a, b) => b.updatedAt - a.updatedAt)
+    const rest = prompts.filter((p) => !p.favorite).sort((a, b) => b.updatedAt - a.updatedAt)
     prompts = [...favorites, ...rest]
   }
 
@@ -134,8 +129,7 @@ export async function updatePrompt(
   const updated: Prompt = {
     ...existing,
     ...patch,
-    title:
-      patch.title !== undefined ? patch.title.trim() : existing.title,
+    title: patch.title !== undefined ? patch.title.trim() : existing.title,
     updatedAt: Date.now(),
   }
   const next = [...all]

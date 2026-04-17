@@ -28,10 +28,7 @@ export class TsParser implements LanguageParser {
   private readonly cascade = new TsconfigCascade()
   private readonly resolver = new TsModuleResolver(this.cascade)
   /** workspacePath → relPath → Map<target NodeId, kinds>. Source of truth for diffing. */
-  private readonly fileImports = new Map<
-    string,
-    Map<NodeId, Map<NodeId, Set<EdgeKind>>>
-  >()
+  private readonly fileImports = new Map<string, Map<NodeId, Map<NodeId, Set<EdgeKind>>>>()
   /** workspacePath → every known external NodeId we've emitted (for add-once tracking). */
   private readonly knownExternals = new Map<string, Set<NodeId>>()
   /** workspacePath → every known file NodeId we've emitted. */
@@ -77,10 +74,7 @@ export class TsParser implements LanguageParser {
     }
   }
 
-  async onFileChange(
-    absPath: string,
-    workspacePath: string,
-  ): Promise<GraphDelta | null> {
+  async onFileChange(absPath: string, workspacePath: string): Promise<GraphDelta | null> {
     if (!this.matches(absPath)) return null
     const nodeId = relPosix(workspacePath, absPath)
     if (!nodeId) return null
@@ -154,12 +148,7 @@ export class TsParser implements LanguageParser {
     if (removeEdges.length) delta.removeEdges = removeEdges
     if (updateEdgeKinds.length) delta.updateEdgeKinds = updateEdgeKinds
 
-    if (
-      !delta.addNodes &&
-      !delta.addEdges &&
-      !delta.removeEdges &&
-      !delta.updateEdgeKinds
-    )
+    if (!delta.addNodes && !delta.addEdges && !delta.removeEdges && !delta.updateEdgeKinds)
       return null
     return delta
   }
@@ -180,10 +169,7 @@ export class TsParser implements LanguageParser {
     this.knownFiles.delete(workspacePath)
   }
 
-  private async parseOneInto(
-    workspacePath: string,
-    rel: string,
-  ): Promise<GraphDelta | null> {
+  private async parseOneInto(workspacePath: string, rel: string): Promise<GraphDelta | null> {
     const abs = join(workspacePath, rel)
     let content: string
     try {
@@ -385,9 +371,7 @@ export class TsParser implements LanguageParser {
     }
   }
 
-  private ensureFileImports(
-    workspacePath: string,
-  ): Map<NodeId, Map<NodeId, Set<EdgeKind>>> {
+  private ensureFileImports(workspacePath: string): Map<NodeId, Map<NodeId, Set<EdgeKind>>> {
     let m = this.fileImports.get(workspacePath)
     if (!m) {
       m = new Map()
@@ -478,13 +462,10 @@ function dedupeImports(imports: RawImport[]): RawImport[] {
   return [...out.entries()].map(([specifier, kinds]) => ({ specifier, kinds }))
 }
 
-function reclassifyIfAsset(
-  specifier: string,
-  kinds: Set<EdgeKind>,
-): Set<EdgeKind> {
-  if (/\.(css|scss|sass|less|svg|png|jpg|jpeg|gif|webp|woff2?|ttf|ico|md|mdx|json)$/i.test(
-    specifier,
-  )) {
+function reclassifyIfAsset(specifier: string, kinds: Set<EdgeKind>): Set<EdgeKind> {
+  if (
+    /\.(css|scss|sass|less|svg|png|jpg|jpeg|gif|webp|woff2?|ttf|ico|md|mdx|json)$/i.test(specifier)
+  ) {
     return new Set<EdgeKind>(['asset'])
   }
   return kinds

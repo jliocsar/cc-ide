@@ -50,7 +50,9 @@ async function tryWatch(
   try {
     const exists = await ensureDir(path)
     if (!exists) return undefined
-    const w = watch(path, { recursive: opts.recursive ?? false, persistent: false }, () => onEvent())
+    const w = watch(path, { recursive: opts.recursive ?? false, persistent: false }, () =>
+      onEvent(),
+    )
     w.on('error', () => {})
     return w
   } catch {
@@ -58,7 +60,10 @@ async function tryWatch(
   }
 }
 
-export async function ensureSessionWatcher(workspaceId: string, workspacePath: string): Promise<void> {
+export async function ensureSessionWatcher(
+  workspaceId: string,
+  workspacePath: string,
+): Promise<void> {
   const entry = getOrCreate(workspaceId)
   if (entry.sessions) return
   const dir = join(homedir(), '.claude', 'projects', pathToSlug(workspacePath))
@@ -71,7 +76,10 @@ export async function ensureSessionWatcher(workspaceId: string, workspacePath: s
   entry.sessions = w
 }
 
-export async function ensureWorktreeWatcher(workspaceId: string, workspacePath: string): Promise<void> {
+export async function ensureWorktreeWatcher(
+  workspaceId: string,
+  workspacePath: string,
+): Promise<void> {
   const entry = getOrCreate(workspaceId)
   if (entry.worktrees) return
   const dir = join(workspacePath, '.git', 'worktrees')

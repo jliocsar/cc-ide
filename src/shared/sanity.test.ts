@@ -8,6 +8,6 @@ describe('sanityCheck', () => {
 })
 // shiki smoke test
 export function __smokeTest(): string {
-  const greeting: string = `hello, ${String("world")}`
+  const greeting: string = `hello, ${String('world')}`
   return greeting
 }

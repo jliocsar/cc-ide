@@ -9,10 +9,7 @@ import { pathToSlug, listSessions, listSessionsBySlug } from './session-discover
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeSessionLine(
-  type: string,
-  extra: Record<string, unknown> = {},
-): string {
+function makeSessionLine(type: string, extra: Record<string, unknown> = {}): string {
   return JSON.stringify({ type, ...extra })
 }
 
@@ -44,11 +41,7 @@ function makeAssistantLine(ts: string): string {
   })
 }
 
-async function writeSession(
-  dir: string,
-  id: string,
-  lines: string[],
-): Promise<string> {
+async function writeSession(dir: string, id: string, lines: string[]): Promise<string> {
   const filePath = join(dir, `${id}.jsonl`)
   await fs.writeFile(filePath, lines.join('\n') + '\n', 'utf8')
   return filePath
@@ -79,9 +72,7 @@ afterEach(async () => {
 
 describe('pathToSlug', () => {
   it('converts the documented example', () => {
-    expect(pathToSlug('/home/jliocsar/Projects/cc-ide')).toBe(
-      '-home-jliocsar-Projects-cc-ide',
-    )
+    expect(pathToSlug('/home/jliocsar/Projects/cc-ide')).toBe('-home-jliocsar-Projects-cc-ide')
   })
 
   it('handles deep nesting with dots', () => {
@@ -92,9 +83,7 @@ describe('pathToSlug', () => {
   })
 
   it('leading dash is preserved (matches Claude on-disk behaviour)', () => {
-    expect(pathToSlug('/home/jliocsar/Projects/cc-ide')).toBe(
-      '-home-jliocsar-Projects-cc-ide',
-    )
+    expect(pathToSlug('/home/jliocsar/Projects/cc-ide')).toBe('-home-jliocsar-Projects-cc-ide')
   })
 })
 
@@ -173,15 +162,9 @@ describe('listSessions — sorting', () => {
     const newId = randomUUID()
     const middleId = randomUUID()
 
-    await writeSession(projectDir, oldId, [
-      makeUserLine('old', '2026-01-01T08:00:00.000Z'),
-    ])
-    await writeSession(projectDir, newId, [
-      makeUserLine('new', '2026-01-03T12:00:00.000Z'),
-    ])
-    await writeSession(projectDir, middleId, [
-      makeUserLine('middle', '2026-01-02T10:00:00.000Z'),
-    ])
+    await writeSession(projectDir, oldId, [makeUserLine('old', '2026-01-01T08:00:00.000Z')])
+    await writeSession(projectDir, newId, [makeUserLine('new', '2026-01-03T12:00:00.000Z')])
+    await writeSession(projectDir, middleId, [makeUserLine('middle', '2026-01-02T10:00:00.000Z')])
 
     const sessions = await listSessionsBySlug(projectSlug, tmpRoot)
     expect(sessions).toHaveLength(3)
@@ -216,9 +199,7 @@ describe('firstUserMessage truncation', () => {
   it('truncates at exactly 140 chars', async () => {
     const id = randomUUID()
     const long = 'A'.repeat(200)
-    await writeSession(projectDir, id, [
-      makeUserLine(long, '2026-03-01T00:00:00.000Z'),
-    ])
+    await writeSession(projectDir, id, [makeUserLine(long, '2026-03-01T00:00:00.000Z')])
 
     const [session] = await listSessionsBySlug(projectSlug, tmpRoot)
     expect(session).toBeDefined()
@@ -231,9 +212,7 @@ describe('firstUserMessage truncation', () => {
   it('does not truncate messages under 140 chars', async () => {
     const id = randomUUID()
     const short = 'B'.repeat(80)
-    await writeSession(projectDir, id, [
-      makeUserLine(short, '2026-03-01T00:00:00.000Z'),
-    ])
+    await writeSession(projectDir, id, [makeUserLine(short, '2026-03-01T00:00:00.000Z')])
 
     const [session] = await listSessionsBySlug(projectSlug, tmpRoot)
     expect(session?.firstUserMessage).toBe(short)
@@ -285,10 +264,7 @@ describe('listSessions — firstUserMessage extraction', () => {
   it('picks text from array content', async () => {
     const id = randomUUID()
     const lines = [
-      makeUserLine(
-        [{ type: 'text', text: 'Array text content' }],
-        '2026-04-01T00:00:00.000Z',
-      ),
+      makeUserLine([{ type: 'text', text: 'Array text content' }], '2026-04-01T00:00:00.000Z'),
     ]
     await writeSession(projectDir, id, lines)
 

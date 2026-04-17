@@ -36,8 +36,7 @@ export const usePlanTabUi = create<State>((set, get) => ({
   pendingCloseId: null,
   vimModeByTab: {},
   setPendingCloseId: (v) => set({ pendingCloseId: v }),
-  setVimMode: (tabId, mode) =>
-    set((s) => ({ vimModeByTab: { ...s.vimModeByTab, [tabId]: mode } })),
+  setVimMode: (tabId, mode) => set((s) => ({ vimModeByTab: { ...s.vimModeByTab, [tabId]: mode } })),
   entry: (tabId) => get().byTab[tabId] ?? defaultEntry,
   setMode: (tabId, mode) =>
     set((s) => ({

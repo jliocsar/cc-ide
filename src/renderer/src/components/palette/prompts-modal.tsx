@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -85,7 +91,9 @@ export function PromptsModal(): JSX.Element {
                 onClick={() => setSort('favorites-first')}
                 className={cn(
                   'h-full rounded-l px-2 transition-colors',
-                  sort === 'favorites-first' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground',
+                  sort === 'favorites-first'
+                    ? 'bg-accent text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 ★ first
@@ -95,7 +103,9 @@ export function PromptsModal(): JSX.Element {
                 onClick={() => setSort('title')}
                 className={cn(
                   'h-full rounded-r px-2 transition-colors',
-                  sort === 'title' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground',
+                  sort === 'title'
+                    ? 'bg-accent text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 A → Z
@@ -118,9 +128,13 @@ export function PromptsModal(): JSX.Element {
           <ScrollArea className="border-r border-border">
             <div className="flex flex-col">
               {loading ? (
-                <div className="px-3 py-2 font-mono text-[11px] text-muted-foreground">loading…</div>
+                <div className="px-3 py-2 font-mono text-[11px] text-muted-foreground">
+                  loading…
+                </div>
               ) : prompts.length === 0 ? (
-                <div className="px-3 py-2 font-mono text-[11px] text-muted-foreground">no prompts</div>
+                <div className="px-3 py-2 font-mono text-[11px] text-muted-foreground">
+                  no prompts
+                </div>
               ) : (
                 prompts.map((p) => (
                   <button
@@ -140,7 +154,9 @@ export function PromptsModal(): JSX.Element {
                       }}
                       className={cn(
                         'mt-0.5',
-                        p.favorite ? 'text-yellow-500' : 'text-muted-foreground hover:text-foreground',
+                        p.favorite
+                          ? 'text-yellow-500'
+                          : 'text-muted-foreground hover:text-foreground',
                       )}
                       aria-label={p.favorite ? 'Unfavorite' : 'Favorite'}
                     >
@@ -148,7 +164,9 @@ export function PromptsModal(): JSX.Element {
                     </button>
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-mono">{p.title}</div>
-                      <div className="line-clamp-2 text-[10px] text-muted-foreground">{p.body || '(empty)'}</div>
+                      <div className="line-clamp-2 text-[10px] text-muted-foreground">
+                        {p.body || '(empty)'}
+                      </div>
                     </div>
                   </button>
                 ))
@@ -182,11 +200,14 @@ function PromptEditor({
 }: {
   promptId: string | null
   prompts: PromptDTO[]
-  onUpdate: (id: string, patch: Partial<Pick<PromptDTO, 'title' | 'body' | 'favorite'>>) => Promise<PromptDTO>
+  onUpdate: (
+    id: string,
+    patch: Partial<Pick<PromptDTO, 'title' | 'body' | 'favorite'>>,
+  ) => Promise<PromptDTO>
   onRemove: (id: string) => Promise<void>
   onPaste: (prompt: PromptDTO) => void
 }): JSX.Element {
-  const prompt = promptId ? prompts.find((p) => p.id === promptId) ?? null : null
+  const prompt = promptId ? (prompts.find((p) => p.id === promptId) ?? null) : null
   const [title, setTitle] = useState(prompt?.title ?? '')
   const [body, setBody] = useState(prompt?.body ?? '')
 
@@ -231,7 +252,8 @@ function PromptEditor({
             <AlertDialogHeader>
               <AlertDialogTitle>Delete prompt?</AlertDialogTitle>
               <AlertDialogDescription>
-                &ldquo;{prompt.title || 'untitled'}&rdquo; will be permanently removed. This can&rsquo;t be undone.
+                &ldquo;{prompt.title || 'untitled'}&rdquo; will be permanently removed. This
+                can&rsquo;t be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

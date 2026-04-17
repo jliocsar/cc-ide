@@ -31,9 +31,7 @@ export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.E
 
   if (liveSessions.length === 0) {
     return (
-      <div className="px-3 py-1 font-mono text-[11px] text-muted-foreground">
-        no open sessions
-      </div>
+      <div className="px-3 py-1 font-mono text-[11px] text-muted-foreground">no open sessions</div>
     )
   }
 
@@ -178,9 +176,7 @@ function SessionRow({
             live
           </span>
         </div>
-        <div className="truncate text-[10px] text-muted-foreground/60">
-          {ptyId}
-        </div>
+        <div className="truncate text-[10px] text-muted-foreground/60">{ptyId}</div>
       </div>
       <span
         role="button"

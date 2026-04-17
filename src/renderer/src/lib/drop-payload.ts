@@ -1,8 +1,4 @@
-import {
-  formatDropPath,
-  serializeComments,
-  type CommentRange,
-} from '@shared/comment-serializer'
+import { formatDropPath, serializeComments, type CommentRange } from '@shared/comment-serializer'
 
 export type DropPayload =
   | { kind: 'plan'; workspaceId: string; relPath: string }

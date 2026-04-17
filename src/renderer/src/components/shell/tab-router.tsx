@@ -70,11 +70,6 @@ function ActiveTabView(): JSX.Element | null {
         />
       )
     case 'prompt':
-      return (
-        <PromptViewer
-          workspaceId={active.meta.workspaceId}
-          relPath={active.meta.relPath}
-        />
-      )
+      return <PromptViewer workspaceId={active.meta.workspaceId} relPath={active.meta.relPath} />
   }
 }

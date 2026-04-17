@@ -63,10 +63,7 @@ export function useCamera({
     [getCamera, setCamera],
   )
 
-  const resetCamera = useCallback(
-    () => setCamera({ x: 0, y: 0, zoom: 1 }),
-    [setCamera],
-  )
+  const resetCamera = useCallback(() => setCamera({ x: 0, y: 0, zoom: 1 }), [setCamera])
 
   useEffect(() => {
     const host = hostRef.current

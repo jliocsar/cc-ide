@@ -26,16 +26,19 @@ export function Canvas(): JSX.Element {
   const openSpawnModal = useSpawnModal((s) => s.open)
   const modalOpen = useSpawnModal((s) => s.isOpen)
 
-  const [menu, setMenu] = useState<{ x: number; y: number; vp: { x: number; y: number } } | null>(null)
+  const [menu, setMenu] = useState<{ x: number; y: number; vp: { x: number; y: number } } | null>(
+    null,
+  )
   const [panMod, setPanMod] = useState<false | 'true' | 'dragging'>(false)
   const hasMaximized = useMaximizedWindow((s) =>
-    activeWorkspaceId ? s.byWorkspace[activeWorkspaceId] !== null && s.byWorkspace[activeWorkspaceId] !== undefined : false,
+    activeWorkspaceId
+      ? s.byWorkspace[activeWorkspaceId] !== null && s.byWorkspace[activeWorkspaceId] !== undefined
+      : false,
   )
 
   useEffect(() => {
     const down = (ev: KeyboardEvent) => {
-      if ((ev.key === 'Control' || ev.key === 'Meta') && !panMod)
-        setPanMod('true')
+      if ((ev.key === 'Control' || ev.key === 'Meta') && !panMod) setPanMod('true')
     }
     const up = (ev: KeyboardEvent) => {
       if (ev.key === 'Control' || ev.key === 'Meta') setPanMod(false)
@@ -135,9 +138,7 @@ export function Canvas(): JSX.Element {
         window.removeEventListener('pointermove', move)
         window.removeEventListener('pointerup', up)
         if (modHeld) {
-          setPanMod(
-            (e.ctrlKey || e.metaKey) ? 'true' : false,
-          )
+          setPanMod(e.ctrlKey || e.metaKey ? 'true' : false)
         }
       }
       window.addEventListener('pointermove', move)
@@ -146,21 +147,18 @@ export function Canvas(): JSX.Element {
     [pan],
   )
 
-  const onContextMenu = useCallback(
-    (ev: React.MouseEvent<HTMLDivElement>) => {
-      const host = hostRef.current
-      if (!host) return
-      if (ev.target !== host) return
-      ev.preventDefault()
-      const rect = host.getBoundingClientRect()
-      setMenu({
-        x: ev.clientX,
-        y: ev.clientY,
-        vp: { x: ev.clientX - rect.left, y: ev.clientY - rect.top },
-      })
-    },
-    [],
-  )
+  const onContextMenu = useCallback((ev: React.MouseEvent<HTMLDivElement>) => {
+    const host = hostRef.current
+    if (!host) return
+    if (ev.target !== host) return
+    ev.preventDefault()
+    const rect = host.getBoundingClientRect()
+    setMenu({
+      x: ev.clientX,
+      y: ev.clientY,
+      vp: { x: ev.clientX - rect.left, y: ev.clientY - rect.top },
+    })
+  }, [])
 
   const hasWindows = windows.length > 0
   const canSpawn = Boolean(activeWorkspaceId)
@@ -202,7 +200,9 @@ export function Canvas(): JSX.Element {
               Spawn Claude
             </Button>
             {!canSpawn ? (
-              <div className="font-mono text-[11px] text-muted-foreground">pick a workspace from the sidebar</div>
+              <div className="font-mono text-[11px] text-muted-foreground">
+                pick a workspace from the sidebar
+              </div>
             ) : null}
           </div>
         </div>
@@ -253,8 +253,12 @@ export function Canvas(): JSX.Element {
         </Button>
       </div>
 
-
-      <DropdownMenu open={menu !== null} onOpenChange={(v) => { if (!v) setMenu(null) }}>
+      <DropdownMenu
+        open={menu !== null}
+        onOpenChange={(v) => {
+          if (!v) setMenu(null)
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <span
             aria-hidden

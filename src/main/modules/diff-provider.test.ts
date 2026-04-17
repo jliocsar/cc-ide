@@ -24,7 +24,11 @@ async function makeRepo(): Promise<string> {
   return dir
 }
 
-async function initialCommit(dir: string, filename = 'file.txt', content = 'line1\nline2\nline3\n'): Promise<void> {
+async function initialCommit(
+  dir: string,
+  filename = 'file.txt',
+  content = 'line1\nline2\nline3\n',
+): Promise<void> {
   await fs.writeFile(join(dir, filename), content)
   await git(dir, 'add', filename)
   await git(dir, 'commit', '-m', 'init')
@@ -69,7 +73,10 @@ describe('listChangedFiles', () => {
     await fs.writeFile(join(testDir, 'file.txt'), 'line1\nline2\nline3\nstaged_line\n')
     await git(testDir, 'add', 'file.txt')
     // further modify unstaged
-    await fs.writeFile(join(testDir, 'file.txt'), 'line1\nline2\nline3\nstaged_line\nunstaged_line\n')
+    await fs.writeFile(
+      join(testDir, 'file.txt'),
+      'line1\nline2\nline3\nstaged_line\nunstaged_line\n',
+    )
 
     const files = await listChangedFiles(testDir)
     const staged = files.filter((f) => f.stage === 'staged')

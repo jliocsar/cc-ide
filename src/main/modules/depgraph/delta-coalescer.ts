@@ -72,8 +72,7 @@ export class DeltaCoalescer {
     if (this.removeNodes.size) delta.removeNodes = [...this.removeNodes]
     if (this.addEdges.size) delta.addEdges = [...this.addEdges.values()]
     if (this.removeEdges.size) delta.removeEdges = [...this.removeEdges.values()]
-    if (this.updateEdgeKinds.size)
-      delta.updateEdgeKinds = [...this.updateEdgeKinds.values()]
+    if (this.updateEdgeKinds.size) delta.updateEdgeKinds = [...this.updateEdgeKinds.values()]
     this.addNodes.clear()
     this.removeNodes.clear()
     this.addEdges.clear()

@@ -13,9 +13,7 @@ export function DiffsSection({ worktrees }: { worktrees: WorktreeDTO[] }): JSX.E
   return (
     <div className="flex flex-col gap-2">
       {worktrees.length === 0 ? (
-        <div className="px-2 py-1 font-mono text-[11px] text-muted-foreground">
-          no worktrees
-        </div>
+        <div className="px-2 py-1 font-mono text-[11px] text-muted-foreground">no worktrees</div>
       ) : null}
       {worktrees.map((w) => (
         <DiffsForWorktree key={w.path} worktree={w} />
@@ -63,7 +61,13 @@ function DiffsForWorktree({ worktree }: { worktree: WorktreeDTO }): JSX.Element 
   )
 }
 
-function ChangedFileRow({ file, worktreePath }: { file: ChangedFileDTO; worktreePath: string }): JSX.Element {
+function ChangedFileRow({
+  file,
+  worktreePath,
+}: {
+  file: ChangedFileDTO
+  worktreePath: string
+}): JSX.Element {
   const openDiff = useTabs((s) => s.openDiff)
   const activeWorkspaceId = useWorkspaces((s) => s.activeId)
   const tabId = diffTabId(worktreePath, file.path, file.stage)
@@ -91,7 +95,9 @@ function ChangedFileRow({ file, worktreePath }: { file: ChangedFileDTO; worktree
       <FileDiff className="size-3 shrink-0" />
       <div className="min-w-0 flex-1 truncate font-mono">{file.path}</div>
       {rangeCount > 0 ? (
-        <span className="rounded bg-primary/20 px-1 font-mono text-[10px] text-primary">{rangeCount}</span>
+        <span className="rounded bg-primary/20 px-1 font-mono text-[10px] text-primary">
+          {rangeCount}
+        </span>
       ) : null}
       <span
         className={cn(

@@ -27,10 +27,7 @@ import { validateTmuxWindowName } from '@shared/tmux-name'
 
 type ExistingWorktree = { path: string; branch: string | null; isPrimary: boolean }
 
-type Choice =
-  | { kind: 'primary' }
-  | { kind: 'existing'; path: string }
-  | { kind: 'new' }
+type Choice = { kind: 'primary' } | { kind: 'existing'; path: string } | { kind: 'new' }
 
 function sameChoice(a: Choice, b: Choice): boolean {
   if (a.kind !== b.kind) return false
@@ -185,10 +182,7 @@ export function SpawnModal(): JSX.Element {
               </label>
               <label className="flex flex-col gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
                 Base branch
-                <Select
-                  value={baseBranch ?? undefined}
-                  onValueChange={(v) => setBaseBranch(v)}
-                >
+                <Select value={baseBranch ?? undefined} onValueChange={(v) => setBaseBranch(v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a base branch" />
                   </SelectTrigger>

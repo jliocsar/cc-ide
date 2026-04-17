@@ -1,11 +1,7 @@
 import { FSWatcher, watch, promises as fsp } from 'node:fs'
 import { resolve, sep } from 'node:path'
 import type { GraphDelta, GraphEdgeWire, GraphNode, NodeId } from './types'
-import {
-  canonicalEdgeId,
-  emptyWorkspaceGraphState,
-  type WorkspaceGraphState,
-} from './types'
+import { canonicalEdgeId, emptyWorkspaceGraphState, type WorkspaceGraphState } from './types'
 import { DeltaCoalescer } from './delta-coalescer'
 import { ParserRegistry, defaultRegistry } from './parser-registry'
 import { TsParser } from './ts-parser'
@@ -29,10 +25,7 @@ interface Subscription {
 
 const subs = new Map<string, Subscription>()
 
-export async function subscribe(
-  workspaceId: string,
-  workspacePath: string,
-): Promise<void> {
+export async function subscribe(workspaceId: string, workspacePath: string): Promise<void> {
   const existing = subs.get(workspaceId)
   if (existing) {
     emitSnapshot(existing, /*scanDone*/ true)
@@ -81,10 +74,7 @@ export async function unsubscribe(workspaceId: string): Promise<void> {
   subs.delete(workspaceId)
 }
 
-export async function refresh(
-  workspaceId: string,
-  workspacePath: string,
-): Promise<void> {
+export async function refresh(workspaceId: string, workspacePath: string): Promise<void> {
   await unsubscribe(workspaceId)
   await subscribe(workspaceId, workspacePath)
 }
@@ -104,7 +94,7 @@ async function runInitialScan(sub: Subscription): Promise<void> {
     for await (const delta of parser.scan(sub.workspacePath)) {
       if (sub.scanAbort.aborted) return
       applyAndQueue(sub, delta)
-      filesScanned += (delta.addNodes?.filter((n) => n.kind === 'file').length ?? 0)
+      filesScanned += delta.addNodes?.filter((n) => n.kind === 'file').length ?? 0
       if (filesScanned % 50 === 0) {
         broadcast('graph:scanProgress', {
           workspaceId: sub.workspaceId,
@@ -174,10 +164,7 @@ function scheduleFileRecheck(sub: Subscription, absPath: string): void {
   sub.pendingFileTimers.set(absPath, timer)
 }
 
-async function handleFileChange(
-  sub: Subscription,
-  absPath: string,
-): Promise<void> {
+async function handleFileChange(sub: Subscription, absPath: string): Promise<void> {
   // Skip hidden dirs and vcs metadata
   if (/(^|\/|\\)(\.git|node_modules)(\/|\\|$)/.test(absPath)) return
 
@@ -196,7 +183,10 @@ async function handleFileChange(
   if (!parser) return
 
   // Does the file exist?
-  const exists = await fsp.stat(absPath).then(() => true).catch(() => false)
+  const exists = await fsp
+    .stat(absPath)
+    .then(() => true)
+    .catch(() => false)
   if (!exists) {
     handleFileDelete(sub, absPath)
     return

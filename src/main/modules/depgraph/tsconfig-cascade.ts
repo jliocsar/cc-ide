@@ -38,9 +38,7 @@ export class TsconfigCascade {
     } else {
       this.byPath.set(absTsconfigPath, entry)
     }
-    this.entries = [...this.byPath.values()].sort(
-      (a, b) => b.dir.length - a.dir.length,
-    )
+    this.entries = [...this.byPath.values()].sort((a, b) => b.dir.length - a.dir.length)
   }
 
   /** Returns the nearest ancestor tsconfig for an absolute file path, or null. */
