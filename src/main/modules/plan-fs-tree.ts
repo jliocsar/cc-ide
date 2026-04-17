@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { type Dirent, promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, posix, resolve, sep } from 'node:path'
@@ -157,9 +158,14 @@ export async function writePlan(
 ): Promise<void> {
   const abs = resolveSafe(workspacePath, relPath)
   await ensureDir(join(abs, '..'))
-  const tmp = abs + '.tmp'
-  await fs.writeFile(tmp, content, 'utf8')
-  await fs.rename(tmp, abs)
+  const tmp = `${abs}.${randomUUID()}.tmp`
+  try {
+    await fs.writeFile(tmp, content, 'utf8')
+    await fs.rename(tmp, abs)
+  } catch (err) {
+    await fs.rm(tmp, { force: true }).catch(() => {})
+    throw err
+  }
 }
 
 export async function createPlan(workspacePath: string, relPath: string): Promise<void> {
