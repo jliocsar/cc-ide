@@ -13,14 +13,23 @@ import { WindowFrame } from './window-frame'
 import { XtermView } from '@/components/terminal/xterm-view'
 import { useCanvas, type CanvasWindow } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
-import { clientToCanvasViewport } from '@/lib/canvas-host'
+import { useMaximizedWindow } from '@/state/maximized-window'
+import { useWorkspaces } from '@/state/workspaces'
+import { clientToCanvasViewport, getCanvasHost } from '@/lib/canvas-host'
 import { useReviewComments, planTabId, diffTabId } from '@/state/review-comments'
 import { invoke } from '@/lib/ipc'
 import { readDropPayload, buildDropString, type DropPayload } from '@/lib/drop-payload'
 
 export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
   const removeWindow = useCanvas((s) => s.removeWindow)
+  const camera = useCanvas((s) => s.camera)
   const zoomAt = useCanvas((s) => s.zoomAt)
+  const workspaceId = useWorkspaces((s) => s.activeId)
+  const maximizedInfo = useMaximizedWindow((s) =>
+    workspaceId ? (s.byWorkspace[workspaceId] ?? null) : null,
+  )
+  const setMaximized = useMaximizedWindow((s) => s.set)
+  const isMaximized = maximizedInfo?.windowId === w.id
   const session = useSessions((s) =>
     w.sessionId ? s.sessions.find((x) => x.ptyId === w.sessionId) : undefined,
   )
@@ -98,17 +107,54 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
     }
   }
 
+  function toggleMaximize() {
+    if (!workspaceId) return
+    if (isMaximized) {
+      setMaximized(workspaceId, null)
+    } else {
+      const badge: 'live' | 'exited' | 'dormant' = dormant
+        ? 'dormant'
+        : session?.exited
+          ? 'exited'
+          : 'live'
+      setMaximized(workspaceId, {
+        windowId: w.id,
+        title: shortName,
+        badge,
+        exitCode: session?.exitCode,
+        onClose: requestClose,
+      })
+    }
+  }
+
+  let fx = w.x
+  let fy = w.y
+  let fw = w.width
+  let fh = w.height
+  let fz = w.zIndex
+  if (isMaximized) {
+    const host = getCanvasHost()
+    const rect = host?.getBoundingClientRect()
+    fx = -camera.x / camera.zoom
+    fy = -camera.y / camera.zoom
+    fw = (rect?.width ?? 800) / camera.zoom
+    fh = (rect?.height ?? 600) / camera.zoom
+    fz = 9999
+  }
+
   return (
     <>
       <WindowFrame
         id={w.id}
         title={w.title}
         tmuxWindow={alive ? w.tmuxWindow : undefined}
-        x={w.x}
-        y={w.y}
-        width={w.width}
-        height={w.height}
-        zIndex={w.zIndex}
+        x={fx}
+        y={fy}
+        width={fw}
+        height={fh}
+        zIndex={fz}
+        maximized={isMaximized}
+        onMaximize={toggleMaximize}
         onClose={requestClose}
         badge={
           dormant ? (

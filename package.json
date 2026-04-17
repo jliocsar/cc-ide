@@ -37,6 +37,7 @@
     "codemirror": "^6.0.2",
     "d3-force": "^3.0.0",
     "lucide-react": "^1.8.0",
+    "motion": "^12.38.0",
     "node-pty": "^1.1.0",
     "radix-ui": "^1.4.3",
     "shiki": "^4.0.2",
