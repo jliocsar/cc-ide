@@ -1,6 +1,6 @@
 import { type FSWatcher, promises as fsp, watch } from 'node:fs'
 import { resolve, sep } from 'node:path'
-import { broadcast } from '../event-bus'
+import { broadcast } from '../../event-bus'
 import { DeltaCoalescer } from './delta-coalescer'
 import { defaultRegistry, type ParserRegistry } from './parser-registry'
 import { TsParser } from './ts-parser'

@@ -68,5 +68,57 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/renderer/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "fs": "Renderer cannot touch fs; use IPC (window.ccIde.invoke).",
+                  "node:fs": "Renderer cannot touch fs; use IPC.",
+                  "path": "Renderer cannot use node:path; send paths through IPC.",
+                  "node:path": "Renderer cannot use node:path; send paths through IPC.",
+                  "child_process": "Renderer cannot spawn processes; use IPC.",
+                  "node:child_process": "Renderer cannot spawn processes; use IPC.",
+                  "electron": "Use window.ccIde.invoke via src/renderer/src/lib/ipc.ts."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/main/modules/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "electron": "Deep modules must stay pure; keep Electron APIs in src/main/ipc.ts or src/main/index.ts."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/preload/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "error"
+          }
+        }
+      }
+    }
+  ]
 }
