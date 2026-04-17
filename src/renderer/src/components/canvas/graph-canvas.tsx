@@ -1,5 +1,6 @@
 import { Maximize2, Minus, Plus, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { Button } from '@/components/ui/button'
 import { useCamera } from '@/hooks/use-camera'
 import { invoke, onEvent } from '@/lib/ipc'
@@ -35,19 +36,26 @@ export function GraphCanvas(): JSX.Element {
     new Map(),
   )
 
-  const mode = useBoardUi((s) =>
-    workspaceId ? (s.modeByWorkspace[workspaceId] ?? 'sessions') : 'sessions',
+  const {
+    modeByWorkspace,
+    graphCameraByWorkspace,
+    railCollapsedByWorkspace,
+    selectedNodeByWorkspace,
+  } = useBoardUi(
+    useShallow((s) => ({
+      modeByWorkspace: s.modeByWorkspace,
+      graphCameraByWorkspace: s.graphCameraByWorkspace,
+      railCollapsedByWorkspace: s.railCollapsedByWorkspace,
+      selectedNodeByWorkspace: s.selectedNodeByWorkspace,
+    })),
   )
-  const camera = useBoardUi((s) =>
-    workspaceId ? (s.graphCameraByWorkspace[workspaceId] ?? DEFAULT_CAMERA) : DEFAULT_CAMERA,
-  )
+  const mode = workspaceId ? (modeByWorkspace[workspaceId] ?? 'sessions') : 'sessions'
+  const camera = workspaceId
+    ? (graphCameraByWorkspace[workspaceId] ?? DEFAULT_CAMERA)
+    : DEFAULT_CAMERA
+  const railCollapsed = workspaceId ? (railCollapsedByWorkspace[workspaceId] ?? false) : false
+  const selectedNode = workspaceId ? (selectedNodeByWorkspace[workspaceId] ?? null) : null
   const setGraphCamera = useBoardUi((s) => s.setGraphCamera)
-  const railCollapsed = useBoardUi((s) =>
-    workspaceId ? (s.railCollapsedByWorkspace[workspaceId] ?? false) : false,
-  )
-  const selectedNode = useBoardUi((s) =>
-    workspaceId ? (s.selectedNodeByWorkspace[workspaceId] ?? null) : null,
-  )
   const selectNode = useBoardUi((s) => s.selectNode)
   const filters = useBoardUi((s) => (workspaceId ? getFilters(s, workspaceId) : null))
   const style = useBoardUi((s) => (workspaceId ? getStyle(s, workspaceId) : null))

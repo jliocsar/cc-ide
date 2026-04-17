@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import { useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,13 +76,13 @@ const ICON_BY_KIND: Record<Tab['kind'], React.ComponentType<{ className?: string
 }
 
 export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
-  const tabs = useTabs((s) => s.tabs)
-  const activeId = useTabs((s) => s.activeId)
+  const { tabs, activeId } = useTabs(useShallow((s) => ({ tabs: s.tabs, activeId: s.activeId })))
   const setActive = useTabs((s) => s.setActive)
   const closeTab = useTabs((s) => s.closeTab)
   const reorderTab = useTabs((s) => s.reorderTab)
-  const dirtyMap = usePlanTabUi((s) => s.byTab)
-  const pendingCloseId = usePlanTabUi((s) => s.pendingCloseId)
+  const { byTab: dirtyMap, pendingCloseId } = usePlanTabUi(
+    useShallow((s) => ({ byTab: s.byTab, pendingCloseId: s.pendingCloseId })),
+  )
   const setPendingCloseId = usePlanTabUi((s) => s.setPendingCloseId)
   const workspaceId = useWorkspaces((s) => s.activeId)
   const boardMode = useBoardUi((s) =>
