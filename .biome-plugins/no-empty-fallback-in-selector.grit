@@ -1,0 +1,15 @@
+// Guard against fresh empty-array/object refs returned from zustand
+// selectors. See .claude/rules/state-patterns.md.
+//
+// Wrong:  useMyStore((s) => s.byTab[id] ?? [])     // new [] every render
+// Right:  useMyStore((s) => s.byTab[id] ?? EMPTY_RANGES)  // frozen constant
+
+language js
+
+`$_(($_) => $_ ?? $fallback)` where {
+  $fallback <: or {
+    `[]`,
+    `{}`
+  },
+  register_diagnostic(span=$fallback, message="Selector fallback creates a new reference each render. Use a frozen module-scope constant (e.g. EMPTY_RANGES) — see .claude/rules/state-patterns.md.", severity="error")
+}
