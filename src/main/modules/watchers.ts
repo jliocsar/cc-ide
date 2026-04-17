@@ -1,7 +1,7 @@
 import { type FSWatcher, promises as fsp, watch } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { broadcast } from './event-bus'
+import { broadcast } from '../event-bus'
 import { pathToSlug } from './session-discovery'
 
 const DEBOUNCE_MS = 300
