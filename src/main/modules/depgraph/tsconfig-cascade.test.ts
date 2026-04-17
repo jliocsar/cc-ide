@@ -51,10 +51,7 @@ describe('nearest ancestor', () => {
 
   it('prefers a nested tsconfig over the root', async () => {
     await write('tsconfig.json', JSON.stringify({ compilerOptions: {} }))
-    await write(
-      'packages/a/tsconfig.json',
-      JSON.stringify({ compilerOptions: { baseUrl: '.' } }),
-    )
+    await write('packages/a/tsconfig.json', JSON.stringify({ compilerOptions: { baseUrl: '.' } }))
     const cascade = new TsconfigCascade()
     await cascade.load(root, ['tsconfig.json', 'packages/a/tsconfig.json'])
     const nested = cascade.nearest(join(root, 'packages/a/src/x.ts'))
@@ -75,10 +72,7 @@ describe('nearest ancestor', () => {
     await write('tsconfig.json', JSON.stringify({ compilerOptions: {} }))
     const cascade = new TsconfigCascade()
     await cascade.load(root, ['tsconfig.json'])
-    await write(
-      'tsconfig.json',
-      JSON.stringify({ compilerOptions: { strict: true } }),
-    )
+    await write('tsconfig.json', JSON.stringify({ compilerOptions: { strict: true } }))
     await cascade.reload(join(root, 'tsconfig.json'))
     const entry = cascade.nearest(join(root, 'src/x.ts'))
     expect(entry?.options.strict).toBe(true)

@@ -39,9 +39,7 @@ export function DropsSection({ workspaceId }: { workspaceId: string }): JSX.Elem
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate font-mono text-[12px]">{name}</span>
               {dir ? (
-                <span className="truncate font-mono text-[10px] opacity-60">
-                  {dir}
-                </span>
+                <span className="truncate font-mono text-[10px] opacity-60">{dir}</span>
               ) : null}
             </span>
             <Button

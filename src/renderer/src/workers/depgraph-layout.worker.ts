@@ -8,12 +8,7 @@ import {
   type SimulationLinkDatum,
   type SimulationNodeDatum,
 } from 'd3-force'
-import type {
-  WorkerEdge,
-  WorkerIn,
-  WorkerOut,
-  WorkerSeedPosition,
-} from './depgraph-layout.types'
+import type { WorkerEdge, WorkerIn, WorkerOut, WorkerSeedPosition } from './depgraph-layout.types'
 
 interface SimNode extends SimulationNodeDatum {
   id: string
@@ -199,8 +194,7 @@ function reheat(alpha: number): void {
 
 function rebindForceLink(): void {
   if (!sim) return
-  const f = sim.force('link') as
-    | (ReturnType<typeof forceLink<SimNode, SimLink>> | null)
+  const f = sim.force('link') as ReturnType<typeof forceLink<SimNode, SimLink>> | null
   if (f) f.links(edges)
 }
 
@@ -229,8 +223,7 @@ ctx.onmessage = (ev: MessageEvent<WorkerIn>) => {
       for (const n of msg.addNodes) {
         if (nodeById.has(n.id)) continue
         newNode = n.id
-        const relatedEdges =
-          msg.addEdges?.filter((e) => e.from === n.id || e.to === n.id) ?? []
+        const relatedEdges = msg.addEdges?.filter((e) => e.from === n.id || e.to === n.id) ?? []
         const centroid = neighborCentroid(relatedEdges)
         addNode(n.id, centroid ? { id: n.id, x: centroid.x, y: centroid.y } : undefined)
         newNode = null

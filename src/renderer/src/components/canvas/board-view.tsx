@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 export function BoardView(): JSX.Element {
   const workspaceId = useWorkspaces((s) => s.activeId)
   const mode = useBoardUi((s) =>
-    workspaceId ? s.modeByWorkspace[workspaceId] ?? 'sessions' : 'sessions',
+    workspaceId ? (s.modeByWorkspace[workspaceId] ?? 'sessions') : 'sessions',
   )
 
   const sessionsActive = mode === 'sessions'

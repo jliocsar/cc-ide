@@ -54,17 +54,7 @@ export async function spawnWindow(options: {
   command: string
 }): Promise<string> {
   const { sessionName, windowName, cwd, command } = options
-  const r = await run([
-    'new-window',
-    '-d',
-    '-t',
-    sessionName,
-    '-n',
-    windowName,
-    '-c',
-    cwd,
-    command,
-  ])
+  const r = await run(['new-window', '-d', '-t', sessionName, '-n', windowName, '-c', cwd, command])
   if (r.code !== 0) throw new Error(`tmux new-window failed: ${r.stderr.trim()}`)
   void killIdleIfExists(sessionName)
   return `${sessionName}:${windowName}`
@@ -113,25 +103,11 @@ export async function createViewerSession(options: {
   // sibling — leaving the canvas window pointed at some OTHER live Claude.
   // Standalone session + single linked window means: target dies → viewer
   // has 0 windows → viewer session dies → pty exits → canvas window closes.
-  const create = await run([
-    'new-session',
-    '-d',
-    '-s',
-    viewerName,
-    '-n',
-    '__viewer_init__',
-  ])
+  const create = await run(['new-session', '-d', '-s', viewerName, '-n', '__viewer_init__'])
   if (create.code !== 0) {
     throw new Error(`tmux new-session (viewer) failed: ${create.stderr.trim()}`)
   }
-  const link = await run([
-    'link-window',
-    '-k',
-    '-s',
-    windowTarget,
-    '-t',
-    `${viewerName}:0`,
-  ])
+  const link = await run(['link-window', '-k', '-s', windowTarget, '-t', `${viewerName}:0`])
   if (link.code !== 0) {
     await run(['kill-session', '-t', viewerName])
     throw new Error(`tmux link-window on viewer failed: ${link.stderr.trim()}`)

@@ -6,7 +6,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Trash2, MessageSquarePlus, Pencil, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
-import { EMPTY_RANGES, planTabId, useReviewComments, type RangeDraft } from '@/state/review-comments'
+import {
+  EMPTY_RANGES,
+  planTabId,
+  useReviewComments,
+  type RangeDraft,
+} from '@/state/review-comments'
 import { usePlanTabUi, type PlanMode } from '@/state/plan-tab-ui'
 import { MarkdownFileEditor } from '@/components/editor/markdown-file-editor'
 import { invoke as invokeIpc } from '@/lib/ipc'
@@ -123,7 +128,12 @@ function CommentsPanel({
       <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2 pr-3 text-[11px] text-muted-foreground">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="icon-xs" variant="ghost" onClick={onCollapse} aria-label="Collapse review comments">
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={onCollapse}
+              aria-label="Collapse review comments"
+            >
               <ChevronRight />
             </Button>
           </TooltipTrigger>
@@ -162,7 +172,9 @@ function CommentsPanel({
       <div className="flex h-7 shrink-0 items-center gap-2 border-b border-border px-3 text-[11px] uppercase tracking-wider text-muted-foreground">
         <MessageSquarePlus className="size-3.5" />
         <span>Review comments</span>
-        <span className="ml-auto font-mono lowercase">{ranges.length} range{ranges.length === 1 ? '' : 's'}</span>
+        <span className="ml-auto font-mono lowercase">
+          {ranges.length} range{ranges.length === 1 ? '' : 's'}
+        </span>
       </div>
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-3 p-3">
@@ -210,20 +222,19 @@ function CommentsPanel({
   )
 }
 
-function CommentsRail({
-  tabId,
-  onExpand,
-}: {
-  tabId: string
-  onExpand: () => void
-}): JSX.Element {
+function CommentsRail({ tabId, onExpand }: { tabId: string; onExpand: () => void }): JSX.Element {
   const rangeCount = useReviewComments((s) => s.byTab[tabId]?.length ?? 0)
 
   return (
     <div className="flex h-full flex-col items-center gap-2 border-l border-border bg-card py-2">
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button size="icon-xs" variant="ghost" onClick={onExpand} aria-label="Expand review comments">
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={onExpand}
+            aria-label="Expand review comments"
+          >
             <ChevronLeft />
           </Button>
         </TooltipTrigger>

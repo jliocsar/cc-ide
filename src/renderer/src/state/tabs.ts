@@ -16,7 +16,12 @@ export type Tab =
       kind: 'diff'
       title: string
       pinned: false
-      meta: { workspaceId: string; worktreePath: string; path: string; stage: 'staged' | 'unstaged' }
+      meta: {
+        workspaceId: string
+        worktreePath: string
+        path: string
+        stage: 'staged' | 'unstaged'
+      }
     }
   | {
       id: string
@@ -152,9 +157,7 @@ export const useTabs = create<State>((set, get) => {
         if (!tab || tab.pinned) return curr
         const remaining = curr.tabs.filter((t) => t.id !== id)
         const nextActive =
-          curr.activeId === id
-            ? remaining[remaining.length - 1]?.id ?? BOARD.id
-            : curr.activeId
+          curr.activeId === id ? (remaining[remaining.length - 1]?.id ?? BOARD.id) : curr.activeId
         return { tabs: remaining, activeId: nextActive }
       })
     },

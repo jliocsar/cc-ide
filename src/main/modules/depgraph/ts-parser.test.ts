@@ -89,10 +89,7 @@ describe('TsParser.scan', () => {
 
   it('tags type-only imports', async () => {
     await write('tsconfig.json', JSON.stringify({ compilerOptions: {} }))
-    await write(
-      'a.ts',
-      `import type { X } from './b'\nexport const a: X = {} as X\n`,
-    )
+    await write('a.ts', `import type { X } from './b'\nexport const a: X = {} as X\n`)
     await write('b.ts', `export interface X { n: number }\n`)
     await commit()
 
@@ -109,9 +106,7 @@ describe('TsParser.scan', () => {
 
     const parser = new TsParser()
     const { edges } = await collectScan(parser)
-    expect(edges.find((e) => e.from === 'a.ts' && e.to === 'b.ts')?.kinds).toEqual([
-      'dynamic',
-    ])
+    expect(edges.find((e) => e.from === 'a.ts' && e.to === 'b.ts')?.kinds).toEqual(['dynamic'])
   })
 
   it('tags re-exports', async () => {
@@ -122,9 +117,7 @@ describe('TsParser.scan', () => {
 
     const parser = new TsParser()
     const { edges } = await collectScan(parser)
-    expect(edges.find((e) => e.from === 'a.ts' && e.to === 'b.ts')?.kinds).toEqual([
-      'reexport',
-    ])
+    expect(edges.find((e) => e.from === 'a.ts' && e.to === 'b.ts')?.kinds).toEqual(['reexport'])
   })
 
   it('skips unresolvable imports silently', async () => {
@@ -182,9 +175,7 @@ describe('TsParser.scan', () => {
 
     const parser = new TsParser()
     const { edges } = await collectScan(parser)
-    expect(
-      edges.find((e) => e.from === 'a.ts' && e.to === 'styles.css')?.kinds,
-    ).toEqual(['asset'])
+    expect(edges.find((e) => e.from === 'a.ts' && e.to === 'styles.css')?.kinds).toEqual(['asset'])
   })
 })
 

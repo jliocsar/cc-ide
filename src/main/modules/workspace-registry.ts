@@ -40,7 +40,9 @@ async function writeRegistry(workspaces: Workspace[]): Promise<void> {
 
 async function isGitRepo(path: string): Promise<boolean> {
   return new Promise((res) => {
-    const child = spawn('git', ['-C', path, 'rev-parse', '--is-inside-work-tree'], { stdio: 'ignore' })
+    const child = spawn('git', ['-C', path, 'rev-parse', '--is-inside-work-tree'], {
+      stdio: 'ignore',
+    })
     child.on('error', () => res(false))
     child.on('exit', (code) => res(code === 0))
   })

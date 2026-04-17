@@ -14,17 +14,7 @@ const MODULE_CACHE = ts.createModuleResolutionCache(
   FALLBACK_OPTIONS,
 )
 
-const NAIVE_EXTS = [
-  '.ts',
-  '.tsx',
-  '.js',
-  '.jsx',
-  '.mjs',
-  '.cjs',
-  '.mts',
-  '.cts',
-  '.d.ts',
-]
+const NAIVE_EXTS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts', '.d.ts']
 const NAIVE_INDEX_EXTS = NAIVE_EXTS.map((e) => `/index${e}`)
 
 export class TsModuleResolver implements ModuleResolver {
@@ -41,13 +31,7 @@ export class TsModuleResolver implements ModuleResolver {
     const entry = this.cascade.nearest(containingFile)
     const options = entry?.options ?? FALLBACK_OPTIONS
 
-    const result = ts.resolveModuleName(
-      specifier,
-      containingFile,
-      options,
-      ts.sys,
-      MODULE_CACHE,
-    )
+    const result = ts.resolveModuleName(specifier, containingFile, options, ts.sys, MODULE_CACHE)
     const resolved = result.resolvedModule
     if (!resolved) {
       return this.naiveRelativeFallback(specifier, containingFile)
@@ -100,11 +84,9 @@ export function langFromPath(absPath: string): Lang {
   if (lower.endsWith('.tsx')) return 'tsx'
   if (lower.endsWith('.ts')) return 'ts'
   if (lower.endsWith('.jsx')) return 'jsx'
-  if (lower.endsWith('.mjs') || lower.endsWith('.cjs') || lower.endsWith('.js'))
-    return 'js'
+  if (lower.endsWith('.mjs') || lower.endsWith('.cjs') || lower.endsWith('.js')) return 'js'
   if (lower.endsWith('.json')) return 'json'
-  if (lower.endsWith('.css') || lower.endsWith('.scss') || lower.endsWith('.sass'))
-    return 'css'
+  if (lower.endsWith('.css') || lower.endsWith('.scss') || lower.endsWith('.sass')) return 'css'
   return 'ts'
 }
 
@@ -123,16 +105,11 @@ function extractPackageName(specifier: string): string {
   return first ?? specifier
 }
 
-async function tryResolveAsFile(
-  specifier: string,
-  containingFile: string,
-): Promise<string | null> {
+async function tryResolveAsFile(specifier: string, containingFile: string): Promise<string | null> {
   const { promises: fsp } = await import('node:fs')
   const { resolve, dirname } = await import('node:path')
   const baseDir = dirname(containingFile)
-  const abs = specifier.startsWith('/')
-    ? specifier
-    : resolve(baseDir, specifier)
+  const abs = specifier.startsWith('/') ? specifier : resolve(baseDir, specifier)
 
   try {
     const stat = await fsp.stat(abs).catch(() => null)

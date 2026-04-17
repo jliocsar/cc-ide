@@ -130,9 +130,9 @@ describe('rename', () => {
   it('refuses to overwrite a folder even with overwrite: true', async () => {
     await createPrompt(workspace, 'a.md')
     await createFolder(workspace, 'b')
-    await expect(
-      rename(workspace, 'a.md', 'b', { overwrite: true }),
-    ).rejects.toThrow(/cannot overwrite a folder/)
+    await expect(rename(workspace, 'a.md', 'b', { overwrite: true })).rejects.toThrow(
+      /cannot overwrite a folder/,
+    )
   })
 
   it('refuses to move a folder into one of its descendants', async () => {

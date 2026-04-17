@@ -70,9 +70,9 @@ describe('PromptsStore', () => {
   })
 
   it('5. updatePrompt on unknown id throws', async () => {
-    await expect(
-      updatePrompt('nonexistent-uuid', { title: 'x' }),
-    ).rejects.toThrow('Prompt not found: nonexistent-uuid')
+    await expect(updatePrompt('nonexistent-uuid', { title: 'x' })).rejects.toThrow(
+      'Prompt not found: nonexistent-uuid',
+    )
   })
 
   it('6. deletePrompt removes; idempotent for missing id', async () => {

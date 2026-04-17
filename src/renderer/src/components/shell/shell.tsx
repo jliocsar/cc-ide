@@ -38,8 +38,7 @@ export function Shell(): JSX.Element {
   const activeWorkspaceId = useWorkspaces((s) => s.activeId)
   const conversationsLoaded = useSidebarData((s) => s.conversationsLoaded)
   const worktreesLoaded = useSidebarData((s) => s.worktreesLoaded)
-  const sidebarLoading =
-    !!activeWorkspaceId && (!conversationsLoaded || !worktreesLoaded)
+  const sidebarLoading = !!activeWorkspaceId && (!conversationsLoaded || !worktreesLoaded)
 
   const [maximized, setMaximized] = useState(false)
   useEffect(() => {

@@ -4,13 +4,7 @@ import { join } from 'node:path'
 
 export type DiffStage = 'staged' | 'unstaged'
 
-export type FileStatus =
-  | 'added'
-  | 'modified'
-  | 'deleted'
-  | 'renamed'
-  | 'copied'
-  | 'untracked'
+export type FileStatus = 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' | 'untracked'
 
 export type ChangedFile = {
   path: string
@@ -117,7 +111,9 @@ function parsePortcelain(raw: string): Array<{
 }
 
 // Parses `git diff --numstat -z` output
-function parseNumstat(raw: string): Map<string, { additions: number; deletions: number; binary: boolean }> {
+function parseNumstat(
+  raw: string,
+): Map<string, { additions: number; deletions: number; binary: boolean }> {
   const map = new Map<string, { additions: number; deletions: number; binary: boolean }>()
   if (!raw.trim()) return map
   // numstat -z: `<add>\t<del>\t<path>\0` or `<add>\t<del>\t<old>\0<new>\0` for renames
@@ -127,11 +123,20 @@ function parseNumstat(raw: string): Map<string, { additions: number; deletions: 
   let i = 0
   while (i < parts.length) {
     const part = parts[i]
-    if (!part) { i++; continue }
+    if (!part) {
+      i++
+      continue
+    }
     const tabIdx = part.indexOf('\t')
-    if (tabIdx === -1) { i++; continue }
+    if (tabIdx === -1) {
+      i++
+      continue
+    }
     const tab2 = part.indexOf('\t', tabIdx + 1)
-    if (tab2 === -1) { i++; continue }
+    if (tab2 === -1) {
+      i++
+      continue
+    }
     const addStr = part.slice(0, tabIdx)
     const delStr = part.slice(tabIdx + 1, tab2)
     const pathPart = part.slice(tab2 + 1)
@@ -198,7 +203,11 @@ export async function listChangedFiles(worktreePath: string): Promise<ChangedFil
           binary: false,
         })
       } else {
-        const counts = unstagedCounts.get(entry.path) ?? { additions: 0, deletions: 0, binary: false }
+        const counts = unstagedCounts.get(entry.path) ?? {
+          additions: 0,
+          deletions: 0,
+          binary: false,
+        }
         files.push({
           path: entry.path,
           oldPath: null, // unstaged renames not common; origPath is for staged index
@@ -217,12 +226,18 @@ export async function listChangedFiles(worktreePath: string): Promise<ChangedFil
 
 function xyToStatus(code: string): FileStatus {
   switch (code) {
-    case 'A': return 'added'
-    case 'M': return 'modified'
-    case 'D': return 'deleted'
-    case 'R': return 'renamed'
-    case 'C': return 'copied'
-    default:  return 'modified'
+    case 'A':
+      return 'added'
+    case 'M':
+      return 'modified'
+    case 'D':
+      return 'deleted'
+    case 'R':
+      return 'renamed'
+    case 'C':
+      return 'copied'
+    default:
+      return 'modified'
   }
 }
 

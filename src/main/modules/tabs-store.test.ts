@@ -22,7 +22,10 @@ describe('tabs-store', () => {
   })
 
   it('saves and loads back round-trip', async () => {
-    const data = { tabs: [{ id: 'board', kind: 'board', title: 'Board', pinned: true }], activeId: 'board' }
+    const data = {
+      tabs: [{ id: 'board', kind: 'board', title: 'Board', pinned: true }],
+      activeId: 'board',
+    }
     await saveTabs('ws-1', data)
     const loaded = await loadTabs('ws-1')
     expect(loaded).toEqual(data)

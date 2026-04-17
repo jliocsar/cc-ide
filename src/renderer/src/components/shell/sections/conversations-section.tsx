@@ -44,7 +44,9 @@ export function ConversationsSection({ workspaceId }: { workspaceId: string }): 
 
   return (
     <div className="flex min-w-0 flex-col">
-      {error ? <div className="px-3 py-1 font-mono text-[11px] text-destructive">{error}</div> : null}
+      {error ? (
+        <div className="px-3 py-1 font-mono text-[11px] text-destructive">{error}</div>
+      ) : null}
       <div className="flex flex-col">
         {conversations.map((s) => (
           <div
@@ -72,7 +74,9 @@ export function ConversationsSection({ workspaceId }: { workspaceId: string }): 
           </div>
         ))}
         {status === 'ready' && conversations.length === 0 ? (
-          <div className="px-3 py-1 font-mono text-[11px] text-muted-foreground">no conversations yet</div>
+          <div className="px-3 py-1 font-mono text-[11px] text-muted-foreground">
+            no conversations yet
+          </div>
         ) : null}
       </div>
     </div>

@@ -2,7 +2,13 @@ import { BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { promises as fs } from 'node:fs'
-import { channels, ipcContract, type IpcChannel, type IpcRequest, type IpcResponse } from '@shared/ipc'
+import {
+  channels,
+  ipcContract,
+  type IpcChannel,
+  type IpcRequest,
+  type IpcResponse,
+} from '@shared/ipc'
 import * as workspaceRegistry from './modules/workspace-registry'
 import * as tmux from './modules/tmux-adapter'
 import * as ptyManager from './modules/pty-manager'
@@ -91,7 +97,9 @@ sessionWatcher.setExitHandler(async (t) => {
   })
 })
 
-type Handler<C extends IpcChannel> = (payload: IpcRequest<C>) => Promise<IpcResponse<C>> | IpcResponse<C>
+type Handler<C extends IpcChannel> = (
+  payload: IpcRequest<C>,
+) => Promise<IpcResponse<C>> | IpcResponse<C>
 
 const handlers: { [C in IpcChannel]: Handler<C> } = {
   'app:ping': async ({ at }) => ({
@@ -419,7 +427,9 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
     const migration = await planFsTree.migrateLegacyIfNeeded(workspaceId, ws.path)
     if (migration === 'migrated') {
-      console.log(`[plans] migrated legacy plans for workspace ${workspaceId} → ${ws.path}/.cc-ide/plans`)
+      console.log(
+        `[plans] migrated legacy plans for workspace ${workspaceId} → ${ws.path}/.cc-ide/plans`,
+      )
     } else if (migration === 'skipped-dest-populated') {
       console.warn(
         `[plans] legacy plans at ~/.cc-ide/plans/${workspaceId} left in place: destination ${ws.path}/.cc-ide/plans already has content`,
@@ -573,7 +583,9 @@ export function registerIpcHandlers(): void {
       const result = await (handlers[channel] as Handler<typeof channel>)(parsed.data)
       const response = schema.response.safeParse(result)
       if (!response.success) {
-        throw new Error(`[ipc:${channel}] handler returned invalid response: ${response.error.message}`)
+        throw new Error(
+          `[ipc:${channel}] handler returned invalid response: ${response.error.message}`,
+        )
       }
       return response.data
     })

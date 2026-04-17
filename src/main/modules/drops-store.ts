@@ -38,10 +38,7 @@ export async function listDrops(workspaceId: string): Promise<DropEntryDTO[]> {
   }
 }
 
-export async function writeDrops(
-  workspaceId: string,
-  entries: DropEntryDTO[],
-): Promise<void> {
+export async function writeDrops(workspaceId: string, entries: DropEntryDTO[]): Promise<void> {
   await ensureDir()
   const target = pathFor(workspaceId)
   const tmp = `${target}.${randomUUID()}.tmp`

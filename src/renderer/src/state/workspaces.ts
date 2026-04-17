@@ -43,9 +43,7 @@ export const useWorkspaces = create<State>((set, get) => ({
     await get().refresh()
     set((s) => ({
       activeId:
-        s.activeId === id
-          ? s.workspaces.find((w) => w.id !== id)?.id ?? null
-          : s.activeId,
+        s.activeId === id ? (s.workspaces.find((w) => w.id !== id)?.id ?? null) : s.activeId,
     }))
   },
 }))
