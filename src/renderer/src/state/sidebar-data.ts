@@ -1,9 +1,5 @@
 import { create } from 'zustand'
-import type {
-  SessionSummaryDTO,
-  WorktreeDTO,
-  ChangedFileDTO,
-} from '@shared/ipc'
+import type { SessionSummaryDTO, WorktreeDTO, ChangedFileDTO } from '@shared/ipc'
 import { invoke } from '@/lib/ipc'
 
 export const EMPTY_FILES: readonly ChangedFileDTO[] = Object.freeze([])

@@ -9,7 +9,13 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import { MessageSquare, FolderGit2, Terminal, ArrowLeft, Settings as SettingsIcon } from 'lucide-react'
+import {
+  MessageSquare,
+  FolderGit2,
+  Terminal,
+  ArrowLeft,
+  Settings as SettingsIcon,
+} from 'lucide-react'
 import { usePalette } from '@/state/palette'
 import { useSettings } from '@/state/settings'
 import { useWorkspaces } from '@/state/workspaces'
@@ -88,7 +94,9 @@ export function CommandPalette(): JSX.Element {
                       <Terminal className="mr-2 size-4" />
                       <span className="font-mono">{w.name}</span>
                       {w.id === activeId ? (
-                        <span className="ml-auto text-[10px] uppercase text-muted-foreground">active</span>
+                        <span className="ml-auto text-[10px] uppercase text-muted-foreground">
+                          active
+                        </span>
                       ) : null}
                     </CommandItem>
                   ))}

@@ -110,9 +110,9 @@ async function ensureLang(hl: HighlighterCore, lang: LangId): Promise<void> {
 export async function tokenizeLines(code: string, lang: LangId): Promise<ThemedToken[][]> {
   const hl = await ensureHighlighter()
   if (lang === 'plaintext') {
-    return code.split('\n').map((line) => [
-      { content: line, color: undefined as unknown as string, offset: 0 },
-    ])
+    return code
+      .split('\n')
+      .map((line) => [{ content: line, color: undefined as unknown as string, offset: 0 }])
   }
   await ensureLang(hl, lang)
   return hl.codeToTokens(code, { lang, theme: THEME }).tokens

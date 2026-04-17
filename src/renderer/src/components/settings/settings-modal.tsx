@@ -39,10 +39,7 @@ export function SettingsModal(): JSX.Element {
             </h3>
             <div className="flex items-center justify-between gap-3">
               <div className="flex flex-col">
-                <label
-                  htmlFor="editor-keybinds"
-                  className="text-sm text-foreground"
-                >
+                <label htmlFor="editor-keybinds" className="text-sm text-foreground">
                   Editor keybinds
                 </label>
                 <span className="text-xs text-muted-foreground">

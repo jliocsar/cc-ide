@@ -12,10 +12,7 @@ import { cn } from '@/lib/utils'
 import { GraphPanel } from './graph-panel'
 import { GraphNodeMenu } from './graph-node-menu'
 import DepgraphWorker from '@/workers/depgraph-layout.worker?worker'
-import type {
-  WorkerIn,
-  WorkerOut,
-} from '@/workers/depgraph-layout.types'
+import type { WorkerIn, WorkerOut } from '@/workers/depgraph-layout.types'
 
 interface LivePositions {
   // Mapped by index → x/y. Index comes from the worker's idMap.
@@ -34,32 +31,26 @@ export function GraphCanvas(): JSX.Element {
     idMap: new Map(),
     indexToId: new Map(),
   })
-  const nodeAnimRef = useRef<
-    Map<string, { appearAt: number; disappearAt: number | null }>
-  >(new Map())
+  const nodeAnimRef = useRef<Map<string, { appearAt: number; disappearAt: number | null }>>(
+    new Map(),
+  )
 
   const mode = useBoardUi((s) =>
-    workspaceId ? s.modeByWorkspace[workspaceId] ?? 'sessions' : 'sessions',
+    workspaceId ? (s.modeByWorkspace[workspaceId] ?? 'sessions') : 'sessions',
   )
   const camera = useBoardUi((s) =>
-    workspaceId
-      ? s.graphCameraByWorkspace[workspaceId] ?? DEFAULT_CAMERA
-      : DEFAULT_CAMERA,
+    workspaceId ? (s.graphCameraByWorkspace[workspaceId] ?? DEFAULT_CAMERA) : DEFAULT_CAMERA,
   )
   const setGraphCamera = useBoardUi((s) => s.setGraphCamera)
   const railCollapsed = useBoardUi((s) =>
-    workspaceId ? s.railCollapsedByWorkspace[workspaceId] ?? false : false,
+    workspaceId ? (s.railCollapsedByWorkspace[workspaceId] ?? false) : false,
   )
   const selectedNode = useBoardUi((s) =>
-    workspaceId ? s.selectedNodeByWorkspace[workspaceId] ?? null : null,
+    workspaceId ? (s.selectedNodeByWorkspace[workspaceId] ?? null) : null,
   )
   const selectNode = useBoardUi((s) => s.selectNode)
-  const filters = useBoardUi((s) =>
-    workspaceId ? getFilters(s, workspaceId) : null,
-  )
-  const style = useBoardUi((s) =>
-    workspaceId ? getStyle(s, workspaceId) : null,
-  )
+  const filters = useBoardUi((s) => (workspaceId ? getFilters(s, workspaceId) : null))
+  const style = useBoardUi((s) => (workspaceId ? getStyle(s, workspaceId) : null))
 
   const [menu, setMenu] = useState<{
     x: number
@@ -79,7 +70,7 @@ export function GraphCanvas(): JSX.Element {
     workspaceId ? s.byWorkspace.get(workspaceId)?.edges : undefined,
   )
   const scanning = useDepGraph((s) =>
-    workspaceId ? s.byWorkspace.get(workspaceId)?.scanning ?? false : false,
+    workspaceId ? (s.byWorkspace.get(workspaceId)?.scanning ?? false) : false,
   )
 
   // Refs mirror live state so the rAF loop never re-subscribes.
@@ -108,10 +99,7 @@ export function GraphCanvas(): JSX.Element {
   // camera → position oscillates instead of accumulating.
   const getCamera = useCallback(() => {
     if (!workspaceId) return DEFAULT_CAMERA
-    return (
-      useBoardUi.getState().graphCameraByWorkspace[workspaceId] ??
-      DEFAULT_CAMERA
-    )
+    return useBoardUi.getState().graphCameraByWorkspace[workspaceId] ?? DEFAULT_CAMERA
   }, [workspaceId])
   const setCamera = useCallback(
     (next: typeof camera) => {
@@ -227,10 +215,13 @@ export function GraphCanvas(): JSX.Element {
       if (w !== workspaceId) return
       setScanProgress(w, filesScanned)
     })
-    const offEnd = onEvent('graph:scanEnd', ({ workspaceId: w, finalNodeCount, finalEdgeCount }) => {
-      if (w !== workspaceId) return
-      setScanEnd(w, finalNodeCount, finalEdgeCount)
-    })
+    const offEnd = onEvent(
+      'graph:scanEnd',
+      ({ workspaceId: w, finalNodeCount, finalEdgeCount }) => {
+        if (w !== workspaceId) return
+        setScanEnd(w, finalNodeCount, finalEdgeCount)
+      },
+    )
 
     void invoke('graph:subscribe', { workspaceId })
 
@@ -384,9 +375,7 @@ export function GraphCanvas(): JSX.Element {
           if (!p) continue
           if (style.labels === 'zoom' && cam.zoom < 1) {
             // only label high-degree nodes below full zoom
-            const incomingCount = edges
-              ? countIncoming(edges, n.id)
-              : 0
+            const incomingCount = edges ? countIncoming(edges, n.id) : 0
             if (incomingCount < 3) continue
           }
           const r = radiusFor(n, edges, style)
@@ -546,9 +535,7 @@ export function GraphCanvas(): JSX.Element {
 
   const alreadyMarked = useDrops((s) =>
     workspaceId && menu
-      ? (s.byWorkspace[workspaceId] ?? []).some(
-          (e) => e.relPath === menu.nodeId,
-        )
+      ? (s.byWorkspace[workspaceId] ?? []).some((e) => e.relPath === menu.nodeId)
       : false,
   )
 
@@ -590,12 +577,7 @@ export function GraphCanvas(): JSX.Element {
         <canvas ref={canvasRef} className="pointer-events-none absolute inset-0" />
 
         {hoverNode && currentNode ? (
-          <GraphHoverTooltip
-            node={currentNode}
-            edges={edges}
-            x={hoverNode.x}
-            y={hoverNode.y}
-          />
+          <GraphHoverTooltip node={currentNode} edges={edges} x={hoverNode.x} y={hoverNode.y} />
         ) : null}
 
         <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-md border border-border bg-card p-1 shadow">
@@ -744,11 +726,7 @@ function matchGlob(path: string, pattern: string): boolean {
   // Minimal glob: support `**` and `*`. For scaffold; can upgrade later.
   const esc = pattern
     .split('**')
-    .map((part) =>
-      part
-        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-        .replace(/\*/g, '[^/]*'),
-    )
+    .map((part) => part.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*'))
     .join('.*')
   const re = new RegExp(`^${esc}$`)
   return re.test(path)
@@ -762,8 +740,7 @@ function radiusFor(
   style: ReturnType<typeof getStyle>,
 ): number {
   if (style.nodeSize === 'fixed') return 4
-  if (style.nodeSize === 'loc')
-    return Math.max(3, Math.min(14, Math.log2((n.loc ?? 10) + 1) * 1.5))
+  if (style.nodeSize === 'loc') return Math.max(3, Math.min(14, Math.log2((n.loc ?? 10) + 1) * 1.5))
   // degree
   let d = 0
   if (edges) {
@@ -835,19 +812,13 @@ function dashForKinds(kinds: string[]): number[] {
   return []
 }
 
-function countIncoming(
-  edges: ReadonlyMap<string, GraphEdge>,
-  id: string,
-): number {
+function countIncoming(edges: ReadonlyMap<string, GraphEdge>, id: string): number {
   let n = 0
   for (const e of edges.values()) if (e.to === id) n++
   return n
 }
 
-function countOutgoing(
-  edges: ReadonlyMap<string, GraphEdge>,
-  id: string,
-): number {
+function countOutgoing(edges: ReadonlyMap<string, GraphEdge>, id: string): number {
   let n = 0
   for (const e of edges.values()) if (e.from === id) n++
   return n
@@ -872,4 +843,3 @@ function computeNodeOpacity(
   const t = (now - anim.appearAt) / 300
   return Math.min(1, Math.max(0, t))
 }
-

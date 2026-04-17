@@ -16,12 +16,7 @@ interface Props {
   onClose: () => void
 }
 
-export function GraphNodeMenu({
-  menu,
-  workspaceId,
-  alreadyMarked,
-  onClose,
-}: Props): JSX.Element {
+export function GraphNodeMenu({ menu, workspaceId, alreadyMarked, onClose }: Props): JSX.Element {
   const addDrop = useDrops((s) => s.add)
   const nodes = useDepGraph((s) => s.byWorkspace.get(workspaceId)?.nodes)
 
@@ -60,10 +55,7 @@ export function GraphNodeMenu({
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={0}>
-        <DropdownMenuItem
-          onClick={mark}
-          disabled={!isFile || alreadyMarked}
-        >
+        <DropdownMenuItem onClick={mark} disabled={!isFile || alreadyMarked}>
           <ExternalLink />
           {alreadyMarked ? 'Marked for drop' : 'Mark for drop'}
         </DropdownMenuItem>

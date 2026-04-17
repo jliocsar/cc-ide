@@ -4,15 +4,8 @@ import { EditorState, Prec } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { Vim, getCM } from '@replit/codemirror-vim'
 import { useSettings } from '@/state/settings'
-import {
-  usePlanTabUi,
-  type PlanMode,
-} from '@/state/plan-tab-ui'
-import {
-  EMPTY_RANGES,
-  useReviewComments,
-  type RangeDraft,
-} from '@/state/review-comments'
+import { usePlanTabUi, type PlanMode } from '@/state/plan-tab-ui'
+import { EMPTY_RANGES, useReviewComments, type RangeDraft } from '@/state/review-comments'
 import { mapRanges } from '@shared/review-range-map'
 import {
   buildPlanExtensions,
@@ -95,12 +88,16 @@ export function MarkdownFileEditor({
     const compartments = createPlanCompartments()
     compartmentsRef.current = compartments
     const initialMode: PlanMode = reviewCapable
-      ? usePlanTabUi.getState().byTab[tabId]?.mode ?? 'review'
+      ? (usePlanTabUi.getState().byTab[tabId]?.mode ?? 'review')
       : 'edit'
     const isReview = reviewCapable && initialMode === 'review'
     const initialKeybinds = useSettings.getState().settings.editor.keybinds
     const reviewPointer = isReview
-      ? reviewPointerExtension({ onStart: handleReviewStart, onExtend: handleReviewExtend, onToggle: handleReviewToggle })
+      ? reviewPointerExtension({
+          onStart: handleReviewStart,
+          onExtend: handleReviewExtend,
+          onToggle: handleReviewToggle,
+        })
       : []
     const saveKeymap = Prec.highest(
       keymap.of([

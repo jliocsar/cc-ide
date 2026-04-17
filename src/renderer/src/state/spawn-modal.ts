@@ -42,10 +42,7 @@ export function getLastUsedWorktree(workspaceId: string): SpawnWorktreeOption | 
   return all[workspaceId] ?? null
 }
 
-export function setLastUsedWorktree(
-  workspaceId: string,
-  option: SpawnWorktreeOption,
-): void {
+export function setLastUsedWorktree(workspaceId: string, option: SpawnWorktreeOption): void {
   // Don't persist "new" — it refers to a one-shot branch name.
   if (option.kind === 'new') return
   try {

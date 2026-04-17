@@ -17,12 +17,7 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view'
-import {
-  defaultKeymap,
-  history,
-  historyKeymap,
-  indentWithTab,
-} from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { searchKeymap } from '@codemirror/search'
 import { syntaxHighlighting, HighlightStyle, indentOnInput } from '@codemirror/language'
 import { tags as t } from '@lezer/highlight'
@@ -49,17 +44,9 @@ export type EditorKeybinds = 'vscode' | 'vim'
 
 export function keymapExtensionFor(kind: EditorKeybinds): Extension {
   if (kind === 'vim') {
-    return [
-      vim(),
-      keymap.of([...historyKeymap, ...searchKeymap, indentWithTab]),
-    ]
+    return [vim(), keymap.of([...historyKeymap, ...searchKeymap, indentWithTab])]
   }
-  return keymap.of([
-    ...defaultKeymap,
-    ...historyKeymap,
-    ...searchKeymap,
-    indentWithTab,
-  ])
+  return keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab])
 }
 
 const monochromeHighlight = HighlightStyle.define([
@@ -188,7 +175,9 @@ export const planEditorTheme = EditorView.theme(
     },
     '.cm-callout-note, .cm-callout-note-body': { borderLeftColor: 'oklch(0.7 0.12 240)' },
     '.cm-callout-tip, .cm-callout-tip-body': { borderLeftColor: 'oklch(0.72 0.15 150)' },
-    '.cm-callout-important, .cm-callout-important-body': { borderLeftColor: 'oklch(0.72 0.19 310)' },
+    '.cm-callout-important, .cm-callout-important-body': {
+      borderLeftColor: 'oklch(0.72 0.19 310)',
+    },
     '.cm-callout-warning, .cm-callout-warning-body': { borderLeftColor: 'oklch(0.78 0.16 80)' },
     '.cm-callout-caution, .cm-callout-caution-body': { borderLeftColor: 'oklch(0.7 0.2 25)' },
     '.cm-lineNumbers .cm-gutterElement': {
@@ -220,9 +209,10 @@ export const planEditorTheme = EditorView.theme(
     // text caret; we also need to hide the div-based cursor and the entire
     // cursor layer while in Review.
     '&:has(.cm-content.cm-review-mode) .cm-cursorLayer': { display: 'none' },
-    '&:has(.cm-content.cm-review-mode) .cm-cursor, &:has(.cm-content.cm-review-mode) .cm-dropCursor': {
-      display: 'none',
-    },
+    '&:has(.cm-content.cm-review-mode) .cm-cursor, &:has(.cm-content.cm-review-mode) .cm-dropCursor':
+      {
+        display: 'none',
+      },
   },
   { dark: true },
 )
@@ -248,9 +238,7 @@ class PlanRangeGutterMarker extends GutterMarker {
 }
 
 const planRangeGutterMarker = new PlanRangeGutterMarker('cm-plan-range-gutter')
-const planRangeCommentedGutterMarker = new PlanRangeGutterMarker(
-  'cm-plan-range-commented-gutter',
-)
+const planRangeCommentedGutterMarker = new PlanRangeGutterMarker('cm-plan-range-commented-gutter')
 
 export const rangeDecorationField = StateField.define<RangeDraftLite[]>({
   create: () => [],
@@ -270,9 +258,7 @@ export const rangeDecorationField = StateField.define<RangeDraftLite[]>({
           const lineNo = r.start + i
           if (lineNo < 1 || lineNo > doc.lines) continue
           const line = doc.line(lineNo)
-          const cls = r.hasComment
-            ? 'cm-plan-range cm-plan-range-commented'
-            : 'cm-plan-range'
+          const cls = r.hasComment ? 'cm-plan-range cm-plan-range-commented' : 'cm-plan-range'
           builder.push({ from: line.from, deco: Decoration.line({ class: cls }) })
         }
       }

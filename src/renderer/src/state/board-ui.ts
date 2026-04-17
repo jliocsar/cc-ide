@@ -163,10 +163,7 @@ export const useBoardUi = create<BoardUiState>((set, get) => ({
     }),
 }))
 
-export function getFilters(
-  s: BoardUiState,
-  workspaceId: string,
-): GraphFilters {
+export function getFilters(s: BoardUiState, workspaceId: string): GraphFilters {
   return s.filtersByWorkspace[workspaceId] ?? DEFAULT_FILTERS
 }
 

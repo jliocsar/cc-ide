@@ -55,7 +55,12 @@ export function GraphPanel({ workspaceId }: Props): JSX.Element {
   if (collapsed) {
     return <CollapsedRail onExpand={() => setRailCollapsed(workspaceId, false)} />
   }
-  return <ExpandedPanel workspaceId={workspaceId} onCollapse={() => setRailCollapsed(workspaceId, true)} />
+  return (
+    <ExpandedPanel
+      workspaceId={workspaceId}
+      onCollapse={() => setRailCollapsed(workspaceId, true)}
+    />
+  )
 }
 
 function CollapsedRail({ onExpand }: { onExpand: () => void }): JSX.Element {
@@ -63,7 +68,12 @@ function CollapsedRail({ onExpand }: { onExpand: () => void }): JSX.Element {
     <div className="flex h-full flex-col items-center gap-2 border-l border-border bg-card py-2">
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button size="icon-xs" variant="ghost" onClick={onExpand} aria-label="Expand graph options">
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={onExpand}
+            aria-label="Expand graph options"
+          >
             <ChevronLeft />
           </Button>
         </TooltipTrigger>
@@ -92,7 +102,12 @@ function ExpandedPanel({
       <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2 pr-3 text-[11px] text-muted-foreground">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="icon-xs" variant="ghost" onClick={onCollapse} aria-label="Collapse graph options">
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={onCollapse}
+              aria-label="Collapse graph options"
+            >
               <ChevronRight />
             </Button>
           </TooltipTrigger>
@@ -103,14 +118,8 @@ function ExpandedPanel({
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="flex flex-col gap-4 p-3">
-          <FilterSection
-            filters={filters}
-            onSet={(patch) => setFilters(workspaceId, patch)}
-          />
-          <StyleSection
-            style={style}
-            onSet={(patch) => setStyle(workspaceId, patch)}
-          />
+          <FilterSection filters={filters} onSet={(patch) => setFilters(workspaceId, patch)} />
+          <StyleSection style={style} onSet={(patch) => setStyle(workspaceId, patch)} />
         </div>
       </ScrollArea>
     </div>
@@ -224,9 +233,7 @@ function FilterSection({
           <span className="text-muted-foreground">Path include (glob)</span>
           <Input
             value={filters.pathInclude ?? ''}
-            onChange={(e) =>
-              onSet({ pathInclude: e.target.value || null })
-            }
+            onChange={(e) => onSet({ pathInclude: e.target.value || null })}
             placeholder="src/**"
             className="h-7 font-mono text-[11px]"
           />
@@ -235,9 +242,7 @@ function FilterSection({
           <span className="text-muted-foreground">Path exclude (glob)</span>
           <Input
             value={filters.pathExclude ?? ''}
-            onChange={(e) =>
-              onSet({ pathExclude: e.target.value || null })
-            }
+            onChange={(e) => onSet({ pathExclude: e.target.value || null })}
             placeholder="**/*.test.ts"
             className="h-7 font-mono text-[11px]"
           />
@@ -254,9 +259,7 @@ function FilterSection({
             max={5}
             step={1}
             value={filters.neighborhoodDepth}
-            onChange={(e) =>
-              onSet({ neighborhoodDepth: Number(e.target.value) })
-            }
+            onChange={(e) => onSet({ neighborhoodDepth: Number(e.target.value) })}
             className="accent-primary"
           />
         </div>
@@ -320,10 +323,7 @@ function StyleSection({
         </div>
         <div className="flex flex-col gap-1">
           <span className="text-muted-foreground">Labels</span>
-          <Select
-            value={style.labels}
-            onValueChange={(v) => onSet({ labels: v as LabelsMode })}
-          >
+          <Select value={style.labels} onValueChange={(v) => onSet({ labels: v as LabelsMode })}>
             <SelectTrigger className="h-7 text-[11px]">
               <SelectValue />
             </SelectTrigger>

@@ -54,7 +54,8 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
       zoomAt(factor, vp.x, vp.y)
     }
     host.addEventListener('wheel', onWheel, { capture: true, passive: false })
-    return () => host.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions)
+    return () =>
+      host.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions)
   }, [zoomAt])
 
   async function handleDrop(payload: DropPayload) {
@@ -206,7 +207,8 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
           <AlertDialogHeader>
             <AlertDialogTitle>Close {shortName}?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>Detach</strong> closes this view; the Claude session keeps running in tmux and can be reattached.
+              <strong>Detach</strong> closes this view; the Claude session keeps running in tmux and
+              can be reattached.
               <br />
               <strong>Kill</strong> also terminates the tmux window and its Claude process.
             </AlertDialogDescription>

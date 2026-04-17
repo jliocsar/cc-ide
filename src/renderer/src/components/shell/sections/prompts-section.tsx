@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { ChevronRight, ChevronDown, FileText, Folder, Plus, FolderPlus, Trash2, Pencil } from 'lucide-react'
+import {
+  ChevronRight,
+  ChevronDown,
+  FileText,
+  Folder,
+  Plus,
+  FolderPlus,
+  Trash2,
+  Pencil,
+} from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -141,7 +150,9 @@ export function PromptsSection({
       onDragLeave={onRootDragLeave}
       onDrop={onRootDrop}
     >
-      {error ? <div className="px-3 py-1 font-mono text-[11px] text-destructive">{error}</div> : null}
+      {error ? (
+        <div className="px-3 py-1 font-mono text-[11px] text-destructive">{error}</div>
+      ) : null}
       <div className="flex flex-col">
         {root && root.children.length > 0 ? (
           root.children.map((node) => (
@@ -228,11 +239,15 @@ function PromptRow({
       setRenaming(false)
       return
     }
-    const parent = node.relPath.includes('/') ? node.relPath.slice(0, node.relPath.lastIndexOf('/') + 1) : ''
+    const parent = node.relPath.includes('/')
+      ? node.relPath.slice(0, node.relPath.lastIndexOf('/') + 1)
+      : ''
     const target = parent + trimmed
     const siblings = listChildren(parent.replace(/\/$/, ''))
     if (siblings.some((s) => s.name === trimmed && s.relPath !== node.relPath)) {
-      toast.error(`A ${siblings.find((s) => s.name === trimmed)?.kind ?? 'sibling'} named "${trimmed}" already exists.`)
+      toast.error(
+        `A ${siblings.find((s) => s.name === trimmed)?.kind ?? 'sibling'} named "${trimmed}" already exists.`,
+      )
       setRenaming(false)
       return
     }
@@ -321,7 +336,11 @@ function PromptRow({
           onClick={() => toggle(node.relPath)}
           className="flex items-center gap-1.5"
         >
-          {expanded ? <ChevronDown className="size-3 shrink-0" /> : <ChevronRight className="size-3 shrink-0" />}
+          {expanded ? (
+            <ChevronDown className="size-3 shrink-0" />
+          ) : (
+            <ChevronRight className="size-3 shrink-0" />
+          )}
           <Folder className="size-3 shrink-0" />
         </button>
         {renaming ? (
@@ -466,12 +485,7 @@ function RowActions({
       >
         <Pencil />
       </Button>
-      <Button
-        size="icon-xs"
-        variant="ghost"
-        onClick={onDelete}
-        aria-label="Delete"
-      >
+      <Button size="icon-xs" variant="ghost" onClick={onDelete} aria-label="Delete">
         <Trash2 />
       </Button>
     </div>
@@ -508,9 +522,7 @@ export function PromptCreateDialog({
     const trimmed = name.trim()
     if (!trimmed) return
     const validation =
-      request.mode === 'folder'
-        ? validateFolderName(trimmed)
-        : validateMarkdownFilename(trimmed)
+      request.mode === 'folder' ? validateFolderName(trimmed) : validateMarkdownFilename(trimmed)
     if (!validation.ok) {
       setError(validation.reason)
       return
@@ -541,7 +553,13 @@ export function PromptCreateDialog({
         <DialogHeader>
           <DialogTitle>New {label}</DialogTitle>
           <DialogDescription>
-            {request?.parent ? <>In <code className="font-mono">{request.parent}</code></> : 'At root of prompts tree'}
+            {request?.parent ? (
+              <>
+                In <code className="font-mono">{request.parent}</code>
+              </>
+            ) : (
+              'At root of prompts tree'
+            )}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
@@ -553,7 +571,9 @@ export function PromptCreateDialog({
           />
           {error ? <div className="font-mono text-[11px] text-destructive">{error}</div> : null}
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={busy || !name.trim()}>
               {busy ? 'Creating…' : 'Create'}
             </Button>

@@ -18,7 +18,10 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function git(args: string[], cwd: string): Promise<{ code: number; stdout: string; stderr: string }> {
+function git(
+  args: string[],
+  cwd: string,
+): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     const child = spawn('git', args, { stdio: ['ignore', 'pipe', 'pipe'], cwd })
     let stdout = ''
@@ -134,7 +137,12 @@ describe('canDeleteWorktree', () => {
 
   it('clean worktree with remote tracking + no unpushed → ok: true', async () => {
     const wtPath = join(repoDir, 'wt-clean')
-    await createWorktree({ repoPath: repoDir, worktreePath: wtPath, branch: 'feat/clean', baseBranch: 'main' })
+    await createWorktree({
+      repoPath: repoDir,
+      worktreePath: wtPath,
+      branch: 'feat/clean',
+      baseBranch: 'main',
+    })
     await gitOrThrow(['config', 'user.email', 'test@cc-ide.local'], wtPath)
     await gitOrThrow(['config', 'user.name', 'CC IDE Test'], wtPath)
 
@@ -151,7 +159,12 @@ describe('canDeleteWorktree', () => {
 
   it('dirty worktree → reasons includes dirty-working-tree', async () => {
     const wtPath = join(repoDir, 'wt-dirty')
-    await createWorktree({ repoPath: repoDir, worktreePath: wtPath, branch: 'feat/dirty', baseBranch: 'main' })
+    await createWorktree({
+      repoPath: repoDir,
+      worktreePath: wtPath,
+      branch: 'feat/dirty',
+      baseBranch: 'main',
+    })
     await gitOrThrow(['push', '-u', 'origin', 'feat/dirty'], wtPath)
 
     // make it dirty (untracked file is enough for --porcelain)
@@ -170,7 +183,12 @@ describe('canDeleteWorktree', () => {
 
   it('unpushed commits → reasons includes unpushed-commits', async () => {
     const wtPath = join(repoDir, 'wt-unpushed')
-    await createWorktree({ repoPath: repoDir, worktreePath: wtPath, branch: 'feat/unpushed', baseBranch: 'main' })
+    await createWorktree({
+      repoPath: repoDir,
+      worktreePath: wtPath,
+      branch: 'feat/unpushed',
+      baseBranch: 'main',
+    })
     await gitOrThrow(['config', 'user.email', 'test@cc-ide.local'], wtPath)
     await gitOrThrow(['config', 'user.name', 'CC IDE Test'], wtPath)
     await gitOrThrow(['push', '-u', 'origin', 'feat/unpushed'], wtPath)
@@ -194,7 +212,12 @@ describe('canDeleteWorktree', () => {
   it('no upstream → reasons includes no-remote-tracking', async () => {
     const wtPath = join(repoDir, 'wt-noremote')
     // create worktree with new branch but do NOT push
-    await createWorktree({ repoPath: repoDir, worktreePath: wtPath, branch: 'feat/noremote', baseBranch: 'main' })
+    await createWorktree({
+      repoPath: repoDir,
+      worktreePath: wtPath,
+      branch: 'feat/noremote',
+      baseBranch: 'main',
+    })
 
     const all = await listWorktrees(repoDir)
     const wt = all.find((w) => !w.isPrimary)
@@ -211,7 +234,12 @@ describe('canDeleteWorktree', () => {
 describe('deleteWorktree', () => {
   it('removes worktree and list reflects it', async () => {
     const wtPath = join(repoDir, 'wt-del')
-    await createWorktree({ repoPath: repoDir, worktreePath: wtPath, branch: 'feat/del', baseBranch: 'main' })
+    await createWorktree({
+      repoPath: repoDir,
+      worktreePath: wtPath,
+      branch: 'feat/del',
+      baseBranch: 'main',
+    })
 
     let all = await listWorktrees(repoDir)
     expect(all).toHaveLength(2)

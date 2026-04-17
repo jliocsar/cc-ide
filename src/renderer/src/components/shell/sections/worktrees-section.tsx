@@ -10,11 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useSidebarData } from '@/state/sidebar-data'
 import { useWorkspaces } from '@/state/workspaces'
 import { invoke } from '@/lib/ipc'
@@ -34,7 +30,9 @@ export function WorktreesSection({ workspaceId }: { workspaceId: string }): JSX.
 
   return (
     <div className="flex min-w-0 flex-col">
-      {error ? <div className="px-3 py-1 font-mono text-[11px] text-destructive">{error}</div> : null}
+      {error ? (
+        <div className="px-3 py-1 font-mono text-[11px] text-destructive">{error}</div>
+      ) : null}
       <div className="flex flex-col">
         {worktrees.map((w) => (
           <WorktreeRow key={w.path} workspaceId={workspaceId} worktree={w} />
@@ -44,9 +42,17 @@ export function WorktreesSection({ workspaceId }: { workspaceId: string }): JSX.
   )
 }
 
-function WorktreeRow({ workspaceId, worktree }: { workspaceId: string; worktree: WorktreeDTO }): JSX.Element {
+function WorktreeRow({
+  workspaceId,
+  worktree,
+}: {
+  workspaceId: string
+  worktree: WorktreeDTO
+}): JSX.Element {
   const refresh = useSidebarData((s) => s.refreshWorktrees)
-  const workspacePath = useWorkspaces((s) => s.workspaces.find((w) => w.id === workspaceId)?.path ?? '')
+  const workspacePath = useWorkspaces(
+    (s) => s.workspaces.find((w) => w.id === workspaceId)?.path ?? '',
+  )
   const [guard, setGuard] = useState<{ ok: boolean; reasons: string[] } | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -54,11 +60,7 @@ function WorktreeRow({ workspaceId, worktree }: { workspaceId: string; worktree:
 
   async function probe() {
     const { guard } = await invoke('worktrees:canDelete', { worktree })
-    setGuard(
-      guard.ok
-        ? { ok: true, reasons: [] }
-        : { ok: false, reasons: guard.reasons },
-    )
+    setGuard(guard.ok ? { ok: true, reasons: [] } : { ok: false, reasons: guard.reasons })
   }
 
   useEffect(() => {
@@ -88,7 +90,9 @@ function WorktreeRow({ workspaceId, worktree }: { workspaceId: string; worktree:
       <GitBranch className="size-3 shrink-0" />
       <div className="min-w-0 flex-1 overflow-hidden">
         <div className="truncate font-mono text-foreground">{worktree.branch ?? '(detached)'}</div>
-        <div className="truncate text-[10px]" title={worktree.path}>{displayPath}</div>
+        <div className="truncate text-[10px]" title={worktree.path}>
+          {displayPath}
+        </div>
       </div>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -103,7 +107,9 @@ function WorktreeRow({ workspaceId, worktree }: { workspaceId: string; worktree:
             {guard?.ok ? <Trash2 /> : <AlertTriangle />}
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="left" className="text-[11px]">{tip}</TooltipContent>
+        <TooltipContent side="left" className="text-[11px]">
+          {tip}
+        </TooltipContent>
       </Tooltip>
     </div>
   )
@@ -196,7 +202,9 @@ export function CreateWorktreeDialog({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] text-muted-foreground">Worktree path (relative to repo)</label>
+            <label className="text-[11px] text-muted-foreground">
+              Worktree path (relative to repo)
+            </label>
             <Input
               value={worktreePath}
               onChange={(e) => setWorktreePath(e.target.value)}

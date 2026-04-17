@@ -33,10 +33,7 @@ import { useUi } from '@/state/ui'
 import { onEvent } from '@/lib/ipc'
 import { ConversationsSection } from './sections/conversations-section'
 import { SessionsSection } from './sections/sessions-section'
-import {
-  WorktreesSection,
-  CreateWorktreeDialog,
-} from './sections/worktrees-section'
+import { WorktreesSection, CreateWorktreeDialog } from './sections/worktrees-section'
 import { DiffsSection } from './sections/diffs-section'
 import { PlansSection, PlanCreateDialog } from './sections/plans-section'
 import { PromptsSection, PromptCreateDialog } from './sections/prompts-section'
@@ -137,11 +134,7 @@ export function Sidebar(): JSX.Element {
         </Tooltip>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!w-full [&>[data-slot=scroll-area-viewport]>div]:!min-w-0">
-        <Accordion
-          type="multiple"
-          defaultValue={[]}
-          className="w-full pb-4"
-        >
+        <Accordion type="multiple" defaultValue={[]} className="w-full pb-4">
           <AccordionItem value="workspaces" className="border-b-0">
             <SectionHeader
               icon={FolderGit2}
@@ -166,7 +159,9 @@ export function Sidebar(): JSX.Element {
                 {!loaded ? (
                   <div className="px-3 py-1 text-[11px] text-muted-foreground">loading…</div>
                 ) : workspaces.length === 0 ? (
-                  <div className="px-3 py-1 text-[11px] text-muted-foreground">no workspaces yet</div>
+                  <div className="px-3 py-1 text-[11px] text-muted-foreground">
+                    no workspaces yet
+                  </div>
                 ) : (
                   workspaces.map((w) => {
                     const active = w.id === activeId
@@ -196,7 +191,11 @@ export function Sidebar(): JSX.Element {
                         <button
                           type="button"
                           onClick={() => {
-                            if (confirm(`Remove "${w.name}" from cc-ide?\nFiles on disk are NOT deleted.`)) {
+                            if (
+                              confirm(
+                                `Remove "${w.name}" from cc-ide?\nFiles on disk are NOT deleted.`,
+                              )
+                            ) {
                               void remove(w.id)
                             }
                           }}
@@ -368,7 +367,9 @@ function WorktreesAccordion({ workspaceId }: { workspaceId: string }): JSX.Eleme
 function PlansAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
   const status = usePlansTree((s) => s.status)
   const refresh = usePlansTree((s) => s.refresh)
-  const [createOpen, setCreateOpen] = useState<null | { mode: 'file' | 'folder'; parent: string }>(null)
+  const [createOpen, setCreateOpen] = useState<null | { mode: 'file' | 'folder'; parent: string }>(
+    null,
+  )
 
   return (
     <AccordionItem value="plans" className="border-b-0">
@@ -429,7 +430,9 @@ function PlansAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
 function PromptsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
   const status = usePromptsTree((s) => s.status)
   const refresh = usePromptsTree((s) => s.refresh)
-  const [createOpen, setCreateOpen] = useState<null | { mode: 'file' | 'folder'; parent: string }>(null)
+  const [createOpen, setCreateOpen] = useState<null | { mode: 'file' | 'folder'; parent: string }>(
+    null,
+  )
 
   return (
     <AccordionItem value="prompts" className="border-b-0">
@@ -492,11 +495,7 @@ function DropsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element |
   if (entries.length === 0) return null
   return (
     <AccordionItem value="drops" className="border-b-0">
-      <SectionHeader
-        icon={MessageSquareText}
-        label="Drops"
-        count={entries.length}
-      />
+      <SectionHeader icon={MessageSquareText} label="Drops" count={entries.length} />
       <AccordionContent className="pb-0">
         <DropsSection workspaceId={workspaceId} />
       </AccordionContent>

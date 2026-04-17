@@ -149,9 +149,7 @@ export async function listSessionsBySlug(
     throw err
   }
 
-  const results = await Promise.all(
-    entries.map((name) => parseSessionFile(join(dir, name), slug)),
-  )
+  const results = await Promise.all(entries.map((name) => parseSessionFile(join(dir, name), slug)))
 
   return results.sort((a, b) => b.updatedAt - a.updatedAt)
 }

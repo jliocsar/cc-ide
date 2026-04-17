@@ -115,9 +115,7 @@ export const useReviewComments = create<State>((set, get) => ({
       byTab: {
         ...s.byTab,
         [tabId]: [
-          ...(s.byTab[tabId] ?? []).map((r) =>
-            r.id === target.id ? { ...r, len: leftLen } : r,
-          ),
+          ...(s.byTab[tabId] ?? []).map((r) => (r.id === target.id ? { ...r, len: leftLen } : r)),
           { id: rightId, start: rightStart, len: rightLen, comment: '' },
         ],
       },
@@ -168,7 +166,7 @@ export const useReviewComments = create<State>((set, get) => ({
       },
       lastRangeId: {
         ...s.lastRangeId,
-        [tabId]: s.lastRangeId[tabId] === id ? null : s.lastRangeId[tabId] ?? null,
+        [tabId]: s.lastRangeId[tabId] === id ? null : (s.lastRangeId[tabId] ?? null),
       },
     }))
   },
@@ -192,7 +190,7 @@ export const useReviewComments = create<State>((set, get) => ({
         byTab: { ...s.byTab, [tabId]: next },
         lastRangeId: {
           ...s.lastRangeId,
-          [tabId]: stillExists ? s.lastRangeId[tabId] ?? null : null,
+          [tabId]: stillExists ? (s.lastRangeId[tabId] ?? null) : null,
         },
       }
     })

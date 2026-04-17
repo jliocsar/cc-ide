@@ -5,7 +5,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Trash2, MessageSquarePlus } from 'lucide-react'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
-import { EMPTY_RANGES, diffTabId, useReviewComments, type RangeDraft } from '@/state/review-comments'
+import {
+  EMPTY_RANGES,
+  diffTabId,
+  useReviewComments,
+  type RangeDraft,
+} from '@/state/review-comments'
 import { guessLang, tokenizeLines } from '@/lib/shiki'
 import type { ThemedToken } from 'shiki'
 import type { FileDiffDTO, DiffHunkDTO, DiffHunkLineDTO } from '@shared/ipc'
@@ -113,8 +118,7 @@ export function DiffViewer({
           </span>
           <span className="text-foreground">file is no longer in this diff</span>
           <span className="text-[11px] text-muted-foreground/80">
-            it was likely committed, reverted, or restaged. close this tab to
-            dismiss.
+            it was likely committed, reverted, or restaged. close this tab to dismiss.
           </span>
         </div>
       </div>
@@ -171,7 +175,15 @@ function lineNoUnderPoint(clientX: number, clientY: number): number | null {
   return null
 }
 
-function DiffHunks({ tabId, hunks, path }: { tabId: string; hunks: DiffHunkDTO[]; path: string }): JSX.Element {
+function DiffHunks({
+  tabId,
+  hunks,
+  path,
+}: {
+  tabId: string
+  hunks: DiffHunkDTO[]
+  path: string
+}): JSX.Element {
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
   const startSingle = useReviewComments((s) => s.startSingle)
   const toggleLine = useReviewComments((s) => s.toggleLine)
@@ -233,9 +245,7 @@ function DiffHunks({ tabId, hunks, path }: { tabId: string; hunks: DiffHunkDTO[]
       <div className="font-mono text-[12px]">
         {hunks.map((hunk, i) => (
           <div key={i} className="border-b border-border last:border-b-0">
-            <div className="bg-card px-3 py-1 text-[11px] text-muted-foreground">
-              {hunk.header}
-            </div>
+            <div className="bg-card px-3 py-1 text-[11px] text-muted-foreground">{hunk.header}</div>
             <div className="grid grid-cols-2">
               <div className="border-r border-border">
                 {hunk.lines.map((line, j) => {
@@ -317,25 +327,31 @@ const DiffHalfLine = memo(function DiffHalfLine({
       )}
     >
       <span className="w-8 shrink-0 select-none text-right text-muted-foreground">{num ?? ''}</span>
-      <span className="w-3 shrink-0 select-none text-muted-foreground">{display === null ? '' : sigil}</span>
+      <span className="w-3 shrink-0 select-none text-muted-foreground">
+        {display === null ? '' : sigil}
+      </span>
       <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-        {display === null ? (
-          ' '
-        ) : tokens && tokens.length > 0 ? (
-          tokens.map((t, k) => (
-            <span key={k} style={t.color ? { color: t.color } : undefined}>
-              {t.content}
-            </span>
-          ))
-        ) : (
-          display || ' '
-        )}
+        {display === null
+          ? ' '
+          : tokens && tokens.length > 0
+            ? tokens.map((t, k) => (
+                <span key={k} style={t.color ? { color: t.color } : undefined}>
+                  {t.content}
+                </span>
+              ))
+            : display || ' '}
       </span>
     </div>
   )
 })
 
-function CommentsPanel({ tabId, workspaceId: _ }: { tabId: string; workspaceId: string }): JSX.Element {
+function CommentsPanel({
+  tabId,
+  workspaceId: _,
+}: {
+  tabId: string
+  workspaceId: string
+}): JSX.Element {
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
   const setComment = useReviewComments((s) => s.setComment)
   const removeRange = useReviewComments((s) => s.removeRange)
@@ -347,7 +363,9 @@ function CommentsPanel({ tabId, workspaceId: _ }: { tabId: string; workspaceId: 
       <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3 text-[11px] uppercase tracking-wider text-muted-foreground">
         <MessageSquarePlus className="size-3.5" />
         <span>Diff comments</span>
-        <span className="ml-auto font-mono lowercase">{ranges.length} range{ranges.length === 1 ? '' : 's'}</span>
+        <span className="ml-auto font-mono lowercase">
+          {ranges.length} range{ranges.length === 1 ? '' : 's'}
+        </span>
       </div>
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-3 p-3">
@@ -364,8 +382,15 @@ function CommentsPanel({ tabId, workspaceId: _ }: { tabId: string; workspaceId: 
                 className="flex flex-col gap-1.5 rounded-md border border-border bg-background p-2"
               >
                 <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
-                  <span>@@ {r.start},{r.len} @@</span>
-                  <Button size="icon-xs" variant="ghost" onClick={() => removeRange(tabId, r.id)} aria-label="Cancel">
+                  <span>
+                    @@ {r.start},{r.len} @@
+                  </span>
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    onClick={() => removeRange(tabId, r.id)}
+                    aria-label="Cancel"
+                  >
                     <Trash2 />
                   </Button>
                 </div>

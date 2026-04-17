@@ -49,11 +49,7 @@ interface DepGraphState {
   ingestSnapshot: (snap: GraphSnapshotDTO) => void
   ingestDelta: (workspaceId: string, delta: GraphDeltaDTO) => void
   setScanProgress: (workspaceId: string, filesScanned: number) => void
-  setScanEnd: (
-    workspaceId: string,
-    finalNodeCount: number,
-    finalEdgeCount: number,
-  ) => void
+  setScanEnd: (workspaceId: string, finalNodeCount: number, finalEdgeCount: number) => void
   clearWorkspace: (workspaceId: string) => void
 }
 
@@ -235,8 +231,7 @@ export function selectIncoming(
   nodeId: NodeId,
 ): (s: DepGraphState) => ReadonlySet<string> {
   if (!workspaceId) return () => EMPTY_ID_SET
-  return (s) =>
-    s.byWorkspace.get(workspaceId)?.incoming.get(nodeId) ?? EMPTY_ID_SET
+  return (s) => s.byWorkspace.get(workspaceId)?.incoming.get(nodeId) ?? EMPTY_ID_SET
 }
 
 export function selectOutgoing(
@@ -244,6 +239,5 @@ export function selectOutgoing(
   nodeId: NodeId,
 ): (s: DepGraphState) => ReadonlySet<string> {
   if (!workspaceId) return () => EMPTY_ID_SET
-  return (s) =>
-    s.byWorkspace.get(workspaceId)?.outgoing.get(nodeId) ?? EMPTY_ID_SET
+  return (s) => s.byWorkspace.get(workspaceId)?.outgoing.get(nodeId) ?? EMPTY_ID_SET
 }

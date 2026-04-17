@@ -1,4 +1,4 @@
-export type TmuxNameValidation = { ok: true } | { ok: false, reason: string }
+export type TmuxNameValidation = { ok: true } | { ok: false; reason: string }
 
 const RESERVED_NAMES = new Set(['__ccide_idle__'])
 const MAX_LEN = 64
@@ -8,7 +8,8 @@ export function validateTmuxWindowName(name: string): TmuxNameValidation {
   if (typeof name !== 'string') return { ok: false, reason: 'name must be a string' }
   if (name.length === 0) return { ok: false, reason: 'name cannot be empty' }
   if (name.length > MAX_LEN) return { ok: false, reason: `name cannot exceed ${MAX_LEN} chars` }
-  if (name !== name.trim()) return { ok: false, reason: 'name cannot have leading or trailing whitespace' }
+  if (name !== name.trim())
+    return { ok: false, reason: 'name cannot have leading or trailing whitespace' }
   if (name.includes(':')) return { ok: false, reason: "name cannot contain ':'" }
   if (name.includes('.')) return { ok: false, reason: "name cannot contain '.'" }
   if (RESERVED_NAMES.has(name)) return { ok: false, reason: 'name is reserved' }
