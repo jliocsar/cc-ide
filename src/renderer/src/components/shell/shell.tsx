@@ -31,6 +31,7 @@ export function Shell(): JSX.Element {
 
   const closeTab = useTabs((s) => s.closeTab)
   const activeId = useTabs((s) => s.activeId)
+  const setActive = useTabs((s) => s.setActive)
   const togglePalette = usePalette((s) => s.togglePalette)
   const sidebarVisible = useUi((s) => s.sidebarVisible)
   const toggleSidebar = useUi((s) => s.toggleSidebar)
@@ -89,11 +90,20 @@ export function Shell(): JSX.Element {
       } else if (ev.key === 'b' || ev.key === 'B') {
         ev.preventDefault()
         toggleSidebar()
+      } else if (ev.key === 'Tab') {
+        const { tabs, activeId: curr } = useTabs.getState()
+        if (tabs.length < 2) return
+        ev.preventDefault()
+        const idx = tabs.findIndex((t) => t.id === curr)
+        if (idx < 0) return
+        const delta = ev.shiftKey ? -1 : 1
+        const next = tabs[(idx + delta + tabs.length) % tabs.length]
+        if (next) setActive(next.id)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [activeId, closeTab, togglePalette, toggleSidebar])
+  }, [activeId, closeTab, togglePalette, toggleSidebar, setActive])
 
   return (
     <TooltipProvider delayDuration={150}>

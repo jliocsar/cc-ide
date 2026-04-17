@@ -1,9 +1,11 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react'
-import { X } from 'lucide-react'
+import { motion } from 'motion/react'
+import { X, Maximize2 } from 'lucide-react'
 import { useCanvas } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
 import { InlineRenameInput } from '@/components/ui/inline-rename-input'
 import { validateTmuxWindowName } from '@shared/tmux-name'
+import { springLayout } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -16,6 +18,8 @@ type Props = {
   width: number
   height: number
   zIndex: number
+  maximized?: boolean
+  onMaximize?: () => void
   onClose?: () => void
   children: ReactNode
   badge?: ReactNode
@@ -33,6 +37,8 @@ export function WindowFrame({
   width,
   height,
   zIndex,
+  maximized,
+  onMaximize,
   onClose,
   children,
   badge,
@@ -45,6 +51,8 @@ export function WindowFrame({
   const onTitlebarPointerDown = useCallback(
     (ev: React.PointerEvent<HTMLDivElement>) => {
       if (ev.button !== 0) return
+      if (ev.ctrlKey || ev.metaKey) return
+      if (maximized) return
       if (editing) return
       if (
         ev.target instanceof Element &&
@@ -74,7 +82,16 @@ export function WindowFrame({
       window.addEventListener('pointermove', move)
       window.addEventListener('pointerup', up)
     },
-    [id, x, y, updateWindow, focusWindow, getZoom, editing],
+    [id, x, y, updateWindow, focusWindow, getZoom, editing, maximized],
+  )
+
+  const onTitlebarDoubleClick = useCallback(
+    (ev: React.MouseEvent) => {
+      if (ev.target instanceof Element && ev.target.closest('button, input, [data-rename-target]'))
+        return
+      onMaximize?.()
+    },
+    [onMaximize],
   )
 
   const onResizePointerDown = useCallback(
@@ -115,13 +132,17 @@ export function WindowFrame({
   const displayTitle = shortName ?? (title.includes(':') ? title.split(':').slice(1).join(':') || title : title)
 
   return (
-    <div
+    <motion.div
+      layout
+      transition={springLayout}
       onPointerDown={(e) => {
+        if (e.ctrlKey || e.metaKey) return
         e.stopPropagation()
         focusWindow(id)
       }}
       className={cn(
-        'absolute flex flex-col overflow-hidden rounded-md border border-border bg-[#0a0a0a] shadow-2xl',
+        'absolute flex flex-col overflow-hidden bg-[#0a0a0a] shadow-2xl',
+        maximized ? 'rounded-none' : 'rounded-md border border-border',
       )}
       style={{
         left: x,
@@ -131,66 +152,84 @@ export function WindowFrame({
         zIndex,
       }}
     >
-      <div
-        onPointerDown={onTitlebarPointerDown}
-        className="flex h-7 shrink-0 cursor-grab select-none items-center gap-2 border-b border-border bg-card px-3 text-[11px] font-mono text-muted-foreground active:cursor-grabbing"
-      >
-        {editing && tmuxWindow && shortName !== null ? (
-          <InlineRenameInput
-            className="flex-1"
-            value={shortName}
-            validate={validateTmuxWindowName}
-            onCancel={() => setEditing(false)}
-            onCommit={async (next) => {
-              try {
-                await useSessions.getState().rename(tmuxWindow, next)
-                setEditing(false)
-              } catch (err) {
-                toast.error(err instanceof Error ? err.message : String(err))
-              }
-            }}
-          />
-        ) : (
-          <span
-            data-rename-target={tmuxWindow ? '' : undefined}
-            className={cn('truncate', tmuxWindow && 'cursor-text')}
-            onDoubleClick={(e) => {
-              if (!tmuxWindow) return
-              e.stopPropagation()
-              setEditing(true)
-            }}
-          >
-            {displayTitle}
-          </span>
-        )}
-        {badge}
-        <div className="ml-auto flex items-center gap-1">
-          {onClose ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onClose()
+      {!maximized && (
+        <div
+          onPointerDown={onTitlebarPointerDown}
+          onDoubleClick={onTitlebarDoubleClick}
+          className="flex h-7 shrink-0 cursor-grab select-none items-center gap-2 border-b border-border bg-card px-3 text-[11px] font-mono text-muted-foreground active:cursor-grabbing"
+        >
+          {editing && tmuxWindow && shortName !== null ? (
+            <InlineRenameInput
+              className="flex-1"
+              value={shortName}
+              validate={validateTmuxWindowName}
+              onCancel={() => setEditing(false)}
+              onCommit={async (next) => {
+                try {
+                  await useSessions.getState().rename(tmuxWindow, next)
+                  setEditing(false)
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : String(err))
+                }
               }}
-              className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label="Close window"
+            />
+          ) : (
+            <span
+              data-rename-target={tmuxWindow ? '' : undefined}
+              className={cn('truncate', tmuxWindow && 'cursor-text')}
+              onDoubleClick={(e) => {
+                if (!tmuxWindow) return
+                e.stopPropagation()
+                setEditing(true)
+              }}
             >
-              <X className="size-3" />
-            </button>
-          ) : null}
+              {displayTitle}
+            </span>
+          )}
+          {badge}
+          <div className="ml-auto flex items-center gap-1">
+            {onMaximize ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onMaximize()
+                }}
+                className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label="Maximize window"
+              >
+                <Maximize2 className="size-3" />
+              </button>
+            ) : null}
+            {onClose ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onClose()
+                }}
+                className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label="Close window"
+              >
+                <X className="size-3" />
+              </button>
+            ) : null}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="relative flex-1 overflow-hidden">{children}</div>
 
-      <div
-        onPointerDown={onResizePointerDown}
-        className="absolute bottom-0 right-0 size-3 cursor-nwse-resize"
-        style={{
-          background:
-            'linear-gradient(135deg, transparent 50%, oklch(0.556 0 0) 50%, oklch(0.556 0 0) 60%, transparent 60%, transparent 70%, oklch(0.556 0 0) 70%, oklch(0.556 0 0) 80%, transparent 80%)',
-        }}
-      />
-    </div>
+      {!maximized && (
+        <div
+          onPointerDown={onResizePointerDown}
+          className="absolute bottom-0 right-0 size-3 cursor-nwse-resize"
+          style={{
+            background:
+              'linear-gradient(135deg, transparent 50%, oklch(0.556 0 0) 50%, oklch(0.556 0 0) 60%, transparent 60%, transparent 70%, oklch(0.556 0 0) 70%, oklch(0.556 0 0) 80%, transparent 80%)',
+          }}
+        />
+      )}
+    </motion.div>
   )
 }

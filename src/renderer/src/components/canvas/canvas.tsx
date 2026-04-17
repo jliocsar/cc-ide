@@ -10,6 +10,7 @@ import { Plus, Minus, Maximize2 } from 'lucide-react'
 import { useCanvas } from '@/state/canvas'
 import { useWorkspaces } from '@/state/workspaces'
 import { useSpawnModal } from '@/state/spawn-modal'
+import { useMaximizedWindow } from '@/state/maximized-window'
 import { setCanvasHost } from '@/lib/canvas-host'
 import { XtermWindow } from './xterm-window'
 
@@ -26,6 +27,29 @@ export function Canvas(): JSX.Element {
   const modalOpen = useSpawnModal((s) => s.isOpen)
 
   const [menu, setMenu] = useState<{ x: number; y: number; vp: { x: number; y: number } } | null>(null)
+  const [panMod, setPanMod] = useState<false | 'true' | 'dragging'>(false)
+  const hasMaximized = useMaximizedWindow((s) =>
+    activeWorkspaceId ? s.byWorkspace[activeWorkspaceId] !== null && s.byWorkspace[activeWorkspaceId] !== undefined : false,
+  )
+
+  useEffect(() => {
+    const down = (ev: KeyboardEvent) => {
+      if ((ev.key === 'Control' || ev.key === 'Meta') && !panMod)
+        setPanMod('true')
+    }
+    const up = (ev: KeyboardEvent) => {
+      if (ev.key === 'Control' || ev.key === 'Meta') setPanMod(false)
+    }
+    const blur = () => setPanMod(false)
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', blur)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', blur)
+    }
+  }, [panMod])
 
   useEffect(() => {
     setCanvasHost(hostRef.current)
@@ -44,6 +68,7 @@ export function Canvas(): JSX.Element {
     if (!host) return
 
     const onWheel = (ev: WheelEvent) => {
+      if (useMaximizedWindow.getState().byWorkspace[activeWorkspaceId ?? '']) return
       ev.preventDefault()
       const rect = host.getBoundingClientRect()
       const vx = ev.clientX - rect.left
@@ -89,12 +114,16 @@ export function Canvas(): JSX.Element {
       if (ev.button !== 0 && ev.button !== 1) return
       const host = hostRef.current
       if (!host) return
-      if (ev.target !== host) return
+      if (hasMaximized) return
+      const modHeld = ev.ctrlKey || ev.metaKey
+      if (ev.target !== host && !modHeld) return
+      ev.preventDefault()
       const startX = ev.clientX
       const startY = ev.clientY
       let lastX = startX
       let lastY = startY
       host.setPointerCapture(ev.pointerId)
+      if (modHeld) setPanMod('dragging')
 
       const move = (e: PointerEvent) => {
         pan(e.clientX - lastX, e.clientY - lastY)
@@ -105,6 +134,11 @@ export function Canvas(): JSX.Element {
         host.releasePointerCapture(e.pointerId)
         window.removeEventListener('pointermove', move)
         window.removeEventListener('pointerup', up)
+        if (modHeld) {
+          setPanMod(
+            (e.ctrlKey || e.metaKey) ? 'true' : false,
+          )
+        }
       }
       window.addEventListener('pointermove', move)
       window.addEventListener('pointerup', up)
@@ -137,6 +171,7 @@ export function Canvas(): JSX.Element {
       onPointerDown={onViewportPointerDown}
       onContextMenu={onContextMenu}
       className="relative overflow-hidden bg-background"
+      data-pan-mod={panMod || undefined}
       style={{ touchAction: 'none' }}
     >
       <div

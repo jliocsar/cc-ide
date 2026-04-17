@@ -9,6 +9,7 @@ import {
   Network,
   Copy,
   Minus,
+  Minimize2,
   Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ import { useTabs, type Tab } from "@/state/tabs";
 import { usePlanTabUi } from "@/state/plan-tab-ui";
 import { useBoardUi, type BoardMode } from "@/state/board-ui";
 import { useWorkspaces } from "@/state/workspaces";
+import { useMaximizedWindow } from "@/state/maximized-window";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -85,6 +87,16 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
   const dirtyMap = usePlanTabUi((s) => s.byTab);
   const pendingCloseId = usePlanTabUi((s) => s.pendingCloseId);
   const setPendingCloseId = usePlanTabUi((s) => s.setPendingCloseId);
+  const workspaceId = useWorkspaces((s) => s.activeId);
+  const boardMode = useBoardUi((s) =>
+    workspaceId ? (s.modeByWorkspace[workspaceId] ?? "sessions") : "sessions",
+  );
+  const maximizedInfo = useMaximizedWindow((s) =>
+    workspaceId ? (s.byWorkspace[workspaceId] ?? null) : null,
+  );
+  const setMaximizedWindow = useMaximizedWindow((s) => s.set);
+  const isBoardActive = activeId === "board";
+  const showMaximizedBar = isBoardActive && maximizedInfo !== null;
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   function requestClose(id: string): void {
@@ -108,82 +120,135 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
       className="flex h-10 items-center border-b border-border bg-card"
       style={drag}
     >
-      <div
-        className="flex h-full min-w-0 items-center overflow-x-auto scrollbar-none max-w-content"
-        style={noDrag}
-      >
-        {tabs.map((tab) => {
-          const Icon = ICON_BY_KIND[tab.kind];
-          const active = tab.id === activeId;
-          const payload = dragPayloadFor(tab);
-          const canReorder = !tab.pinned;
-          const dirty = dirtyMap[tab.id]?.dirty ?? false;
-          return (
-            <div
-              key={tab.id}
-              draggable={!!payload || canReorder}
-              onDragStart={(e) => {
-                if (payload) setDropPayload(e.dataTransfer, payload);
-                if (canReorder) {
-                  e.dataTransfer.setData(TAB_REORDER_MIME, tab.id);
-                  e.dataTransfer.setDragImage(transparentDragImage(), 0, 0);
-                  setDraggingId(tab.id);
-                }
-                e.dataTransfer.effectAllowed = "copyMove";
-              }}
-              onDragEnd={() => setDraggingId(null)}
-              onDragOver={(e) => {
-                if (!e.dataTransfer.types.includes(TAB_REORDER_MIME)) return;
-                if (tab.pinned) return;
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-                if (draggingId && draggingId !== tab.id) {
-                  reorderTab(draggingId, tab.id);
-                }
-              }}
-              onDrop={(e) => {
-                const srcId = e.dataTransfer.getData(TAB_REORDER_MIME);
-                setDraggingId(null);
-                if (!srcId) return;
-                e.preventDefault();
-                if (srcId !== tab.id) reorderTab(srcId, tab.id);
-              }}
-              onClick={() => setActive(tab.id)}
-              onAuxClick={(e) => {
-                if (e.button === 1 && !tab.pinned) requestClose(tab.id);
-              }}
-              className={cn(
-                "relative flex h-full shrink-0 cursor-pointer select-none items-center gap-2 border-r border-border px-3 text-xs",
-                active
-                  ? "bg-background text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-                draggingId === tab.id ? "opacity-60" : null,
-              )}
-            >
-              <Icon className="size-3.5" />
-              <span className="max-w-[200px] truncate font-mono">
-                {dirty ? <span className="mr-1 text-foreground">•</span> : null}
-                {tab.title}
-              </span>
-              {tab.kind === "board" ? <BoardModeChevron /> : null}
-              {!tab.pinned ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    requestClose(tab.id);
+      {showMaximizedBar ? (
+        <div
+          className="flex h-full flex-1 items-center gap-2 px-3 text-xs"
+          style={noDrag}
+        >
+          <span className="truncate font-mono text-foreground">
+            {maximizedInfo.title}
+          </span>
+          {maximizedInfo.badge === "live" ? (
+            <span className="text-green-500">● live</span>
+          ) : maximizedInfo.badge === "exited" ? (
+            <span className="text-destructive">
+              exit {maximizedInfo.exitCode ?? "—"}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">dormant</span>
+          )}
+          <div className="flex-1" />
+          <button
+            type="button"
+            onClick={() => {
+              if (workspaceId) setMaximizedWindow(workspaceId, null);
+            }}
+            className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label="Restore window"
+          >
+            <Minimize2 className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => maximizedInfo.onClose()}
+            className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label="Close window"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ) : (
+        <>
+          <div
+            className="flex h-full min-w-0 items-center overflow-x-auto scrollbar-none max-w-content"
+            style={noDrag}
+          >
+            {tabs.map((tab) => {
+              const isBoard = tab.kind === "board";
+              const Icon = isBoard
+                ? boardMode === "graph"
+                  ? Network
+                  : LayoutGrid
+                : ICON_BY_KIND[tab.kind];
+              const title = isBoard
+                ? boardMode === "graph"
+                  ? "Dependency Graph"
+                  : "Sessions"
+                : tab.title;
+              const active = tab.id === activeId;
+              const payload = dragPayloadFor(tab);
+              const canReorder = !tab.pinned;
+              const dirty = dirtyMap[tab.id]?.dirty ?? false;
+              return (
+                <div
+                  key={tab.id}
+                  draggable={!!payload || canReorder}
+                  onDragStart={(e) => {
+                    if (payload) setDropPayload(e.dataTransfer, payload);
+                    if (canReorder) {
+                      e.dataTransfer.setData(TAB_REORDER_MIME, tab.id);
+                      e.dataTransfer.setDragImage(transparentDragImage(), 0, 0);
+                      setDraggingId(tab.id);
+                    }
+                    e.dataTransfer.effectAllowed = "copyMove";
                   }}
-                  className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                  aria-label="Close tab"
+                  onDragEnd={() => setDraggingId(null)}
+                  onDragOver={(e) => {
+                    if (!e.dataTransfer.types.includes(TAB_REORDER_MIME)) return;
+                    if (tab.pinned) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    if (draggingId && draggingId !== tab.id) {
+                      reorderTab(draggingId, tab.id);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    const srcId = e.dataTransfer.getData(TAB_REORDER_MIME);
+                    setDraggingId(null);
+                    if (!srcId) return;
+                    e.preventDefault();
+                    if (srcId !== tab.id) reorderTab(srcId, tab.id);
+                  }}
+                  onClick={() => setActive(tab.id)}
+                  onAuxClick={(e) => {
+                    if (e.button === 1 && !tab.pinned) requestClose(tab.id);
+                  }}
+                  className={cn(
+                    "relative flex h-full shrink-0 cursor-pointer select-none items-center gap-2 border-r border-border px-3 text-xs",
+                    active
+                      ? "bg-background text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                    draggingId === tab.id ? "opacity-60" : null,
+                  )}
                 >
-                  <X className="size-3" />
-                </button>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex-1" />
+                  <Icon className="size-3.5" />
+                  <span className="max-w-[200px] truncate font-mono">
+                    {dirty ? (
+                      <span className="mr-1 text-foreground">•</span>
+                    ) : null}
+                    {title}
+                  </span>
+                  {tab.kind === "board" ? <BoardModeChevron /> : null}
+                  {!tab.pinned ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        requestClose(tab.id);
+                      }}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                      aria-label="Close tab"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex-1" />
+        </>
+      )}
       {/* Window controls */}
       <div className="flex h-full shrink-0 items-center" style={noDrag}>
         <button
