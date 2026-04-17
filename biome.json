@@ -54,10 +54,19 @@
         "noLabelWithoutControl": "warn"
       },
       "correctness": {
-        "useExhaustiveDependencies": "warn"
+        "useExhaustiveDependencies": "warn",
+        "noUnusedVariables": "error"
       },
       "suspicious": {
-        "noArrayIndexKey": "warn"
+        "noArrayIndexKey": "warn",
+        "noConsole": {
+          "level": "warn",
+          "options": { "allow": ["error", "warn", "info"] }
+        },
+        "noDuplicateJsxProps": "warn"
+      },
+      "complexity": {
+        "noUselessFragments": "warn"
       }
     }
   },
