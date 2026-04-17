@@ -1,5 +1,6 @@
 import { Maximize2, Minus, Plus } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -16,8 +17,9 @@ import { XtermWindow } from './xterm-window'
 
 export function Canvas(): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
-  const camera = useCanvas((s) => s.camera)
-  const windows = useCanvas((s) => s.windows)
+  const { camera, windows } = useCanvas(
+    useShallow((s) => ({ camera: s.camera, windows: s.windows })),
+  )
   const pan = useCanvas((s) => s.pan)
   const zoomAt = useCanvas((s) => s.zoomAt)
   const resetCamera = useCanvas((s) => s.resetCamera)
