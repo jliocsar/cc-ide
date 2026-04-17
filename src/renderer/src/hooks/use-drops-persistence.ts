@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
+import { invoke } from '@/lib/ipc'
 import { useDrops } from '@/state/drops'
 import { useWorkspaces } from '@/state/workspaces'
-import { invoke } from '@/lib/ipc'
 
 const SAVE_DEBOUNCE_MS = 500
 

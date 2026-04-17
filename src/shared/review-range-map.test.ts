@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
 import { ChangeSet, Text } from '@codemirror/state'
-import { mapRanges, type LineRange } from './review-range-map'
+import { describe, expect, it } from 'vitest'
+import { type LineRange, mapRanges } from './review-range-map'
 
 function r(id: string, start: number, len: number, comment = ''): LineRange {
   return { id, start, len, comment }

@@ -1,9 +1,9 @@
+import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { type DropEntryDTO, dropEntrySchema } from '@shared/ipc'
 import { z } from 'zod'
-import { dropEntrySchema, type DropEntryDTO } from '@shared/ipc'
 
 const DEFAULT_DATA_DIR = join(homedir(), '.cc-ide', 'drops')
 let DATA_DIR = DEFAULT_DATA_DIR

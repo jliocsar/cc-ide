@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { useCanvas, type PersistedCanvas } from '@/state/canvas'
+import { invoke } from '@/lib/ipc'
+import { type PersistedCanvas, useCanvas } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
 import { useWorkspaces } from '@/state/workspaces'
-import { invoke } from '@/lib/ipc'
 
 const SAVE_DEBOUNCE_MS = 500
 

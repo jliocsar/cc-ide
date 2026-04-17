@@ -1,18 +1,18 @@
-import { useMemo, useState } from 'react'
+import { validateTmuxWindowName } from '@shared/tmux-name'
 import { Pencil, Terminal, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useSessions } from '@/state/sessions'
-import { useCanvas } from '@/state/canvas'
+import { InlineRenameInput } from '@/components/ui/inline-rename-input'
 import { getCanvasViewportCenter } from '@/lib/canvas-host'
 import { invoke } from '@/lib/ipc'
-import { validateTmuxWindowName } from '@shared/tmux-name'
-import { InlineRenameInput } from '@/components/ui/inline-rename-input'
-import { toast } from 'sonner'
+import { useCanvas } from '@/state/canvas'
+import { useSessions } from '@/state/sessions'
 
 type MenuState = { tmuxWindow: string; ptyId: string; x: number; y: number } | null
 

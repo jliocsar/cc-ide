@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { invoke } from '@/lib/ipc'
 import { MarkdownFileEditor } from '@/components/editor/markdown-file-editor'
+import { invoke } from '@/lib/ipc'
 
 function promptTabId(workspaceId: string, relPath: string): string {
   return `prompt:${workspaceId}:${relPath}`

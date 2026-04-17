@@ -1,7 +1,7 @@
+import { spawn } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { spawn } from 'node:child_process'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { TsParser } from './ts-parser'
 

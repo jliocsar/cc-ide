@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { validateFolderName, validateMarkdownFilename } from '@shared/markdown-name'
 import {
-  ChevronRight,
   ChevronDown,
+  ChevronRight,
   FileText,
   Folder,
-  Plus,
   FolderPlus,
-  Trash2,
   Pencil,
+  Plus,
+  Trash2,
 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -28,16 +30,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { InlineRenameInput } from '@/components/ui/inline-rename-input'
-import { cn } from '@/lib/utils'
-import { invoke } from '@/lib/ipc'
-import { usePlansTree, type PlanDir, type PlanNode } from '@/state/plans-tree'
-import { useTabs } from '@/state/tabs'
-import { useReviewComments, planTabId } from '@/state/review-comments'
+import { Input } from '@/components/ui/input'
 import { setDropPayload } from '@/lib/drop-payload'
-import { validateFolderName, validateMarkdownFilename } from '@shared/markdown-name'
+import { invoke } from '@/lib/ipc'
+import { cn } from '@/lib/utils'
+import { type PlanDir, type PlanNode, usePlansTree } from '@/state/plans-tree'
+import { planTabId, useReviewComments } from '@/state/review-comments'
+import { useTabs } from '@/state/tabs'
 
 const MOVE_MIME = 'application/x-cc-ide-plan-move'
 const SPRING_EXPAND_MS = 600

@@ -1,39 +1,39 @@
-import { BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
-import { join, resolve } from 'node:path'
 import { promises as fs } from 'node:fs'
+import { join, resolve } from 'node:path'
 import {
   channels,
-  ipcContract,
   type IpcChannel,
   type IpcRequest,
   type IpcResponse,
+  ipcContract,
 } from '@shared/ipc'
-import * as workspaceRegistry from './modules/workspace-registry'
-import * as tmux from './modules/tmux-adapter'
-import * as ptyManager from './modules/pty-manager'
+import { slugifyFirstMessage, validateTmuxWindowName } from '@shared/tmux-name'
+import { BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import * as canvasStore from './modules/canvas-store'
-import * as sessionDiscovery from './modules/session-discovery'
-import * as worktreeManager from './modules/worktree-manager'
+import { generateClaudeWindowName } from './modules/cat-name-gen'
+import * as depgraph from './modules/depgraph'
 import * as diffProvider from './modules/diff-provider'
-import * as promptsStore from './modules/prompts-store'
+import * as dropsStore from './modules/drops-store'
+import * as ephemeralWorktrees from './modules/ephemeral-worktrees'
+import { broadcast } from './modules/event-bus'
 import * as planFsTree from './modules/plan-fs-tree'
 import * as promptsFsTree from './modules/prompts-fs-tree'
-import * as tabsStore from './modules/tabs-store'
-import * as settingsStore from './modules/settings-store'
-import * as dropsStore from './modules/drops-store'
-import * as depgraph from './modules/depgraph'
-import * as ephemeralWorktrees from './modules/ephemeral-worktrees'
+import * as promptsStore from './modules/prompts-store'
+import * as ptyManager from './modules/pty-manager'
+import * as sessionDiscovery from './modules/session-discovery'
 import * as sessionWatcher from './modules/session-watcher'
-import { generateClaudeWindowName } from './modules/cat-name-gen'
-import { validateTmuxWindowName, slugifyFirstMessage } from '@shared/tmux-name'
-import { broadcast } from './modules/event-bus'
+import * as settingsStore from './modules/settings-store'
+import * as tabsStore from './modules/tabs-store'
+import * as tmux from './modules/tmux-adapter'
 import {
   ensurePlansWatcher,
   ensurePromptsWatcher,
   ensureSessionWatcher,
   ensureWorktreeWatcher,
 } from './modules/watchers'
+import * as workspaceRegistry from './modules/workspace-registry'
+import * as worktreeManager from './modules/worktree-manager'
 
 function slugifyBranch(branch: string): string {
   return branch

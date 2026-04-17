@@ -72,7 +72,7 @@ export function computeCenterCamera(
 
 const PAN_DURATION_MS = 180
 function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3)
+  return 1 - (1 - t) ** 3
 }
 
 export const useCanvas = create<State>((set, get) => ({

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { validateTmuxWindowName, slugifyFirstMessage } from './tmux-name'
+import { describe, expect, it } from 'vitest'
+import { slugifyFirstMessage, validateTmuxWindowName } from './tmux-name'
 
 describe('validateTmuxWindowName', () => {
   it('accepts normal names', () => {

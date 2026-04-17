@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { validateTmuxWindowName } from '@shared/tmux-name'
 import { FolderGit2, GitBranch, Plus } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -8,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -17,13 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
-import { invoke } from '@/lib/ipc'
-import { useSpawnModal, getLastUsedWorktree, setLastUsedWorktree } from '@/state/spawn-modal'
 import { useSpawnSession } from '@/hooks/use-spawn-session'
-import { useWorkspaces } from '@/state/workspaces'
+import { invoke } from '@/lib/ipc'
+import { cn } from '@/lib/utils'
 import type { SpawnWorktreeOption } from '@/state/sessions'
-import { validateTmuxWindowName } from '@shared/tmux-name'
+import { getLastUsedWorktree, setLastUsedWorktree, useSpawnModal } from '@/state/spawn-modal'
+import { useWorkspaces } from '@/state/workspaces'
 
 type ExistingWorktree = { path: string; branch: string | null; isPrimary: boolean }
 

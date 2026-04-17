@@ -1,6 +1,9 @@
 import { promises as fs } from 'node:fs'
-import { basename, dirname, join, relative, resolve as pathResolve, sep } from 'node:path'
+import { basename, dirname, join, resolve as pathResolve, relative, sep } from 'node:path'
 import ts from 'typescript'
+import { gitLsFiles } from './discovery'
+import { langFromPath, TsModuleResolver } from './ts-resolver'
+import { filterTsconfigCandidates, TsconfigCascade } from './tsconfig-cascade'
 import type {
   EdgeKind,
   GraphDelta,
@@ -9,9 +12,6 @@ import type {
   LanguageParser,
   NodeId,
 } from './types'
-import { gitLsFiles } from './discovery'
-import { TsconfigCascade, filterTsconfigCandidates } from './tsconfig-cascade'
-import { TsModuleResolver, langFromPath } from './ts-resolver'
 
 const TS_EXT_RE = /\.(tsx?|jsx?|mjs|cjs|mts|cts|d\.ts)$/i
 

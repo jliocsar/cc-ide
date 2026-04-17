@@ -1,17 +1,17 @@
+import { spawn } from 'node:child_process'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { spawn } from 'node:child_process'
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
-  listWorktrees,
-  createWorktree,
   canDeleteWorktree,
+  createWorktree,
+  currentBranch,
+  deleteBranchIfMerged,
   deleteWorktree,
   isWorktreeUntouched,
-  deleteBranchIfMerged,
   listLocalBranches,
-  currentBranch,
+  listWorktrees,
 } from './worktree-manager'
 
 // ---------------------------------------------------------------------------

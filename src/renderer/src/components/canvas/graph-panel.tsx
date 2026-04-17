@@ -1,8 +1,7 @@
 import { ChevronLeft, ChevronRight, Filter, Palette } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -10,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 function Checkbox({
   checked,
@@ -27,7 +27,7 @@ function Checkbox({
     />
   )
 }
-import { useBoardUi, getFilters, getStyle, ALL_EDGE_KINDS } from '@/state/board-ui'
+
 import type {
   GraphFilters,
   GraphStyle,
@@ -35,6 +35,7 @@ import type {
   NodeColorMode,
   NodeSizeMode,
 } from '@/state/board-ui'
+import { ALL_EDGE_KINDS, getFilters, getStyle, useBoardUi } from '@/state/board-ui'
 import type { EdgeKind } from '@/state/depgraph'
 
 interface Props {

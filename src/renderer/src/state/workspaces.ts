@@ -1,5 +1,5 @@
-import { create } from 'zustand'
 import type { Workspace } from '@shared/ipc'
+import { create } from 'zustand'
 import { invoke } from '@/lib/ipc'
 
 type State = {

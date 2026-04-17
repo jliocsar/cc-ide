@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
-import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { Terminal } from '@xterm/xterm'
+import { useEffect, useRef } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import { invoke, onEvent } from '@/lib/ipc'
 import { useLastTerminal } from '@/state/last-terminal'

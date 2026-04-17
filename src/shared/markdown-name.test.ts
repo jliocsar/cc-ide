@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateMarkdownFilename, validateFolderName } from './markdown-name'
+import { validateFolderName, validateMarkdownFilename } from './markdown-name'
 
 describe('validateMarkdownFilename', () => {
   it('accepts a basic .md filename', () => {

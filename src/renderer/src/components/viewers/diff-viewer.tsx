@@ -1,19 +1,19 @@
+import type { DiffHunkDTO, DiffHunkLineDTO, FileDiffDTO } from '@shared/ipc'
+import { MessageSquarePlus, Trash2 } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import type { ThemedToken } from 'shiki'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
-import { Trash2, MessageSquarePlus } from 'lucide-react'
 import { invoke } from '@/lib/ipc'
+import { guessLang, tokenizeLines } from '@/lib/shiki'
 import { cn } from '@/lib/utils'
 import {
-  EMPTY_RANGES,
   diffTabId,
-  useReviewComments,
+  EMPTY_RANGES,
   type RangeDraft,
+  useReviewComments,
 } from '@/state/review-comments'
-import { guessLang, tokenizeLines } from '@/lib/shiki'
-import type { ThemedToken } from 'shiki'
-import type { FileDiffDTO, DiffHunkDTO, DiffHunkLineDTO } from '@shared/ipc'
 
 type HunkTokens = {
   oldTokens: ThemedToken[][]

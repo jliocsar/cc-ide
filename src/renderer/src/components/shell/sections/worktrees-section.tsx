@@ -1,5 +1,7 @@
+import type { WorktreeDTO } from '@shared/ipc'
+import { AlertTriangle, GitBranch, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { GitBranch, Trash2, AlertTriangle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -8,14 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useSidebarData } from '@/state/sidebar-data'
-import { useWorkspaces } from '@/state/workspaces'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
-import type { WorktreeDTO } from '@shared/ipc'
+import { useSidebarData } from '@/state/sidebar-data'
+import { useWorkspaces } from '@/state/workspaces'
 
 const GUARD_LABEL: Record<string, string> = {
   'dirty-working-tree': 'Uncommitted changes',

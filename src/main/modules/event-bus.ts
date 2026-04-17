@@ -1,5 +1,5 @@
+import type { IpcEvent, IpcEventChannel } from '@shared/ipc'
 import { BrowserWindow } from 'electron'
-import type { IpcEventChannel, IpcEvent } from '@shared/ipc'
 
 export function broadcast<C extends IpcEventChannel>(channel: C, payload: IpcEvent<C>): void {
   for (const win of BrowserWindow.getAllWindows()) {

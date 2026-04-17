@@ -1,10 +1,10 @@
+import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, basename, resolve } from 'node:path'
-import { randomUUID } from 'node:crypto'
-import { spawn } from 'node:child_process'
+import { basename, join, resolve } from 'node:path'
+import { type Workspace, workspaceSchema } from '@shared/ipc'
 import { z } from 'zod'
-import { workspaceSchema, type Workspace } from '@shared/ipc'
 
 const DATA_DIR = join(homedir(), '.cc-ide')
 const REGISTRY_PATH = join(DATA_DIR, 'workspaces.json')

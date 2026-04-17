@@ -1,4 +1,3 @@
-import { create } from 'zustand'
 import type {
   GraphDeltaDTO,
   GraphEdgeKindDTO,
@@ -6,6 +5,7 @@ import type {
   GraphNodeDTO,
   GraphSnapshotDTO,
 } from '@shared/ipc'
+import { create } from 'zustand'
 
 export type NodeId = string
 export type EdgeKind = GraphEdgeKindDTO

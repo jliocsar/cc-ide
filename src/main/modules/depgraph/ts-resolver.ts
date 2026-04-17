@@ -1,6 +1,6 @@
 import ts from 'typescript'
-import type { ModuleResolver, ResolvedModule, ResolverArgs, Lang } from './types'
 import type { TsconfigCascade } from './tsconfig-cascade'
+import type { Lang, ModuleResolver, ResolvedModule, ResolverArgs } from './types'
 
 const FALLBACK_OPTIONS: ts.CompilerOptions = {
   moduleResolution: ts.ModuleResolutionKind.NodeNext,

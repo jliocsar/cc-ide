@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import * as tmux from './tmux-adapter'
 import {
   __getTrackedForTests,
   __tickNowForTests,
   disposeAll,
   setExitHandler,
+  type Tracked,
   track,
   untrack,
-  type Tracked,
 } from './session-watcher'
+import * as tmux from './tmux-adapter'
 
 const entry = (overrides: Partial<Tracked> = {}): Tracked => ({
   workspaceId: 'ws-1',

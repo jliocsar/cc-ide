@@ -1,11 +1,6 @@
+import type { PromptDTO } from '@shared/ipc'
+import { Plus, Send, Star, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,16 +13,21 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Star, Trash2, Plus, Send } from 'lucide-react'
-import { usePalette } from '@/state/palette'
-import { usePrompts } from '@/state/prompts'
-import { useLastTerminal } from '@/state/last-terminal'
+import { Textarea } from '@/components/ui/textarea'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
-import type { PromptDTO } from '@shared/ipc'
+import { useLastTerminal } from '@/state/last-terminal'
+import { usePalette } from '@/state/palette'
+import { usePrompts } from '@/state/prompts'
 
 export function PromptsModal(): JSX.Element {
   const open = usePalette((s) => s.promptsOpen)
