@@ -18,5 +18,4 @@ Let's also take the opportunity to add these in:
 
 1. I want Tab/Ctrl+Tab to cycle through tabs
 2. I want Ctrl+Click on top of a terminal to drag/pan the canvas instead of selecting things in the terminal (click remains the same)
-3. 
 

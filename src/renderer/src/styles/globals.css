@@ -98,3 +98,12 @@
     display: none;
   }
 }
+
+[data-pan-mod="true"],
+[data-pan-mod="true"] * {
+  cursor: grab !important;
+}
+[data-pan-mod="dragging"],
+[data-pan-mod="dragging"] * {
+  cursor: grabbing !important;
+}
