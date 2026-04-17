@@ -78,6 +78,7 @@
       }
     }
   },
+  "plugins": ["./.biome-plugins/no-empty-fallback-in-selector.grit"],
   "overrides": [
     {
       "includes": ["src/renderer/**"],
