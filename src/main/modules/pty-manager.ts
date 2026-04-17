@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import * as pty from 'node-pty'
-import { broadcast } from './event-bus'
+import { broadcast } from '../event-bus'
 
 type Entry = { id: string; proc: pty.IPty; onExit?: (code: number | null) => void | Promise<void> }
 const ptys = new Map<string, Entry>()
