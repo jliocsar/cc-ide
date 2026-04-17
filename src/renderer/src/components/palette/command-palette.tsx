@@ -1,3 +1,10 @@
+import {
+  ArrowLeft,
+  FolderGit2,
+  MessageSquare,
+  Settings as SettingsIcon,
+  Terminal,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   Command,
@@ -9,13 +16,6 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import {
-  MessageSquare,
-  FolderGit2,
-  Terminal,
-  ArrowLeft,
-  Settings as SettingsIcon,
-} from 'lucide-react'
 import { usePalette } from '@/state/palette'
 import { useSettings } from '@/state/settings'
 import { useWorkspaces } from '@/state/workspaces'

@@ -1,20 +1,19 @@
+import { ChevronLeft, ChevronRight, Eye, MessageSquarePlus, Pencil, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { MarkdownFileEditor } from '@/components/editor/markdown-file-editor'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Trash2, MessageSquarePlus, Pencil, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
-import { invoke } from '@/lib/ipc'
+import { invoke, invoke as invokeIpc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
+import { type PlanMode, usePlanTabUi } from '@/state/plan-tab-ui'
 import {
   EMPTY_RANGES,
   planTabId,
-  useReviewComments,
   type RangeDraft,
+  useReviewComments,
 } from '@/state/review-comments'
-import { usePlanTabUi, type PlanMode } from '@/state/plan-tab-ui'
-import { MarkdownFileEditor } from '@/components/editor/markdown-file-editor'
-import { invoke as invokeIpc } from '@/lib/ipc'
 
 export function PlanViewer({
   workspaceId,

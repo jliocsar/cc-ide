@@ -1,5 +1,5 @@
-import { create } from 'zustand'
 import type { PromptDTO } from '@shared/ipc'
+import { create } from 'zustand'
 import { invoke } from '@/lib/ipc'
 
 export type SortMode = 'favorites-first' | 'title'

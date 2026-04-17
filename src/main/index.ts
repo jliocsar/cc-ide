@@ -1,10 +1,10 @@
-import { app, BrowserWindow, shell } from 'electron'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { join } from 'node:path'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import { app, BrowserWindow, shell } from 'electron'
 import { registerIpcHandlers } from './ipc'
-import { disposeAllWatchers } from './modules/watchers'
 import * as depgraph from './modules/depgraph'
 import { disposeAll as disposeSessionWatcher } from './modules/session-watcher'
+import { disposeAllWatchers } from './modules/watchers'
 
 if (is.dev) {
   app.commandLine.appendSwitch('remote-debugging-port', '9223')

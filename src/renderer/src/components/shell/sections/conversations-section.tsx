@@ -1,10 +1,10 @@
-import { useState } from 'react'
 import { MessageSquare, Play } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { useSidebarData } from '@/state/sidebar-data'
-import { useSessions } from '@/state/sessions'
-import { useCanvas, worldFromViewport } from '@/state/canvas'
 import { getCanvasViewportCenter } from '@/lib/canvas-host'
+import { useCanvas, worldFromViewport } from '@/state/canvas'
+import { useSessions } from '@/state/sessions'
+import { useSidebarData } from '@/state/sidebar-data'
 
 const DEFAULT_WIN_W = 720
 const DEFAULT_WIN_H = 440

@@ -1,7 +1,6 @@
-import { promises as fs } from 'node:fs'
+import { type Dirent, promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, resolve, sep } from 'node:path'
-import { posix } from 'node:path'
+import { join, posix, resolve, sep } from 'node:path'
 
 export type PlanFile = {
   kind: 'file'
@@ -108,7 +107,7 @@ export async function migrateLegacyIfNeeded(
 }
 
 async function readDirRecursive(absDir: string, relDir: string): Promise<PlanNode[]> {
-  let entries
+  let entries: Dirent[]
   try {
     entries = await fs.readdir(absDir, { withFileTypes: true })
   } catch (err: unknown) {

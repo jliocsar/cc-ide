@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { TsconfigCascade, filterTsconfigCandidates } from './tsconfig-cascade'
+import { filterTsconfigCandidates, TsconfigCascade } from './tsconfig-cascade'
 
 let root: string
 

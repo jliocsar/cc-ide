@@ -1,9 +1,9 @@
-import { useTabs } from '@/state/tabs'
 import { BoardView } from '@/components/canvas/board-view'
-import { PlanViewer } from '@/components/viewers/plan-viewer'
 import { DiffViewer } from '@/components/viewers/diff-viewer'
+import { PlanViewer } from '@/components/viewers/plan-viewer'
 import { PromptViewer } from '@/components/viewers/prompt-viewer'
 import { cn } from '@/lib/utils'
+import { useTabs } from '@/state/tabs'
 
 // Why this lives here vs the obvious "switch on active.kind":
 //

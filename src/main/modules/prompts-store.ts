@@ -1,7 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 
 const DATA_DIR = join(homedir(), '.cc-ide')

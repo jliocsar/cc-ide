@@ -1,3 +1,4 @@
+import type { EditorKeybindsDTO } from '@shared/ipc'
 import {
   Dialog,
   DialogContent,
@@ -14,7 +15,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useSettings } from '@/state/settings'
-import type { EditorKeybindsDTO } from '@shared/ipc'
 
 export function SettingsModal(): JSX.Element {
   const open = useSettings((s) => s.settingsOpen)

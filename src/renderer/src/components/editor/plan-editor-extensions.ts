@@ -1,27 +1,27 @@
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language'
+import { searchKeymap } from '@codemirror/search'
 import {
   Compartment,
   EditorState,
+  type Extension,
   RangeSet,
   StateEffect,
   StateField,
-  type Extension,
 } from '@codemirror/state'
 import {
+  Decoration,
+  type DecorationSet,
   EditorView,
   GutterMarker,
   gutterLineClass,
   keymap,
   lineNumbers,
-  Decoration,
   ViewPlugin,
-  type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
-import { searchKeymap } from '@codemirror/search'
-import { syntaxHighlighting, HighlightStyle, indentOnInput } from '@codemirror/language'
 import { tags as t } from '@lezer/highlight'
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { vim } from '@replit/codemirror-vim'
 
 export type PlanCompartments = {

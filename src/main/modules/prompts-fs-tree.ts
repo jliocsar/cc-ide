@@ -1,6 +1,5 @@
-import { promises as fs } from 'node:fs'
-import { join, resolve, sep } from 'node:path'
-import { posix } from 'node:path'
+import { type Dirent, promises as fs } from 'node:fs'
+import { join, posix, resolve, sep } from 'node:path'
 
 export type PromptFile = {
   kind: 'file'
@@ -47,7 +46,7 @@ async function ensureDir(path: string): Promise<void> {
 }
 
 async function readDirRecursive(absDir: string, relDir: string): Promise<PromptNode[]> {
-  let entries
+  let entries: Dirent[]
   try {
     entries = await fs.readdir(absDir, { withFileTypes: true })
   } catch (err: unknown) {

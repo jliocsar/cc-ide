@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { useTabs, type TabsSnapshot } from '@/state/tabs'
-import { useWorkspaces } from '@/state/workspaces'
 import { invoke } from '@/lib/ipc'
+import { type TabsSnapshot, useTabs } from '@/state/tabs'
+import { useWorkspaces } from '@/state/workspaces'
 
 const SAVE_DEBOUNCE_MS = 500
 

@@ -1,9 +1,9 @@
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import type { DropEntryDTO } from '@shared/ipc'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { __setDataDirForTests, listDrops, writeDrops } from './drops-store'
-import type { DropEntryDTO } from '@shared/ipc'
 
 let dir: string
 

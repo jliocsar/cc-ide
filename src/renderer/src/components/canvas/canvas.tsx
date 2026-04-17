@@ -1,3 +1,4 @@
+import { Maximize2, Minus, Plus } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -6,12 +7,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, Minus, Maximize2 } from 'lucide-react'
-import { useCanvas } from '@/state/canvas'
-import { useWorkspaces } from '@/state/workspaces'
-import { useSpawnModal } from '@/state/spawn-modal'
-import { useMaximizedWindow } from '@/state/maximized-window'
 import { setCanvasHost } from '@/lib/canvas-host'
+import { useCanvas } from '@/state/canvas'
+import { useMaximizedWindow } from '@/state/maximized-window'
+import { useSpawnModal } from '@/state/spawn-modal'
+import { useWorkspaces } from '@/state/workspaces'
 import { XtermWindow } from './xterm-window'
 
 export function Canvas(): JSX.Element {

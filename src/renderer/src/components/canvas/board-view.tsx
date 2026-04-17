@@ -1,8 +1,8 @@
-import { Canvas } from './canvas'
-import { GraphCanvas } from './graph-canvas'
+import { cn } from '@/lib/utils'
 import { useBoardUi } from '@/state/board-ui'
 import { useWorkspaces } from '@/state/workspaces'
-import { cn } from '@/lib/utils'
+import { Canvas } from './canvas'
+import { GraphCanvas } from './graph-canvas'
 
 /**
  * Wrapper that keeps both the sessions and graph canvases mounted simultaneously,

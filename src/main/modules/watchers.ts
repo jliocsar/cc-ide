@@ -1,4 +1,4 @@
-import { FSWatcher, promises as fsp, watch } from 'node:fs'
+import { type FSWatcher, promises as fsp, watch } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { broadcast } from './event-bus'
