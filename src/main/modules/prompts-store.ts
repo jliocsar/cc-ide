@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
+import { atomicWriteFile } from './fs-atomic'
 
 const DATA_DIR = join(homedir(), '.cc-ide')
 let PROMPTS_PATH = join(DATA_DIR, 'prompts.json')
@@ -37,25 +38,21 @@ async function readPrompts(): Promise<Prompt[]> {
   try {
     const raw = await fs.readFile(PROMPTS_PATH, 'utf8')
     const parsed = promptsFileSchema.safeParse(JSON.parse(raw))
-    if (!parsed.success) return []
+    if (!parsed.success) {
+      console.error('[prompts-store] schema parse failed:', parsed.error.message)
+      return []
+    }
     return parsed.data.prompts
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+    console.error('[prompts-store] read failed:', err)
     return []
   }
 }
 
 async function writePrompts(prompts: Prompt[]): Promise<void> {
   await ensureDir()
-  const tmp = `${PROMPTS_PATH}.${randomUUID()}.tmp`
-  const body = JSON.stringify({ version: 1, prompts }, null, 2)
-  try {
-    await fs.writeFile(tmp, body, 'utf8')
-    await fs.rename(tmp, PROMPTS_PATH)
-  } catch (err) {
-    await fs.rm(tmp, { force: true }).catch(() => {})
-    throw err
-  }
+  await atomicWriteFile(PROMPTS_PATH, JSON.stringify({ version: 1, prompts }, null, 2))
 }
 
 export async function listPrompts(options?: {

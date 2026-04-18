@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { atomicWriteFile } from './fs-atomic'
 
 let root = join(homedir(), '.cc-ide', 'tabs')
 
@@ -26,15 +26,5 @@ export async function loadTabs(workspaceId: string): Promise<unknown | null> {
 
 export async function saveTabs(workspaceId: string, state: unknown): Promise<void> {
   await fs.mkdir(root, { recursive: true })
-  const target = fileFor(workspaceId)
-  // See canvas-store.saveCanvas: unique tmp suffix avoids the
-  // concurrent-save-rename ENOENT race on workspace switch.
-  const tmp = `${target}.${randomUUID()}.tmp`
-  try {
-    await fs.writeFile(tmp, JSON.stringify(state, null, 2), 'utf8')
-    await fs.rename(tmp, target)
-  } catch (err) {
-    await fs.rm(tmp, { force: true }).catch(() => {})
-    throw err
-  }
+  await atomicWriteFile(fileFor(workspaceId), JSON.stringify(state, null, 2))
 }

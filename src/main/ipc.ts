@@ -35,6 +35,38 @@ import {
 import * as workspaceRegistry from './modules/workspace-registry'
 import * as worktreeManager from './modules/worktree-manager'
 
+async function getWorkspaceOrThrow(workspaceId: string) {
+  const ws = await workspaceRegistry.getWorkspace(workspaceId)
+  if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+  return ws
+}
+
+async function attachViewerPty(opts: {
+  primarySession: string
+  windowTarget: string
+  cwd: string
+  cols: number
+  rows: number
+}): Promise<string> {
+  const viewerName = `${opts.primarySession}-v-${randomUUID().slice(0, 8)}`
+  await tmux.createViewerSession({
+    primarySession: opts.primarySession,
+    viewerName,
+    windowTarget: opts.windowTarget,
+  })
+  await tmux.hardenViewerSession(viewerName)
+  return ptyManager.openPty({
+    command: 'tmux',
+    args: ['attach-session', '-t', viewerName],
+    cwd: opts.cwd,
+    cols: opts.cols,
+    rows: opts.rows,
+    onExit: async () => {
+      await tmux.killViewerSession(viewerName)
+    },
+  })
+}
+
 function slugifyBranch(branch: string): string {
   return branch
     .toLowerCase()
@@ -137,8 +169,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     return { ok: true }
   },
   'session:resumeClaude': async ({ workspaceId, sessionId, cols, rows }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     if (!(await tmux.tmuxAvailable())) throw new Error('tmux is not installed or not in PATH')
     const primarySession = tmux.sessionNameForWorkspace(ws.id)
     await tmux.ensureSession(primarySession, ws.path)
@@ -155,24 +186,17 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       // default-shell invocation and our zsh -ic call.
       command: `exec zsh -ic 'claude --resume ${sessionId}; tmux kill-window'`,
     })
-    const viewerName = `${primarySession}-v-${randomUUID().slice(0, 8)}`
-    await tmux.createViewerSession({ primarySession, viewerName, windowTarget: tmuxWindow })
-    await tmux.hardenViewerSession(viewerName)
-    const ptyId = ptyManager.openPty({
-      command: 'tmux',
-      args: ['attach-session', '-t', viewerName],
+    const ptyId = await attachViewerPty({
+      primarySession,
+      windowTarget: tmuxWindow,
       cwd: ws.path,
       cols,
       rows,
-      onExit: async () => {
-        await tmux.killViewerSession(viewerName)
-      },
     })
     return { ptyId, tmuxWindow }
   },
   'session:spawnClaude': async ({ workspaceId, cols, rows, customName, worktree }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     const hasTmux = await tmux.tmuxAvailable()
     if (!hasTmux) throw new Error('tmux is not installed or not in PATH')
     const primarySession = tmux.sessionNameForWorkspace(ws.id)
@@ -216,13 +240,6 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       // + `tmux kill-window` for clean window teardown on /exit.
       command: `exec zsh -ic 'claude; tmux kill-window'`,
     })
-    const viewerName = `${primarySession}-v-${randomUUID().slice(0, 8)}`
-    await tmux.createViewerSession({
-      primarySession,
-      viewerName,
-      windowTarget: tmuxWindow,
-    })
-    await tmux.hardenViewerSession(viewerName)
 
     if (ephemeral) {
       await ephemeralWorktrees.add({
@@ -244,22 +261,18 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       })
     }
 
-    const ptyId = ptyManager.openPty({
-      command: 'tmux',
-      args: ['attach-session', '-t', viewerName],
+    const ptyId = await attachViewerPty({
+      primarySession,
+      windowTarget: tmuxWindow,
       cwd,
       cols,
       rows,
-      onExit: async () => {
-        await tmux.killViewerSession(viewerName)
-      },
     })
     return { ptyId, tmuxWindow }
   },
 
   'git:listBranches': async ({ workspaceId }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     const [branches, current] = await Promise.all([
       worktreeManager.listLocalBranches(ws.path),
       worktreeManager.currentBranch(ws.path),
@@ -268,8 +281,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
   },
 
   'worktrees:listNonEphemeral': async ({ workspaceId }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     const [all, ephemerals] = await Promise.all([
       worktreeManager.listWorktrees(ws.path),
       ephemeralWorktrees.list(workspaceId),
@@ -335,8 +347,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     return { worktrees }
   },
   'worktrees:create': async ({ workspaceId, worktreePath, branch, baseBranch }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     const worktree = await worktreeManager.createWorktree({
       repoPath: ws.path,
       worktreePath,
@@ -346,8 +357,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     return { worktree }
   },
   'worktrees:delete': async ({ workspaceId, worktreePath }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await worktreeManager.deleteWorktree(ws.path, worktreePath)
     return { ok: true }
   },
@@ -380,51 +390,43 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     return { ok: true }
   },
   'prompts:tree': async ({ workspaceId }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     void ensurePromptsWatcher(workspaceId, ws.path)
     const tree = await promptsFsTree.listTree(ws.path)
     return { tree }
   },
   'prompts:read': async ({ workspaceId, relPath }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     const content = await promptsFsTree.readPrompt(ws.path, relPath)
     return { content }
   },
   'prompts:write': async ({ workspaceId, relPath, content }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await promptsFsTree.writePrompt(ws.path, relPath, content)
     return { ok: true }
   },
   'prompts:create': async ({ workspaceId, relPath }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await promptsFsTree.createPrompt(ws.path, relPath)
     return { ok: true }
   },
   'prompts:createFolder': async ({ workspaceId, relPath }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await promptsFsTree.createFolder(ws.path, relPath)
     return { ok: true }
   },
   'prompts:rename': async ({ workspaceId, fromRel, toRel, overwrite }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await promptsFsTree.rename(ws.path, fromRel, toRel, { overwrite })
     return { ok: true }
   },
   'prompts:delete': async ({ workspaceId, relPath }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await promptsFsTree.deletePath(ws.path, relPath)
     return { ok: true }
   },
   'plans:tree': async ({ workspaceId }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     const migration = await planFsTree.migrateLegacyIfNeeded(workspaceId, ws.path)
     if (migration === 'migrated') {
       console.log(
@@ -440,38 +442,32 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     return { tree }
   },
   'plans:read': async ({ workspaceId, relPath }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     const content = await planFsTree.readPlan(ws.path, relPath)
     return { content }
   },
   'plans:write': async ({ workspaceId, relPath, content }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await planFsTree.writePlan(ws.path, relPath, content)
     return { ok: true }
   },
   'plans:create': async ({ workspaceId, relPath }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await planFsTree.createPlan(ws.path, relPath)
     return { ok: true }
   },
   'plans:createFolder': async ({ workspaceId, relPath }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await planFsTree.createFolder(ws.path, relPath)
     return { ok: true }
   },
   'plans:rename': async ({ workspaceId, fromRel, toRel, overwrite }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await planFsTree.rename(ws.path, fromRel, toRel, { overwrite })
     return { ok: true }
   },
   'plans:delete': async ({ workspaceId, relPath }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await planFsTree.deletePath(ws.path, relPath)
     return { ok: true }
   },
@@ -502,8 +498,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     return { ok: true }
   },
   'graph:subscribe': async ({ workspaceId }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await depgraph.subscribe(workspaceId, ws.path)
     return { ok: true }
   },
@@ -512,8 +507,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     return { ok: true }
   },
   'graph:refresh': async ({ workspaceId }) => {
-    const ws = await workspaceRegistry.getWorkspace(workspaceId)
-    if (!ws) throw new Error(`workspace not found: ${workspaceId}`)
+    const ws = await getWorkspaceOrThrow(workspaceId)
     await depgraph.refresh(workspaceId, ws.path)
     return { ok: true }
   },
@@ -555,18 +549,12 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     if (!exists) return { ptyId: null, exists: false }
     const [primarySession] = tmuxWindow.split(':')
     if (!primarySession) return { ptyId: null, exists: false }
-    const viewerName = `${primarySession}-v-${randomUUID().slice(0, 8)}`
-    await tmux.createViewerSession({ primarySession, viewerName, windowTarget: tmuxWindow })
-    await tmux.hardenViewerSession(viewerName)
-    const ptyId = ptyManager.openPty({
-      command: 'tmux',
-      args: ['attach-session', '-t', viewerName],
+    const ptyId = await attachViewerPty({
+      primarySession,
+      windowTarget: tmuxWindow,
       cwd: ws.path,
       cols,
       rows,
-      onExit: async () => {
-        await tmux.killViewerSession(viewerName)
-      },
     })
     return { ptyId, exists: true }
   },

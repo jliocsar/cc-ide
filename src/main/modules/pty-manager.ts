@@ -28,7 +28,9 @@ export function openPty(options: {
     const entry = ptys.get(id)
     broadcast('pty:exit', { ptyId: id, exitCode: exitCode ?? null })
     ptys.delete(id)
-    void Promise.resolve(entry?.onExit?.(exitCode ?? null)).catch(() => {})
+    void Promise.resolve(entry?.onExit?.(exitCode ?? null)).catch((err) =>
+      console.error(`[pty-manager] onExit handler failed for ${id}:`, err),
+    )
   })
   return id
 }

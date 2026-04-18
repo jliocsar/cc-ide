@@ -57,7 +57,8 @@ async function tick(primarySession: string): Promise<void> {
   let live: string[]
   try {
     live = await tmux.listWindows(primarySession)
-  } catch {
+  } catch (err) {
+    console.error(`[session-watcher] listWindows(${primarySession}) failed:`, err)
     return
   }
   const liveSet = new Set(live)

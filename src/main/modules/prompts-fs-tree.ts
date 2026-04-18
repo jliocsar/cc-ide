@@ -1,6 +1,6 @@
-import { randomUUID } from 'node:crypto'
 import { type Dirent, promises as fs } from 'node:fs'
 import { join, posix, resolve, sep } from 'node:path'
+import { atomicWriteFile } from './fs-atomic'
 
 export type PromptFile = {
   kind: 'file'
@@ -97,14 +97,7 @@ export async function writePrompt(
 ): Promise<void> {
   const abs = resolveSafe(workspacePath, relPath)
   await ensureDir(join(abs, '..'))
-  const tmp = `${abs}.${randomUUID()}.tmp`
-  try {
-    await fs.writeFile(tmp, content, 'utf8')
-    await fs.rename(tmp, abs)
-  } catch (err) {
-    await fs.rm(tmp, { force: true }).catch(() => {})
-    throw err
-  }
+  await atomicWriteFile(abs, content)
 }
 
 export async function createPrompt(workspacePath: string, relPath: string): Promise<void> {

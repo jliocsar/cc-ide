@@ -56,7 +56,9 @@ export async function spawnWindow(options: {
   const { sessionName, windowName, cwd, command } = options
   const r = await run(['new-window', '-d', '-t', sessionName, '-n', windowName, '-c', cwd, command])
   if (r.code !== 0) throw new Error(`tmux new-window failed: ${r.stderr.trim()}`)
-  void killIdleIfExists(sessionName)
+  void killIdleIfExists(sessionName).catch((err) =>
+    console.error(`[tmux] killIdleIfExists(${sessionName}) failed:`, err),
+  )
   return `${sessionName}:${windowName}`
 }
 

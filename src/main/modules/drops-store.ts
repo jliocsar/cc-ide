@@ -1,9 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { type DropEntryDTO, dropEntrySchema } from '@shared/ipc'
 import { z } from 'zod'
+import { atomicWriteFile } from './fs-atomic'
 
 const DEFAULT_DATA_DIR = join(homedir(), '.cc-ide', 'drops')
 let DATA_DIR = DEFAULT_DATA_DIR
@@ -30,24 +30,19 @@ export async function listDrops(workspaceId: string): Promise<DropEntryDTO[]> {
   try {
     const raw = await fs.readFile(pathFor(workspaceId), 'utf8')
     const parsed = fileSchema.safeParse(JSON.parse(raw))
-    if (!parsed.success) return []
+    if (!parsed.success) {
+      console.error(`[drops-store] schema parse failed for ${workspaceId}:`, parsed.error.message)
+      return []
+    }
     return parsed.data.entries
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+    console.error(`[drops-store] read failed for ${workspaceId}:`, err)
     return []
   }
 }
 
 export async function writeDrops(workspaceId: string, entries: DropEntryDTO[]): Promise<void> {
   await ensureDir()
-  const target = pathFor(workspaceId)
-  const tmp = `${target}.${randomUUID()}.tmp`
-  const body = JSON.stringify({ version: 1, entries }, null, 2)
-  try {
-    await fs.writeFile(tmp, body, 'utf8')
-    await fs.rename(tmp, target)
-  } catch (err) {
-    await fs.rm(tmp, { force: true }).catch(() => {})
-    throw err
-  }
+  await atomicWriteFile(pathFor(workspaceId), JSON.stringify({ version: 1, entries }, null, 2))
 }

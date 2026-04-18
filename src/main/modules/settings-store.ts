@@ -1,8 +1,8 @@
-import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
+import { atomicWriteFile } from './fs-atomic'
 
 const DATA_DIR = join(homedir(), '.cc-ide')
 let SETTINGS_PATH = join(DATA_DIR, 'settings.json')
@@ -38,25 +38,21 @@ export async function readSettings(): Promise<Settings> {
   try {
     const raw = await fs.readFile(SETTINGS_PATH, 'utf8')
     const parsed = settingsFileSchema.safeParse(JSON.parse(raw))
-    if (!parsed.success) return defaultSettings
+    if (!parsed.success) {
+      console.error('[settings-store] schema parse failed:', parsed.error.message)
+      return defaultSettings
+    }
     return parsed.data.settings
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return defaultSettings
+    console.error('[settings-store] read failed:', err)
     return defaultSettings
   }
 }
 
 async function writeSettings(settings: Settings): Promise<void> {
   await ensureDir()
-  const tmp = `${SETTINGS_PATH}.${randomUUID()}.tmp`
-  const body = JSON.stringify({ version: 1, settings }, null, 2)
-  try {
-    await fs.writeFile(tmp, body, 'utf8')
-    await fs.rename(tmp, SETTINGS_PATH)
-  } catch (err) {
-    await fs.rm(tmp, { force: true }).catch(() => {})
-    throw err
-  }
+  await atomicWriteFile(SETTINGS_PATH, JSON.stringify({ version: 1, settings }, null, 2))
 }
 
 type DeepPartial<T> = {

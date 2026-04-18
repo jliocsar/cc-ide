@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { type Workspace, workspaceSchema } from '@shared/ipc'
 import { z } from 'zod'
+import { atomicWriteFile } from './fs-atomic'
 
 const DATA_DIR = join(homedir(), '.cc-ide')
 const REGISTRY_PATH = join(DATA_DIR, 'workspaces.json')
@@ -32,10 +33,7 @@ async function readRegistry(): Promise<Workspace[]> {
 
 async function writeRegistry(workspaces: Workspace[]): Promise<void> {
   await ensureDir()
-  const tmp = REGISTRY_PATH + '.tmp'
-  const body = JSON.stringify({ version: 1, workspaces }, null, 2)
-  await fs.writeFile(tmp, body, 'utf8')
-  await fs.rename(tmp, REGISTRY_PATH)
+  await atomicWriteFile(REGISTRY_PATH, JSON.stringify({ version: 1, workspaces }, null, 2))
 }
 
 async function isGitRepo(path: string): Promise<boolean> {

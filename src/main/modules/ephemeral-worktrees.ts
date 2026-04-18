@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { atomicWriteFile } from './fs-atomic'
 
 export type EphemeralEntry = {
   workspaceId: string
@@ -32,7 +33,9 @@ async function readRegistry(workspaceId: string): Promise<Registry> {
     const parsed = JSON.parse(raw) as Registry
     if (parsed && parsed.version === 1 && Array.isArray(parsed.entries)) return parsed
     return { version: 1, entries: [] }
-  } catch {
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { version: 1, entries: [] }
+    console.error(`[ephemeral-worktrees] read failed for ${workspaceId}:`, err)
     return { version: 1, entries: [] }
   }
 }
@@ -40,9 +43,7 @@ async function readRegistry(workspaceId: string): Promise<Registry> {
 async function writeRegistry(workspaceId: string, reg: Registry): Promise<void> {
   const f = fileFor(workspaceId)
   await fs.mkdir(dirname(f), { recursive: true })
-  const tmp = `${f}.tmp`
-  await fs.writeFile(tmp, JSON.stringify(reg, null, 2), 'utf8')
-  await fs.rename(tmp, f)
+  await atomicWriteFile(f, JSON.stringify(reg, null, 2))
 }
 
 export async function add(entry: EphemeralEntry): Promise<void> {
