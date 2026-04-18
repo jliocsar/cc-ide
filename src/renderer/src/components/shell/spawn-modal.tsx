@@ -94,10 +94,11 @@ export function SpawnModal(): JSX.Element {
     }
   }, [isOpen, workspaceId])
 
-  const sortedWorktrees = useMemo(
-    () => [...worktrees].filter((w) => !w.isPrimary).sort((a, b) => a.path.localeCompare(b.path)),
-    [worktrees],
-  )
+  const sortedWorktrees = useMemo(() => {
+    const filtered: typeof worktrees = []
+    for (const w of worktrees) if (!w.isPrimary) filtered.push(w)
+    return filtered.sort((a, b) => a.path.localeCompare(b.path))
+  }, [worktrees])
 
   async function onSpawn(): Promise<void> {
     if (!workspaceId) return

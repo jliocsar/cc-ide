@@ -1,10 +1,8 @@
 import { validateTmuxWindowName } from '@shared/tmux-name'
 import { Maximize2, X } from 'lucide-react'
-import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useRef, useState } from 'react'
+import { memo, type ReactNode, useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { InlineRenameInput } from '@/components/ui/inline-rename-input'
-import { springLayout } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { useCanvas } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
@@ -28,7 +26,7 @@ type Props = {
 const MIN_W = 320
 const MIN_H = 180
 
-export function WindowFrame({
+function WindowFrameImpl({
   id,
   title,
   tmuxWindow,
@@ -45,24 +43,37 @@ export function WindowFrame({
 }: Props): JSX.Element {
   const updateWindow = useCanvas((s) => s.updateWindow)
   const focusWindow = useCanvas((s) => s.focusWindow)
-  const getZoom = useRef(() => useCanvas.getState().camera.zoom).current
   const [editing, setEditing] = useState(false)
+
+  // Refs mirror live geometry so drag/resize handlers don't recreate per frame.
+  const xRef = useRef(x)
+  xRef.current = x
+  const yRef = useRef(y)
+  yRef.current = y
+  const widthRef = useRef(width)
+  widthRef.current = width
+  const heightRef = useRef(height)
+  heightRef.current = height
+  const editingRef = useRef(editing)
+  editingRef.current = editing
+  const maximizedRef = useRef(maximized)
+  maximizedRef.current = maximized
 
   const onTitlebarPointerDown = useCallback(
     (ev: React.PointerEvent<HTMLDivElement>) => {
       if (ev.button !== 0) return
       if (ev.ctrlKey || ev.metaKey) return
-      if (maximized) return
-      if (editing) return
+      if (maximizedRef.current) return
+      if (editingRef.current) return
       if (ev.target instanceof Element && ev.target.closest('button, input, [data-rename-target]'))
         return
       ev.stopPropagation()
       focusWindow(id)
       const startX = ev.clientX
       const startY = ev.clientY
-      const origX = x
-      const origY = y
-      const zoom = getZoom()
+      const origX = xRef.current
+      const origY = yRef.current
+      const zoom = useCanvas.getState().camera.zoom
       const target = ev.currentTarget
       target.setPointerCapture(ev.pointerId)
 
@@ -79,7 +90,7 @@ export function WindowFrame({
       window.addEventListener('pointermove', move)
       window.addEventListener('pointerup', up)
     },
-    [id, x, y, updateWindow, focusWindow, getZoom, editing, maximized],
+    [id, updateWindow, focusWindow],
   )
 
   const onTitlebarDoubleClick = useCallback(
@@ -98,9 +109,9 @@ export function WindowFrame({
       focusWindow(id)
       const startX = ev.clientX
       const startY = ev.clientY
-      const origW = width
-      const origH = height
-      const zoom = getZoom()
+      const origW = widthRef.current
+      const origH = heightRef.current
+      const zoom = useCanvas.getState().camera.zoom
       const target = ev.currentTarget
       target.setPointerCapture(ev.pointerId)
 
@@ -120,7 +131,7 @@ export function WindowFrame({
       window.addEventListener('pointermove', move)
       window.addEventListener('pointerup', up)
     },
-    [id, width, height, updateWindow, focusWindow, getZoom],
+    [id, updateWindow, focusWindow],
   )
 
   const shortName = tmuxWindow ? tmuxWindow.split(':').slice(1).join(':') || tmuxWindow : null
@@ -128,9 +139,7 @@ export function WindowFrame({
     shortName ?? (title.includes(':') ? title.split(':').slice(1).join(':') || title : title)
 
   return (
-    <motion.div
-      layout
-      transition={springLayout}
+    <div
       onPointerDown={(e) => {
         if (e.ctrlKey || e.metaKey) return
         e.stopPropagation()
@@ -226,6 +235,8 @@ export function WindowFrame({
           }}
         />
       )}
-    </motion.div>
+    </div>
   )
 }
+
+export const WindowFrame = memo(WindowFrameImpl)

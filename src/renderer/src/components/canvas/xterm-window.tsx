@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { XtermView } from '@/components/terminal/xterm-view'
 import {
   AlertDialog,
@@ -20,9 +20,8 @@ import { useSessions } from '@/state/sessions'
 import { useWorkspaces } from '@/state/workspaces'
 import { WindowFrame } from './window-frame'
 
-export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
+function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
   const removeWindow = useCanvas((s) => s.removeWindow)
-  const camera = useCanvas((s) => s.camera)
   const zoomAt = useCanvas((s) => s.zoomAt)
   const workspaceId = useWorkspaces((s) => s.activeId)
   const maximizedInfo = useMaximizedWindow((s) =>
@@ -30,6 +29,10 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
   )
   const setMaximized = useMaximizedWindow((s) => s.set)
   const isMaximized = maximizedInfo?.windowId === w.id
+  // Only subscribe to camera while maximized — non-maximized windows otherwise
+  // re-render on every pan/zoom frame because the parent canvas applies a
+  // CSS transform from camera state.
+  const maximizedCamera = useCanvas((s) => (isMaximized ? s.camera : null))
   const session = useSessions((s) =>
     w.sessionId ? s.sessions.find((x) => x.ptyId === w.sessionId) : undefined,
   )
@@ -58,32 +61,35 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
       host.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions)
   }, [zoomAt])
 
-  async function handleDrop(payload: DropPayload) {
-    if (!session || session.exited) return
-    if (payload.kind === 'prompt' || payload.kind === 'file') {
-      const dropText = buildDropString(payload, [])
+  const handleDrop = useCallback(
+    async (payload: DropPayload) => {
+      if (!session || session.exited) return
+      if (payload.kind === 'prompt' || payload.kind === 'file') {
+        const dropText = buildDropString(payload, [])
+        await invoke('pty:write', { ptyId: session.ptyId, data: dropText })
+        return
+      }
+      const tabId =
+        payload.kind === 'plan'
+          ? planTabId(payload.workspaceId, payload.relPath)
+          : diffTabId(payload.worktreePath, payload.path, payload.stage)
+      const ranges = useReviewComments.getState().ranges(tabId)
+      const dropText = buildDropString(payload, ranges)
       await invoke('pty:write', { ptyId: session.ptyId, data: dropText })
-      return
-    }
-    const tabId =
-      payload.kind === 'plan'
-        ? planTabId(payload.workspaceId, payload.relPath)
-        : diffTabId(payload.worktreePath, payload.path, payload.stage)
-    const ranges = useReviewComments.getState().ranges(tabId)
-    const dropText = buildDropString(payload, ranges)
-    await invoke('pty:write', { ptyId: session.ptyId, data: dropText })
-    useReviewComments.getState().clear(tabId)
-  }
+      useReviewComments.getState().clear(tabId)
+    },
+    [session],
+  )
 
-  function requestClose() {
+  const requestClose = useCallback(() => {
     if (!alive) {
       removeWindow(w.id)
       return
     }
     setConfirmOpen(true)
-  }
+  }, [alive, removeWindow, w.id])
 
-  async function detach() {
+  const detach = useCallback(async () => {
     if (busy) return
     setBusy(true)
     try {
@@ -93,9 +99,9 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
       setBusy(false)
       setConfirmOpen(false)
     }
-  }
+  }, [busy, session, removeWindow, w.id])
 
-  async function kill() {
+  const kill = useCallback(async () => {
     if (busy) return
     setBusy(true)
     try {
@@ -106,40 +112,73 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
       setBusy(false)
       setConfirmOpen(false)
     }
-  }
+  }, [busy, session, removeWindow, w.id, w.tmuxWindow])
 
-  function toggleMaximize() {
+  const toggleMaximize = useCallback(() => {
     if (!workspaceId) return
     if (isMaximized) {
       setMaximized(workspaceId, null)
-    } else {
-      const badge: 'live' | 'exited' | 'dormant' = dormant
-        ? 'dormant'
-        : session?.exited
-          ? 'exited'
-          : 'live'
-      setMaximized(workspaceId, {
-        windowId: w.id,
-        title: shortName,
-        badge,
-        exitCode: session?.exitCode,
-        onClose: requestClose,
-      })
+      return
     }
-  }
+    const badge: 'live' | 'exited' | 'dormant' = dormant
+      ? 'dormant'
+      : session?.exited
+        ? 'exited'
+        : 'live'
+    setMaximized(workspaceId, {
+      windowId: w.id,
+      title: shortName,
+      badge,
+      exitCode: session?.exitCode,
+      onClose: requestClose,
+    })
+  }, [
+    workspaceId,
+    isMaximized,
+    setMaximized,
+    dormant,
+    session?.exited,
+    session?.exitCode,
+    w.id,
+    shortName,
+    requestClose,
+  ])
+
+  const onTerminalDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (!session || session.exited) return
+      if (!e.dataTransfer.types.includes('application/x-cc-ide-drop')) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+      if (!dragOver) setDragOver(true)
+    },
+    [session, dragOver],
+  )
+
+  const onTerminalDragLeave = useCallback(() => setDragOver(false), [])
+
+  const onTerminalDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      setDragOver(false)
+      const payload = readDropPayload(e.dataTransfer)
+      if (payload) void handleDrop(payload)
+    },
+    [handleDrop],
+  )
 
   let fx = w.x
   let fy = w.y
   let fw = w.width
   let fh = w.height
   let fz = w.zIndex
-  if (isMaximized) {
+  if (isMaximized && maximizedCamera) {
     const host = getCanvasHost()
     const rect = host?.getBoundingClientRect()
-    fx = -camera.x / camera.zoom
-    fy = -camera.y / camera.zoom
-    fw = (rect?.width ?? 800) / camera.zoom
-    fh = (rect?.height ?? 600) / camera.zoom
+    fx = -maximizedCamera.x / maximizedCamera.zoom
+    fy = -maximizedCamera.y / maximizedCamera.zoom
+    fw = (rect?.width ?? 800) / maximizedCamera.zoom
+    fh = (rect?.height ?? 600) / maximizedCamera.zoom
     fz = 9999
   }
 
@@ -175,20 +214,9 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
           <div
             ref={terminalHostRef}
             className="relative h-full"
-            onDragOver={(e) => {
-              if (!session || session.exited) return
-              if (!e.dataTransfer.types.includes('application/x-cc-ide-drop')) return
-              e.preventDefault()
-              e.dataTransfer.dropEffect = 'copy'
-              if (!dragOver) setDragOver(true)
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault()
-              setDragOver(false)
-              const payload = readDropPayload(e.dataTransfer)
-              if (payload) void handleDrop(payload)
-            }}
+            onDragOver={onTerminalDragOver}
+            onDragLeave={onTerminalDragLeave}
+            onDrop={onTerminalDrop}
           >
             <XtermView ptyId={w.sessionId!} />
             {dragOver ? (
@@ -240,3 +268,5 @@ export function XtermWindow({ w }: { w: CanvasWindow }): JSX.Element {
     </>
   )
 }
+
+export const XtermWindow = memo(XtermWindowImpl)
