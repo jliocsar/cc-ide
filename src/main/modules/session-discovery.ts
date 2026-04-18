@@ -133,6 +133,29 @@ async function parseSessionFile(filePath: string, slug: string): Promise<Session
   }
 }
 
+// Cap parallel parses so a workspace with hundreds of sessions doesn't open
+// hundreds of read streams at once. 8 is enough to saturate fs read while
+// staying well under typical fd ulimits.
+const PARSE_CONCURRENCY = 8
+
+async function mapBounded<T, U>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<U>,
+): Promise<U[]> {
+  const results: U[] = new Array(items.length)
+  let next = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const i = next++
+      if (i >= items.length) return
+      results[i] = await fn(items[i]!)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
 export async function listSessionsBySlug(
   slug: string,
   rootDir: string = DEFAULT_ROOT,
@@ -148,7 +171,9 @@ export async function listSessionsBySlug(
     throw err
   }
 
-  const results = await Promise.all(entries.map((name) => parseSessionFile(join(dir, name), slug)))
+  const results = await mapBounded(entries, PARSE_CONCURRENCY, (name) =>
+    parseSessionFile(join(dir, name), slug),
+  )
 
   return results.sort((a, b) => b.updatedAt - a.updatedAt)
 }

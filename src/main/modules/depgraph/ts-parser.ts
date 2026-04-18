@@ -38,6 +38,15 @@ export class TsParser implements LanguageParser {
     return TS_EXT_RE.test(path)
   }
 
+  /**
+   * Drop bookkeeping for a deleted file so a re-add re-emits its full delta.
+   * Called by the watcher when a file disappears from disk.
+   */
+  forgetFile(workspacePath: string, relPath: NodeId): void {
+    this.fileImports.get(workspacePath)?.delete(relPath)
+    this.knownFiles.get(workspacePath)?.delete(relPath)
+  }
+
   async *scan(workspacePath: string): AsyncGenerator<GraphDelta> {
     this.stopped = false
     this.fileImports.set(workspacePath, new Map())

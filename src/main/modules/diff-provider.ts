@@ -159,7 +159,34 @@ function parseNumstat(
   return map
 }
 
+// Cache keyed by worktreePath. `getFileDiff` only needs the changed-file
+// metadata to populate the response placeholder; recomputing it via 3 git
+// processes per file click is wasteful when the renderer just listed files
+// milliseconds ago. Short TTL keeps the cache coherent on out-of-band
+// mutations (terminal `git add`, etc.) without requiring explicit invalidation.
+const STATUS_CACHE_TTL_MS = 2000
+type StatusCacheEntry = { files: ChangedFile[]; expiresAt: number }
+const statusCache = new Map<string, StatusCacheEntry>()
+
+export function __clearStatusCacheForTests(): void {
+  statusCache.clear()
+}
+
+async function getCachedChangedFiles(worktreePath: string): Promise<ChangedFile[]> {
+  const cached = statusCache.get(worktreePath)
+  if (cached && cached.expiresAt > Date.now()) return cached.files
+  const files = await fetchChangedFiles(worktreePath)
+  statusCache.set(worktreePath, { files, expiresAt: Date.now() + STATUS_CACHE_TTL_MS })
+  return files
+}
+
 export async function listChangedFiles(worktreePath: string): Promise<ChangedFile[]> {
+  const files = await fetchChangedFiles(worktreePath)
+  statusCache.set(worktreePath, { files, expiresAt: Date.now() + STATUS_CACHE_TTL_MS })
+  return files
+}
+
+async function fetchChangedFiles(worktreePath: string): Promise<ChangedFile[]> {
   const [statusResult, stagedNumstatResult, unstagedNumstatResult] = await Promise.all([
     runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], worktreePath),
     runGit(['diff', '--cached', '--numstat', '-z'], worktreePath),
@@ -298,8 +325,8 @@ export async function getFileDiff(
   relPath: string,
   stage: DiffStage,
 ): Promise<FileDiff> {
-  // Build a minimal ChangedFile from listChangedFiles output for the response
-  const allFiles = await listChangedFiles(worktreePath)
+  // Build a minimal ChangedFile from cached listChangedFiles output.
+  const allFiles = await getCachedChangedFiles(worktreePath)
   const fileEntry =
     allFiles.find((f) => f.path === relPath && f.stage === stage) ??
     allFiles.find((f) => f.path === relPath)

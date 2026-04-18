@@ -222,11 +222,7 @@ function handleFileDelete(sub: Subscription, absPath: string): void {
   applyAndQueue(sub, { removeNodes, removeEdges })
   // Parser-side bookkeeping
   for (const parser of sub.registry.all()) {
-    if (parser instanceof TsParser) {
-      // Drop stale import list for this file so a re-add re-emits full
-      parser['fileImports'].get(sub.workspacePath)?.delete(relPath)
-      parser['knownFiles'].get(sub.workspacePath)?.delete(relPath)
-    }
+    if (parser instanceof TsParser) parser.forgetFile(sub.workspacePath, relPath)
   }
 }
 
