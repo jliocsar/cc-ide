@@ -24,11 +24,27 @@ import {
 import { tags as t } from '@lezer/highlight'
 import { vim } from '@replit/codemirror-vim'
 
+export const EDITOR_FONT_MAP: Record<string, string> = {
+  geist: 'var(--font-sans)',
+  'geist-mono': 'var(--font-mono)',
+  'space-grotesk': 'var(--font-condensed)',
+  system: 'ui-sans-serif, system-ui, -apple-system, sans-serif',
+}
+
+export function buildFontExtension(font: string, fontSize: number): Extension {
+  const family = EDITOR_FONT_MAP[font] ?? 'var(--font-sans)'
+  return EditorView.theme({
+    '&': { fontSize: `${fontSize}px`, fontFamily: family },
+    '.cm-scroller': { fontFamily: 'inherit' },
+  })
+}
+
 export type PlanCompartments = {
   keymap: Compartment
   readOnly: Compartment
   editable: Compartment
   reviewPointer: Compartment
+  font: Compartment
 }
 
 export function createPlanCompartments(): PlanCompartments {
@@ -37,6 +53,7 @@ export function createPlanCompartments(): PlanCompartments {
     readOnly: new Compartment(),
     editable: new Compartment(),
     reviewPointer: new Compartment(),
+    font: new Compartment(),
   }
 }
 
@@ -138,9 +155,6 @@ export const planEditorTheme = EditorView.theme(
       backgroundColor: 'var(--background)',
       color: 'var(--foreground)',
       height: '100%',
-      fontSize: '12px',
-      fontFamily:
-        'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
     },
     '.cm-scroller': { fontFamily: 'inherit', lineHeight: '1.6' },
     '.cm-content': { padding: '6px 0', caretColor: 'var(--foreground)' },
@@ -366,6 +380,8 @@ export function buildPlanExtensions(opts: {
   keybinds: EditorKeybinds
   readOnly: boolean
   reviewPointer: Extension
+  font: string
+  fontSize: number
 }): Extension[] {
   const c = opts.compartments
   return [
@@ -378,6 +394,7 @@ export function buildPlanExtensions(opts: {
     rangeDecorationField,
     c.reviewPointer.of(opts.reviewPointer),
     planEditorTheme,
+    c.font.of(buildFontExtension(opts.font, opts.fontSize)),
     EditorView.lineWrapping,
     c.keymap.of(keymapExtensionFor(opts.keybinds)),
     c.readOnly.of(EditorState.readOnly.of(opts.readOnly)),

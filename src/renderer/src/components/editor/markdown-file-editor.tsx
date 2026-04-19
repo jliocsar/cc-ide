@@ -8,6 +8,7 @@ import { type PlanMode, usePlanTabUi } from '@/state/plan-tab-ui'
 import { EMPTY_RANGES, type RangeDraft, useReviewComments } from '@/state/review-comments'
 import { useSettings } from '@/state/settings'
 import {
+  buildFontExtension,
   buildPlanExtensions,
   createPlanCompartments,
   keymapExtensionFor,
@@ -59,6 +60,8 @@ export function MarkdownFileEditor({
   const viewRef = useRef<EditorView | null>(null)
   const compartmentsRef = useRef<PlanCompartments | null>(null)
   const keybinds = useSettings((s) => s.settings.editor.keybinds)
+  const editorFont = useSettings((s) => s.settings.editor.font)
+  const editorFontSize = useSettings((s) => s.settings.editor.fontSize)
   const planMode = usePlanTabUi((s) => s.byTab[tabId]?.mode ?? 'review')
   const mode: PlanMode = reviewCapable ? planMode : 'edit'
   const contentRef = useRef(initialContent)
@@ -120,6 +123,8 @@ export function MarkdownFileEditor({
           keybinds: initialKeybinds,
           readOnly: isReview,
           reviewPointer,
+          font: useSettings.getState().settings.editor.font,
+          fontSize: useSettings.getState().settings.editor.fontSize,
         }),
         EditorView.domEventHandlers({
           focus(_e, view) {
@@ -195,6 +200,15 @@ export function MarkdownFileEditor({
       effects: c.keymap.reconfigure(keymapExtensionFor(keybinds)),
     })
   }, [keybinds])
+
+  useEffect(() => {
+    const view = viewRef.current
+    const c = compartmentsRef.current
+    if (!view || !c) return
+    view.dispatch({
+      effects: c.font.reconfigure(buildFontExtension(editorFont, editorFontSize)),
+    })
+  }, [editorFont, editorFontSize])
 
   useEffect(() => {
     const view = viewRef.current

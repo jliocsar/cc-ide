@@ -1,4 +1,4 @@
-import type { EditorKeybindsDTO } from '@shared/ipc'
+import type { DiffFontDTO, EditorFontDTO, EditorKeybindsDTO, TerminalFontDTO } from '@shared/ipc'
 import {
   Dialog,
   DialogContent,
@@ -14,13 +14,95 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Info } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useSettings } from '@/state/settings'
+
+const FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20] as const
+
+function SettingRow({
+  id,
+  label,
+  description,
+  children,
+}: {
+  id?: string
+  label: string
+  description?: string
+  children: React.ReactNode
+}): JSX.Element {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      {description ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="flex cursor-default items-center gap-1.5">
+              <label htmlFor={id} className="text-sm text-foreground">
+                {label}
+              </label>
+              <Info className="size-3 text-muted-foreground" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{description}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <label htmlFor={id} className="text-sm text-foreground">
+          {label}
+        </label>
+      )}
+      {children}
+    </div>
+  )
+}
+
+function FontSizeSelect({
+  id,
+  value,
+  onValueChange,
+}: {
+  id: string
+  value: number
+  onValueChange: (v: number) => void
+}): JSX.Element {
+  return (
+    <Select value={String(value)} onValueChange={(v) => onValueChange(Number(v))}>
+      <SelectTrigger id={id} className="w-[180px]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {FONT_SIZES.map((s) => (
+            <SelectItem key={s} value={String(s)}>
+              {s}px
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  )
+}
 
 export function SettingsModal(): JSX.Element {
   const open = useSettings((s) => s.settingsOpen)
   const setOpen = useSettings((s) => s.setSettingsOpen)
-  const keybinds = useSettings((s) => s.settings.editor.keybinds)
-  const setKeybinds = useSettings((s) => s.setEditorKeybinds)
+  const editorKeybinds = useSettings((s) => s.settings.editor.keybinds)
+  const editorFont = useSettings((s) => s.settings.editor.font)
+  const editorFontSize = useSettings((s) => s.settings.editor.fontSize)
+  const terminalFont = useSettings((s) => s.settings.terminal.font)
+  const terminalFontSize = useSettings((s) => s.settings.terminal.fontSize)
+  const diffFont = useSettings((s) => s.settings.diff.font)
+  const diffFontSize = useSettings((s) => s.settings.diff.fontSize)
+  const diffWrap = useSettings((s) => s.settings.diff.wrap)
+  const diffStickyGutter = useSettings((s) => s.settings.diff.stickyGutter)
+  const setEditorKeybinds = useSettings((s) => s.setEditorKeybinds)
+  const setEditorFont = useSettings((s) => s.setEditorFont)
+  const setEditorFontSize = useSettings((s) => s.setEditorFontSize)
+  const setTerminalFont = useSettings((s) => s.setTerminalFont)
+  const setTerminalFontSize = useSettings((s) => s.setTerminalFontSize)
+  const setDiffFont = useSettings((s) => s.setDiffFont)
+  const setDiffFontSize = useSettings((s) => s.setDiffFontSize)
+  const setDiffWrap = useSettings((s) => s.setDiffWrap)
+  const setDiffStickyGutter = useSettings((s) => s.setDiffStickyGutter)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -32,25 +114,46 @@ export function SettingsModal(): JSX.Element {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 pt-2">
+        <div className="flex flex-col gap-6 pt-2">
+          {/* Terminal */}
+          <section className="flex flex-col gap-2">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Terminal
+            </h3>
+            <SettingRow id="terminal-font" label="Font">
+              <Select
+                value={terminalFont}
+                onValueChange={(v) => void setTerminalFont(v as TerminalFontDTO)}
+              >
+                <SelectTrigger id="terminal-font" className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="geist-mono">Geist Mono</SelectItem>
+                    <SelectItem value="system">System</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </SettingRow>
+            <SettingRow id="terminal-font-size" label="Font size">
+              <FontSizeSelect
+                id="terminal-font-size"
+                value={terminalFontSize}
+                onValueChange={(v) => void setTerminalFontSize(v)}
+              />
+            </SettingRow>
+          </section>
+
+          {/* Editor */}
           <section className="flex flex-col gap-2">
             <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Editor
             </h3>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex flex-col">
-                <label htmlFor="editor-keybinds" className="text-sm text-foreground">
-                  Editor keybinds
-                </label>
-                <span className="text-xs text-muted-foreground">
-                  Keymap used while editing plans.
-                </span>
-              </div>
+            <SettingRow id="editor-keybinds" label="Keybinds" description="Keymap for editor.">
               <Select
-                value={keybinds}
-                onValueChange={(v) => {
-                  void setKeybinds(v as EditorKeybindsDTO)
-                }}
+                value={editorKeybinds}
+                onValueChange={(v) => void setEditorKeybinds(v as EditorKeybindsDTO)}
               >
                 <SelectTrigger id="editor-keybinds" className="w-[180px]">
                   <SelectValue />
@@ -62,7 +165,98 @@ export function SettingsModal(): JSX.Element {
                   </SelectGroup>
                 </SelectContent>
               </Select>
-            </div>
+            </SettingRow>
+            <SettingRow id="editor-font" label="Font">
+              <Select
+                value={editorFont}
+                onValueChange={(v) => void setEditorFont(v as EditorFontDTO)}
+              >
+                <SelectTrigger id="editor-font" className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="geist">Geist</SelectItem>
+                    <SelectItem value="geist-mono">Geist Mono</SelectItem>
+                    <SelectItem value="space-grotesk">Space Grotesk</SelectItem>
+                    <SelectItem value="system">System</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </SettingRow>
+            <SettingRow id="editor-font-size" label="Font size">
+              <FontSizeSelect
+                id="editor-font-size"
+                value={editorFontSize}
+                onValueChange={(v) => void setEditorFontSize(v)}
+              />
+            </SettingRow>
+          </section>
+
+          {/* Diff */}
+          <section className="flex flex-col gap-2">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Diff
+            </h3>
+            <SettingRow id="diff-font" label="Font">
+              <Select
+                value={diffFont}
+                onValueChange={(v) => void setDiffFont(v as DiffFontDTO)}
+              >
+                <SelectTrigger id="diff-font" className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="geist-mono">Geist Mono</SelectItem>
+                    <SelectItem value="system">System</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </SettingRow>
+            <SettingRow id="diff-font-size" label="Font size">
+              <FontSizeSelect
+                id="diff-font-size"
+                value={diffFontSize}
+                onValueChange={(v) => void setDiffFontSize(v)}
+              />
+            </SettingRow>
+            <SettingRow id="diff-wrap" label="Line wrap">
+              <Select
+                value={diffWrap ? 'wrap' : 'nowrap'}
+                onValueChange={(v) => void setDiffWrap(v === 'wrap')}
+              >
+                <SelectTrigger id="diff-wrap" className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="wrap">Wrap</SelectItem>
+                    <SelectItem value="nowrap">No wrap</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </SettingRow>
+            <SettingRow
+              id="diff-sticky-gutter"
+              label="Sticky gutter"
+              description="Pin line numbers when scrolling horizontally."
+            >
+              <Select
+                value={diffStickyGutter ? 'on' : 'off'}
+                onValueChange={(v) => void setDiffStickyGutter(v === 'on')}
+              >
+                <SelectTrigger id="diff-sticky-gutter" className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="on">On</SelectItem>
+                    <SelectItem value="off">Off</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </SettingRow>
           </section>
         </div>
       </DialogContent>

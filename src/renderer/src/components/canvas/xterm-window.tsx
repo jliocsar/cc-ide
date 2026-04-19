@@ -69,6 +69,28 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
         await invoke('pty:write', { ptyId: session.ptyId, data: dropText })
         return
       }
+      if (payload.kind === 'diff-batch') {
+        const state = useReviewComments.getState()
+        const parts = payload.files.flatMap((f) => {
+          const tabId = diffTabId(payload.worktreePath, f.path, f.stage)
+          const ranges = state.ranges(tabId)
+          if (ranges.length === 0) return []
+          const filePayload: DropPayload = {
+            kind: 'diff',
+            workspaceId: payload.workspaceId,
+            worktreePath: payload.worktreePath,
+            path: f.path,
+            stage: f.stage,
+          }
+          return [buildDropString(filePayload, ranges)]
+        })
+        if (parts.length === 0) return
+        await invoke('pty:write', { ptyId: session.ptyId, data: parts.join('') })
+        payload.files.forEach((f) => {
+          state.clear(diffTabId(payload.worktreePath, f.path, f.stage))
+        })
+        return
+      }
       const tabId =
         payload.kind === 'plan'
           ? planTabId(payload.workspaceId, payload.relPath)

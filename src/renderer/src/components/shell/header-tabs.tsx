@@ -255,7 +255,7 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
         <button
           type="button"
           onClick={() => void invoke('window:close', {})}
-          className="flex size-10 items-center justify-center text-muted-foreground hover:bg-red-500/80 hover:text-foreground"
+          className="flex size-10 items-center justify-center text-muted-foreground hover:bg-destructive/80 hover:text-foreground"
           aria-label="Close"
         >
           <X className="size-3.5" />

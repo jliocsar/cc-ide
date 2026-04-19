@@ -99,9 +99,27 @@ export const sortModeSchema = z.enum(['favorites-first', 'title'])
 
 export const editorKeybindsSchema = z.enum(['vscode', 'vim'])
 export type EditorKeybindsDTO = z.infer<typeof editorKeybindsSchema>
+export const terminalFontSchema = z.enum(['geist-mono', 'system'])
+export type TerminalFontDTO = z.infer<typeof terminalFontSchema>
+export const editorFontSchema = z.enum(['geist', 'geist-mono', 'space-grotesk', 'system'])
+export type EditorFontDTO = z.infer<typeof editorFontSchema>
+export const diffFontSchema = z.enum(['geist-mono', 'system'])
+export type DiffFontDTO = z.infer<typeof diffFontSchema>
 export const settingsSchema = z.object({
   editor: z.object({
     keybinds: editorKeybindsSchema,
+    font: editorFontSchema,
+    fontSize: z.number(),
+  }),
+  terminal: z.object({
+    font: terminalFontSchema,
+    fontSize: z.number(),
+  }),
+  diff: z.object({
+    font: diffFontSchema,
+    fontSize: z.number(),
+    wrap: z.boolean(),
+    stickyGutter: z.boolean(),
   }),
 })
 export type SettingsDTO = z.infer<typeof settingsSchema>
@@ -109,6 +127,22 @@ export const settingsPatchSchema = z.object({
   editor: z
     .object({
       keybinds: editorKeybindsSchema.optional(),
+      font: editorFontSchema.optional(),
+      fontSize: z.number().optional(),
+    })
+    .optional(),
+  terminal: z
+    .object({
+      font: terminalFontSchema.optional(),
+      fontSize: z.number().optional(),
+    })
+    .optional(),
+  diff: z
+    .object({
+      font: diffFontSchema.optional(),
+      fontSize: z.number().optional(),
+      wrap: z.boolean().optional(),
+      stickyGutter: z.boolean().optional(),
     })
     .optional(),
 })

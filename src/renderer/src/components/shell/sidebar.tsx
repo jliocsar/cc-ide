@@ -514,11 +514,11 @@ function SectionHeader({
   actions?: React.ReactNode
 }): JSX.Element {
   return (
-    <AccordionTrigger className="group flex h-8 w-full items-center justify-start gap-1.5 rounded-none bg-muted/40 px-3 py-0 text-[11px] font-medium uppercase tracking-wider text-muted-foreground hover:bg-muted/60 hover:no-underline data-[state=open]:bg-muted/50">
+    <AccordionTrigger className="group flex h-8 w-full items-center justify-start gap-1.5 rounded-none bg-muted/40 px-2 py-0 geist-features select-none text-[11px] font-medium uppercase [letter-spacing:1px] [line-height:14.5px] text-foreground/40 [font-family:var(--font-mono)] hover:bg-muted/60 hover:no-underline data-[state=open]:bg-muted/50">
       <Icon className="size-3.5 shrink-0" />
       <span>{label}</span>
       {count !== undefined ? (
-        <span className="font-mono text-[10px] normal-case tracking-normal opacity-70">
+        <span className="font-mono text-[11px] normal-case tracking-normal opacity-70">
           ({count})
         </span>
       ) : null}

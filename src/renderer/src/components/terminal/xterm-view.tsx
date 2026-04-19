@@ -4,6 +4,12 @@ import { useEffect, useRef } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import { invoke, onEvent } from '@/lib/ipc'
 import { useLastTerminal } from '@/state/last-terminal'
+import { useSettings } from '@/state/settings'
+
+const TERMINAL_FONT_MAP: Record<string, string> = {
+  'geist-mono': "'Geist Mono', ui-monospace, monospace",
+  system: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+}
 
 const THEME = {
   background: '#0a0a0a',
@@ -30,14 +36,28 @@ const THEME = {
 
 export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
+  const termRef = useRef<Terminal | null>(null)
+  const fitRef = useRef<FitAddon | null>(null)
+  const terminalFont = useSettings((s) => s.settings.terminal.font)
+  const terminalFontSize = useSettings((s) => s.settings.terminal.fontSize)
+
+  useEffect(() => {
+    const term = termRef.current
+    const fit = fitRef.current
+    if (!term || !fit) return
+    term.options.fontFamily = TERMINAL_FONT_MAP[terminalFont] ?? TERMINAL_FONT_MAP.system
+    term.options.fontSize = terminalFontSize
+    fit.fit()
+    term.refresh(0, term.rows - 1)
+  }, [terminalFont, terminalFontSize])
 
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
 
     const term = new Terminal({
-      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-      fontSize: 13,
+      fontFamily: TERMINAL_FONT_MAP[terminalFont] ?? TERMINAL_FONT_MAP.system,
+      fontSize: terminalFontSize,
       lineHeight: 1.2,
       cursorBlink: true,
       theme: THEME,
@@ -49,6 +69,8 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
     const fit = new FitAddon()
     term.loadAddon(fit)
     term.open(host)
+    termRef.current = term
+    fitRef.current = fit
     fit.fit()
 
     // OSC 52: tmux (with `set-clipboard on`) emits this on copy-mode yank to
@@ -138,6 +160,8 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
       inputDisposable.dispose()
       focusDisposable.dispose()
       offData()
+      termRef.current = null
+      fitRef.current = null
       term.dispose()
     }
   }, [ptyId])

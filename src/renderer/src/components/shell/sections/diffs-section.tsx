@@ -1,5 +1,5 @@
 import type { ChangedFileDTO, WorktreeDTO } from '@shared/ipc'
-import { FileDiff, RefreshCw } from 'lucide-react'
+import { FileDiff, MessageSquare, RefreshCw } from 'lucide-react'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { setDropPayload } from '@/lib/drop-payload'
@@ -11,7 +11,7 @@ import { useWorkspaces } from '@/state/workspaces'
 
 export function DiffsSection({ worktrees }: { worktrees: WorktreeDTO[] }): JSX.Element {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col">
       {worktrees.length === 0 ? (
         <div className="px-2 py-1 font-mono text-[11px] text-muted-foreground">no worktrees</div>
       ) : null}
@@ -28,25 +28,58 @@ function DiffsForWorktree({ worktree }: { worktree: WorktreeDTO }): JSX.Element 
   )
   const status = useSidebarData((s) => s.diffsStatus[worktree.path] ?? 'idle')
   const refresh = useSidebarData((s) => s.refreshDiffsFor)
+  const activeWorkspaceId = useWorkspaces((s) => s.activeId)
+  const totalComments = useReviewComments((s) =>
+    files.reduce(
+      (sum, f) => sum + (s.byTab[diffTabId(worktree.path, f.path, f.stage)]?.length ?? 0),
+      0,
+    ),
+  )
 
   useEffect(() => {
     void refresh(worktree.path)
   }, [worktree.path, refresh])
 
   return (
-    <div className="flex min-w-0 flex-col border-b border-border pb-2 last:border-b-0 last:pb-0">
-      <div className="flex items-center gap-2 px-3 py-1">
-        <span className="min-w-0 truncate rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] leading-none lowercase text-foreground">
-          {worktree.branch ?? '(detached)'}
-        </span>
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          {files.length} file{files.length === 1 ? '' : 's'}
-        </span>
+    <div className={cn('flex min-w-0 flex-col', files.length > 0 ? 'mb-2' : 'mb-0.5')}>
+      <div
+        draggable={totalComments > 0}
+        onDragStart={(e) => {
+          if (!activeWorkspaceId || totalComments === 0) return
+          setDropPayload(e.dataTransfer, {
+            kind: 'diff-batch',
+            workspaceId: activeWorkspaceId,
+            worktreePath: worktree.path,
+            files: files.map((f) => ({ path: f.path, stage: f.stage })),
+          })
+        }}
+        className={cn(
+          'flex items-center gap-2 px-3 py-1',
+          totalComments > 0 && 'cursor-grab active:cursor-grabbing',
+        )}
+      >
+        <div className="flex min-w-0 items-center font-mono text-[10px] text-foreground/50">
+          <span className="max-w-[22ch] truncate lowercase">{worktree.branch ?? '(detached)'}</span>
+          <span className="mx-1 shrink-0 text-foreground/40">·</span>
+          <span className="shrink-0 uppercase tracking-wider">
+            {files.length} file{files.length === 1 ? '' : 's'}
+          </span>
+          {totalComments > 0 ? (
+            <>
+              <span className="mx-1 shrink-0 text-foreground/40">·</span>
+              <span className="flex shrink-0 items-center gap-0.5 tabular-nums text-yellow-400">
+                {totalComments}
+                <MessageSquare className="mb-0.5 size-2.5" />
+              </span>
+            </>
+          ) : null}
+        </div>
         <Button
           size="icon-xs"
           variant="ghost"
-          className="ml-auto"
+          className="ml-auto text-foreground/50 hover:text-foreground/60"
           onClick={() => void refresh(worktree.path)}
+          onDragStart={(e) => e.stopPropagation()}
           aria-label="Refresh diffs"
         >
           <RefreshCw className={cn(status === 'loading' && 'animate-spin')} />
@@ -93,23 +126,30 @@ function ChangedFileRow({
       className="flex min-w-0 cursor-pointer items-center gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
     >
       <FileDiff className="size-3 shrink-0" />
-      <div className="min-w-0 flex-1 truncate font-mono">{file.path}</div>
-      {rangeCount > 0 ? (
-        <span className="rounded bg-primary/20 px-1 font-mono text-[10px] text-primary">
-          {rangeCount}
-        </span>
-      ) : null}
+      <div className="min-w-0 flex-1 truncate font-mono text-[10px]">{file.path}</div>
       <span
         className={cn(
-          'rounded px-1 text-[9px] uppercase',
+          'shrink-0 rounded px-1 text-[9px] uppercase',
           file.stage === 'staged' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground',
         )}
       >
         {file.stage[0]}
       </span>
-      <span className="w-8 text-right font-mono tabular-nums text-[10px]">
-        {file.additions + file.deletions}
-      </span>
+      {rangeCount > 0 ? (
+        <span className="shrink-0 font-mono tabular-nums text-[10px] text-yellow-400">
+          {rangeCount}
+        </span>
+      ) : null}
+      {file.additions > 0 ? (
+        <span className="shrink-0 font-mono tabular-nums text-[10px] text-green-400">
+          +{file.additions}
+        </span>
+      ) : null}
+      {file.deletions > 0 ? (
+        <span className="shrink-0 font-mono tabular-nums text-[10px] text-red-400">
+          -{file.deletions}
+        </span>
+      ) : null}
     </div>
   )
 }

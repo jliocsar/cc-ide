@@ -1,6 +1,6 @@
 # Handoff — start here
 
-Welcome to `cc-ide`. MVP shipped across 6 phases; Phase 7 closed live-debug bugs; Phase 8 shipped backlog (#8–#12) + UX; Phase 9 made plans editable (CM6 + Vim/VSCode keybinds + Edit/Review modes). Phase 10 added project-scoped prompts and moved plans storage into the workspace. **Phase 11 (this session) shipped a UX/correctness sweep — read "What Phase 11 added" below.** **v0.1 ready.**
+Welcome to `cc-ide`. MVP shipped across 6 phases; Phase 7 closed live-debug bugs; Phase 8 shipped backlog (#8–#12) + UX; Phase 9 made plans editable (CM6 + Vim/VSCode keybinds + Edit/Review modes). Phase 10 added project-scoped prompts and moved plans storage into the workspace. Phase 11 shipped a UX/correctness sweep. **Phase 12 was a typography + UI polish pass plus diffs batch-drop — read "What Phase 12 added" below.** **v0.1 ready.**
 
 No open work items other than the future-features trackers (#3–#7), the Phase 9 deferrals (below), and a short list of Phase 10/11 follow-ups (below). Don't start those without talking to JC.
 
@@ -55,6 +55,58 @@ Plans opened from the sidebar are now editable inside their tab, with two modes 
 - **Tab drag for plans** already worked via `HeaderTabs.tsx` (tab chips set `application/x-cc-ide-drop` on dragstart). Ranges are read at drop time in `XtermWindow.handleDrop` via `useReviewComments.getState().ranges(tabId)`. No viewer-side drag source existed to remove.
 - **Selection / active-line / cursor contrast**: theme rules in `plan-editor-extensions.ts` tune text contrast against bright backgrounds. Notably `.cm-fat-cursor` (Vim block cursor) is forced to `color: var(--primary-foreground)` so the single character under the block stays legible — upstream Replit defaults inherit the char's original color, causing white-on-white in dark mode.
 - **New deps**: `codemirror`, `@codemirror/{state,view,commands,search,language,lang-markdown}`, `@lezer/highlight`, `@replit/codemirror-vim`. All approved by JC before install. `@codemirror/vim` is NOT a real package — do not reinstall under that name.
+
+## What Phase 12 added
+
+Typography + UI polish pass, plus diffs-section batch-drop feature.
+
+### Fonts
+
+- **Google Fonts** loaded via `<link>` in `src/renderer/index.html`. CSP updated: `style-src` allows `fonts.googleapis.com`; `font-src` allows `fonts.gstatic.com`. Loaded: Geist, Geist Mono, Space Grotesk (kept in bundle even though sidebar switched away — harmless).
+- **CSS font variables** in `src/renderer/src/styles/globals.css` (`@theme inline`):
+  - `--font-sans`: Geist
+  - `--font-mono`: Geist Mono
+  - `--font-condensed`: Space Grotesk (registered but not currently used in sidebar)
+- **Body font** changed from system-ui stack → `var(--font-mono)` (Geist Mono everywhere by default).
+- **Plan/markdown editor** (`plan-editor-extensions.ts`) explicitly sets `fontFamily: var(--font-sans)` (Geist) so markdown content stays readable.
+- **code/pre/kbd/samp** elements get `font-family: var(--font-mono)` via `@layer base`.
+- **`geist-features` utility** (`globals.css`): applies `font-feature-settings: "cv11", "ss01"` — used on sidebar section headers.
+
+### Sidebar section headers (`SectionHeader` in `sidebar.tsx`)
+
+- Font: Geist Mono (`var(--font-mono)`) with `geist-features`.
+- Size: 11px (was 10px), weight 500, uppercase, letter-spacing 1px, line-height 14.5px, `select-none`.
+- Color: `text-foreground/40`.
+- Padding: `px-2` (was `px-3`).
+- **Accordion chevron** moved to left of icon (before `{children}` in `accordion.tsx`): `size-3`, `text-foreground/25`, no translate.
+- Layout order: `▾ {icon} {label} ({count}) {spacer} {actions}`.
+
+### Diffs section (`diffs-section.tsx`)
+
+- **Branch name pill removed** — was `rounded border border-border bg-muted/40 px-1.5 py-0.5`. Now plain text, same color as the rest of the row.
+- **Branch + file count merged** into one flex row with a `·` separator. Branch caps at `max-w-[22ch]` + truncates independently so the count is always visible. Dot is `text-foreground/40`; branch + count row is `text-foreground/50`.
+- **Refresh button** darkened to `text-foreground/50` with `hover:text-foreground/60`.
+- **Border separator between worktrees removed** (was `border-b border-border pb-2 last:border-b-0`).
+- **File row reordered** to: `{icon} {filename(flex-1)} {status badge} {comment count(yellow)} {+additions(green)} {-deletions(red)}`.
+  - Comment count only shown when > 0, `text-yellow-400`.
+  - Additions only shown when > 0, `+N` in `text-green-400`.
+  - Deletions only shown when > 0, `-N` in `text-red-400`.
+  - Removed the old combined `additions + deletions` single span.
+- **Empty-worktree spacing**: worktrees with no files get `mb-0.5` (was `gap-2` uniform). Worktrees with files get `mb-2`.
+- **Branch-row comment summary**: when any file in the worktree has review comments, the branch row shows `· {total} {MessageSquare icon}` in yellow.
+- **Branch-row batch drag**: branch header row is draggable when `totalComments > 0`. Drops a `diff-batch` payload → xterm pastes only the commented files (each serialized as if individually dragged, with their ranges), then clears their comment state. Files with no comments are skipped. New `kind: 'diff-batch'` in `src/renderer/src/lib/drop-payload.ts`; handled in `src/renderer/src/components/canvas/xterm-window.tsx`.
+
+### Files changed in Phase 12
+
+- `src/renderer/index.html` — CSP + Google Fonts `<link>` tags
+- `src/renderer/src/styles/globals.css` — font vars, body font, code/pre rule, `geist-features` utility
+- `src/renderer/src/components/ui/accordion.tsx` — chevron moved left, resized + darkened
+- `src/renderer/src/components/shell/sidebar.tsx` — `SectionHeader` typography overhaul (font size 11px)
+- `src/renderer/src/components/shell/sections/diffs-section.tsx` — branch/count row, file row reorder, colors, empty spacing, comment summary, batch drag
+- `src/renderer/src/components/editor/plan-editor-extensions.ts` — fontFamily → `var(--font-sans)`
+- `src/renderer/src/lib/drop-payload.ts` — `diff-batch` DropPayload kind + `dropPathFor` guard
+- `src/renderer/src/components/canvas/xterm-window.tsx` — `diff-batch` handler in `handleDrop`
+- `.gitignore` — `electron.vite.config.*.mjs` artifact pattern
 
 ## What Phase 11 added
 

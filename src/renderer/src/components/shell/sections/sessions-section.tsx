@@ -172,7 +172,7 @@ function SessionRow({
       <div className="min-w-0 flex-1 overflow-hidden">
         <div className="flex items-center gap-1.5">
           <span className="truncate font-mono">{shortName}</span>
-          <span className="shrink-0 rounded-sm border border-green-500/30 bg-green-500/15 px-1 py-px font-mono text-[9px] uppercase leading-none tracking-wider text-green-400">
+          <span className="shrink-0 rounded-sm border border-green-500/30 bg-green-500/15 px-1 py-px font-mono text-[9px] uppercase leading-none tracking-wider text-green-500">
             live
           </span>
         </div>

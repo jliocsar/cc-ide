@@ -231,7 +231,7 @@ function WindowFrameImpl({
           className="absolute bottom-0 right-0 size-3 cursor-nwse-resize"
           style={{
             background:
-              'linear-gradient(135deg, transparent 50%, oklch(0.556 0 0) 50%, oklch(0.556 0 0) 60%, transparent 60%, transparent 70%, oklch(0.556 0 0) 70%, oklch(0.556 0 0) 80%, transparent 80%)',
+              'linear-gradient(135deg, transparent 50%, var(--muted-foreground) 50%, var(--muted-foreground) 60%, transparent 60%, transparent 70%, var(--muted-foreground) 70%, var(--muted-foreground) 80%, transparent 80%)',
           }}
         />
       )}

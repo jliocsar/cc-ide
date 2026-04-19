@@ -1,10 +1,11 @@
 import type { DiffHunkDTO, DiffHunkLineDTO, FileDiffDTO } from '@shared/ipc'
-import { MessageSquarePlus, Trash2 } from 'lucide-react'
+import { Link2, Link2Off, MessageSquarePlus, Trash2 } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { ThemedToken } from 'shiki'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { invoke } from '@/lib/ipc'
 import { guessLang, tokenizeLines } from '@/lib/shiki'
 import { cn } from '@/lib/utils'
@@ -14,6 +15,12 @@ import {
   type RangeDraft,
   useReviewComments,
 } from '@/state/review-comments'
+import { useSettings } from '@/state/settings'
+
+const DIFF_FONT_MAP: Record<string, string> = {
+  'geist-mono': "'Geist Mono', ui-monospace, monospace",
+  system: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+}
 
 type HunkTokens = {
   oldTokens: ThemedToken[][]
@@ -192,6 +199,33 @@ function DiffHunks({
   const draggingRef = useRef(false)
   const lastLineRef = useRef<number | null>(null)
 
+  const diffFont = useSettings((s) => s.settings.diff.font)
+  const diffFontSize = useSettings((s) => s.settings.diff.fontSize)
+  const diffWrap = useSettings((s) => s.settings.diff.wrap)
+  const diffStickyGutter = useSettings((s) => s.settings.diff.stickyGutter)
+  const [syncScroll, setSyncScroll] = useState(true)
+
+  const oldPaneRef = useRef<HTMLDivElement>(null)
+  const newPaneRef = useRef<HTMLDivElement>(null)
+
+  // After-pane drives before-pane vertical sync
+  useEffect(() => {
+    const newEl = newPaneRef.current
+    const oldEl = oldPaneRef.current
+    if (!newEl || !oldEl || !syncScroll) return
+    oldEl.scrollTop = newEl.scrollTop
+    function onScroll(): void {
+      oldEl!.scrollTop = newEl!.scrollTop
+    }
+    newEl.addEventListener('scroll', onScroll, { passive: true })
+    return () => newEl.removeEventListener('scroll', onScroll)
+  }, [syncScroll])
+
+  const fontStyle: React.CSSProperties = {
+    fontFamily: DIFF_FONT_MAP[diffFont] ?? DIFF_FONT_MAP['geist-mono'],
+    fontSize: `${diffFontSize}px`,
+  }
+
   function isInRange(lineNo: number): boolean {
     return ranges.some((r) => lineNo >= r.start && lineNo <= r.start + r.len - 1)
   }
@@ -241,43 +275,96 @@ function DiffHunks({
   }
 
   return (
-    <ScrollArea className="h-full border-r border-border">
-      <div className="font-mono text-[12px]">
-        {hunks.map((hunk, i) => (
-          <div key={i} className="border-b border-border last:border-b-0">
-            <div className="bg-card px-3 py-1 text-[11px] text-muted-foreground">{hunk.header}</div>
-            <div className="grid grid-cols-2">
-              <div className="border-r border-border">
-                {hunk.lines.map((line, j) => {
-                  const ht = hunkTokens[i]
-                  const idx = ht ? ht.oldLineIdx[j] : -1
-                  const tokens = ht && idx >= 0 ? ht.oldTokens[idx] : null
-                  return <DiffHalfLine key={`o-${j}`} side="old" line={line} tokens={tokens} />
-                })}
+    <div className="relative flex h-full overflow-hidden border-r border-border">
+      {/* Old pane */}
+      <div
+        ref={oldPaneRef}
+        className={cn(
+          'scrollbar-themed flex-1 overflow-x-auto border-r border-border',
+          syncScroll ? 'overflow-y-hidden' : 'overflow-y-auto',
+        )}
+        style={fontStyle}
+      >
+        <div className="w-max min-w-full">
+          {hunks.map((hunk, i) => (
+            <div key={i} className="border-b border-border last:border-b-0">
+              <div className="sticky top-0 z-20 bg-card px-3 py-1 text-[11px] text-muted-foreground">
+                <span className="sticky left-3 inline-block">{hunk.header}</span>
               </div>
-              <div onPointerDown={onNewSidePointerDown}>
-                {hunk.lines.map((line, j) => {
-                  const ht = hunkTokens[i]
-                  const idx = ht ? ht.newLineIdx[j] : -1
-                  const tokens = ht && idx >= 0 ? ht.newTokens[idx] : null
-                  return (
-                    <DiffHalfLine
-                      key={`n-${j}`}
-                      side="new"
-                      line={line}
-                      tokens={tokens}
-                      selectable={line.newLineNo !== null}
-                      selected={line.newLineNo !== null && isInRange(line.newLineNo)}
-                      commented={line.newLineNo !== null && isCommented(line.newLineNo)}
-                    />
-                  )
-                })}
-              </div>
+              {hunk.lines.map((line, j) => {
+                const ht = hunkTokens[i]
+                const idx = ht ? (ht.oldLineIdx[j] ?? -1) : -1
+                const tokens = ht && idx >= 0 ? (ht.oldTokens[idx] ?? null) : null
+                return (
+                  <DiffHalfLine
+                    key={`o-${j}`}
+                    side="old"
+                    line={line}
+                    tokens={tokens}
+                    wrap={diffWrap}
+                    stickyGutter={diffStickyGutter}
+                  />
+                )
+              })}
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </ScrollArea>
+
+      {/* New pane */}
+      <div
+        ref={newPaneRef}
+        className="scrollbar-themed flex-1 overflow-auto"
+        style={fontStyle}
+        onPointerDown={onNewSidePointerDown}
+      >
+        <div className="w-max min-w-full">
+          {hunks.map((hunk, i) => (
+            <div key={i} className="border-b border-border last:border-b-0">
+              <div className="sticky top-0 z-20 bg-card px-3 py-1 text-[11px] text-muted-foreground">
+                <span className="sticky left-3 inline-block">{hunk.header}</span>
+              </div>
+              {hunk.lines.map((line, j) => {
+                const ht = hunkTokens[i]
+                const idx = ht ? (ht.newLineIdx[j] ?? -1) : -1
+                const tokens = ht && idx >= 0 ? (ht.newTokens[idx] ?? null) : null
+                return (
+                  <DiffHalfLine
+                    key={`n-${j}`}
+                    side="new"
+                    line={line}
+                    tokens={tokens}
+                    wrap={diffWrap}
+                    stickyGutter={diffStickyGutter}
+                    selectable={line.newLineNo !== null}
+                    selected={line.newLineNo !== null && isInRange(line.newLineNo)}
+                    commented={line.newLineNo !== null && isCommented(line.newLineNo)}
+                  />
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Sync scroll toggle */}
+      <div className="absolute right-3 top-1 z-10">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={() => setSyncScroll((v) => !v)}
+            >
+              {syncScroll ? <Link2 /> : <Link2Off />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            {syncScroll ? 'Unsync scroll' : 'Sync scroll'}
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
   )
 }
 
@@ -285,6 +372,8 @@ const DiffHalfLine = memo(function DiffHalfLine({
   side,
   line,
   tokens,
+  wrap,
+  stickyGutter,
   selectable,
   selected,
   commented,
@@ -292,6 +381,8 @@ const DiffHalfLine = memo(function DiffHalfLine({
   side: 'old' | 'new'
   line: DiffHunkLineDTO
   tokens: ThemedToken[] | null
+  wrap: boolean
+  stickyGutter: boolean
   selectable?: boolean
   selected?: boolean
   commented?: boolean
@@ -311,6 +402,18 @@ const DiffHalfLine = memo(function DiffHalfLine({
         : ''
   const sigil = line.kind === 'add' ? '+' : line.kind === 'remove' ? '-' : ' '
 
+  const gutterBg = stickyGutter
+    ? commented
+      ? 'color-mix(in srgb, var(--primary) 10%, var(--background))'
+      : selected
+        ? 'color-mix(in srgb, #3b82f6 15%, var(--background))'
+        : line.kind === 'add' && side === 'new'
+          ? 'color-mix(in srgb, #22c55e 10%, var(--background))'
+          : line.kind === 'remove' && side === 'old'
+            ? 'color-mix(in srgb, #ef4444 10%, var(--background))'
+            : 'var(--background)'
+    : undefined
+
   return (
     <div
       data-diff-row={side === 'new' ? '' : undefined}
@@ -318,7 +421,7 @@ const DiffHalfLine = memo(function DiffHalfLine({
       className={cn(
         'flex items-start gap-2 border-l-2 px-2 leading-[1.6]',
         bg,
-        selectable && 'cursor-pointer hover:bg-accent/30',
+        selectable && 'cursor-pointer hover:shadow-[inset_0_0_0_9999px_rgba(255,255,255,0.08)]',
         commented
           ? 'border-l-primary bg-primary/10'
           : selected
@@ -326,11 +429,31 @@ const DiffHalfLine = memo(function DiffHalfLine({
             : 'border-l-transparent',
       )}
     >
-      <span className="w-8 shrink-0 select-none text-right text-muted-foreground">{num ?? ''}</span>
-      <span className="w-3 shrink-0 select-none text-muted-foreground">
-        {display === null ? '' : sigil}
-      </span>
-      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
+      {stickyGutter ? (
+        <div
+          className="flex shrink-0 gap-2"
+          style={{
+            position: 'sticky',
+            left: 0,
+            zIndex: 10,
+            backgroundColor: gutterBg,
+            boxShadow: '2px 0 4px rgba(0,0,0,0.3)',
+          }}
+        >
+          <span className="w-8 select-none text-right text-muted-foreground">{num ?? ''}</span>
+          <span className="w-3 select-none text-muted-foreground">
+            {display === null ? '' : sigil}
+          </span>
+        </div>
+      ) : (
+        <>
+          <span className="w-8 shrink-0 select-none text-right text-muted-foreground">{num ?? ''}</span>
+          <span className="w-3 shrink-0 select-none text-muted-foreground">
+            {display === null ? '' : sigil}
+          </span>
+        </>
+      )}
+      <span className={cn('min-w-0 flex-1', wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre')}>
         {display === null
           ? ' '
           : tokens && tokens.length > 0

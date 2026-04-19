@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -300,9 +301,11 @@ function StyleSection({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="fixed">Fixed</SelectItem>
-              <SelectItem value="degree">By degree</SelectItem>
-              <SelectItem value="loc">By LOC</SelectItem>
+              <SelectGroup>
+                <SelectItem value="fixed">Fixed</SelectItem>
+                <SelectItem value="degree">By degree</SelectItem>
+                <SelectItem value="loc">By LOC</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>
@@ -316,9 +319,11 @@ function StyleSection({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="folder">By folder</SelectItem>
-              <SelectItem value="filetype">By file type</SelectItem>
-              <SelectItem value="uniform">Uniform</SelectItem>
+              <SelectGroup>
+                <SelectItem value="folder">By folder</SelectItem>
+                <SelectItem value="filetype">By file type</SelectItem>
+                <SelectItem value="uniform">Uniform</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>
@@ -329,9 +334,11 @@ function StyleSection({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="always">Always</SelectItem>
-              <SelectItem value="hover">On hover</SelectItem>
-              <SelectItem value="zoom">By zoom threshold</SelectItem>
+              <SelectGroup>
+                <SelectItem value="always">Always</SelectItem>
+                <SelectItem value="hover">On hover</SelectItem>
+                <SelectItem value="zoom">By zoom threshold</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>

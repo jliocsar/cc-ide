@@ -14,12 +14,33 @@ export function __setDataPathForTests(path: string): void {
 export const editorKeybindsSchema = z.enum(['vscode', 'vim'])
 export type EditorKeybinds = z.infer<typeof editorKeybindsSchema>
 
+export const terminalFontSchema = z.enum(['geist-mono', 'system'])
+export const editorFontSchema = z.enum(['geist', 'geist-mono', 'space-grotesk', 'system'])
+export const diffFontSchema = z.enum(['geist-mono', 'system'])
+export const fontSizeSchema = z.number().int().min(8).max(32)
+
 export const settingsSchema = z.object({
   editor: z
     .object({
       keybinds: editorKeybindsSchema.default('vscode'),
+      font: editorFontSchema.default('geist'),
+      fontSize: fontSizeSchema.default(12),
     })
-    .default({ keybinds: 'vscode' }),
+    .default({ keybinds: 'vscode', font: 'geist', fontSize: 12 }),
+  terminal: z
+    .object({
+      font: terminalFontSchema.default('system'),
+      fontSize: fontSizeSchema.default(13),
+    })
+    .default({ font: 'system', fontSize: 13 }),
+  diff: z
+    .object({
+      font: diffFontSchema.default('geist-mono'),
+      fontSize: fontSizeSchema.default(12),
+      wrap: z.boolean().default(true),
+      stickyGutter: z.boolean().default(true),
+    })
+    .default({ font: 'geist-mono', fontSize: 12, wrap: true, stickyGutter: true }),
 })
 export type Settings = z.infer<typeof settingsSchema>
 
@@ -28,7 +49,11 @@ const settingsFileSchema = z.object({
   settings: settingsSchema,
 })
 
-export const defaultSettings: Settings = { editor: { keybinds: 'vscode' } }
+export const defaultSettings: Settings = {
+  editor: { keybinds: 'vscode', font: 'geist', fontSize: 12 },
+  terminal: { font: 'system', fontSize: 13 },
+  diff: { font: 'geist-mono', fontSize: 12, wrap: true, stickyGutter: true },
+}
 
 async function ensureDir(): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true })
