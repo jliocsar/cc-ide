@@ -2,6 +2,7 @@ import { validateTmuxWindowName } from '@shared/tmux-name'
 import { Maximize2, X } from 'lucide-react'
 import { memo, type ReactNode, useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import claudeSymbolUrl from '@/assets/claude-symbol.svg'
 import { InlineRenameInput } from '@/components/ui/inline-rename-input'
 import { cn } from '@/lib/utils'
 import { useCanvas } from '@/state/canvas'
@@ -163,6 +164,7 @@ function WindowFrameImpl({
           onDoubleClick={onTitlebarDoubleClick}
           className="flex h-7 shrink-0 cursor-grab select-none items-center gap-2 border-b border-border bg-card px-3 text-[11px] font-mono text-muted-foreground active:cursor-grabbing"
         >
+          <img src={claudeSymbolUrl} alt="" className="size-3.5 shrink-0" />
           {editing && tmuxWindow && shortName !== null ? (
             <InlineRenameInput
               className="flex-1"

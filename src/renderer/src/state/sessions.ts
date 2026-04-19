@@ -9,6 +9,7 @@ export type SessionRecord = {
   createdAt: number
   exited: boolean
   exitCode: number | null
+  worktreeBranch: string | null
 }
 
 export type SpawnWorktreeOption =
@@ -42,7 +43,7 @@ export const useSessions = create<State>((set) => ({
   sessions: [],
   activePtyId: null,
   async spawn(workspaceId, cols, rows, worktree, customName) {
-    const { ptyId, tmuxWindow } = await invoke('session:spawnClaude', {
+    const { ptyId, tmuxWindow, worktreeBranch } = await invoke('session:spawnClaude', {
       workspaceId,
       cols,
       rows,
@@ -52,14 +53,22 @@ export const useSessions = create<State>((set) => ({
     set((s) => ({
       sessions: [
         ...s.sessions,
-        { ptyId, tmuxWindow, workspaceId, createdAt: Date.now(), exited: false, exitCode: null },
+        {
+          ptyId,
+          tmuxWindow,
+          workspaceId,
+          createdAt: Date.now(),
+          exited: false,
+          exitCode: null,
+          worktreeBranch,
+        },
       ],
       activePtyId: ptyId,
     }))
     return { ptyId, tmuxWindow }
   },
   async resume(workspaceId, sessionId, cols, rows) {
-    const { ptyId, tmuxWindow } = await invoke('session:resumeClaude', {
+    const { ptyId, tmuxWindow, worktreeBranch } = await invoke('session:resumeClaude', {
       workspaceId,
       sessionId,
       cols,
@@ -68,7 +77,15 @@ export const useSessions = create<State>((set) => ({
     set((s) => ({
       sessions: [
         ...s.sessions,
-        { ptyId, tmuxWindow, workspaceId, createdAt: Date.now(), exited: false, exitCode: null },
+        {
+          ptyId,
+          tmuxWindow,
+          workspaceId,
+          createdAt: Date.now(),
+          exited: false,
+          exitCode: null,
+          worktreeBranch,
+        },
       ],
       activePtyId: ptyId,
     }))
@@ -78,7 +95,15 @@ export const useSessions = create<State>((set) => ({
     set((s) => ({
       sessions: [
         ...s.sessions,
-        { ptyId, tmuxWindow, workspaceId, createdAt: Date.now(), exited: false, exitCode: null },
+        {
+          ptyId,
+          tmuxWindow,
+          workspaceId,
+          createdAt: Date.now(),
+          exited: false,
+          exitCode: null,
+          worktreeBranch: null,
+        },
       ],
     }))
   },

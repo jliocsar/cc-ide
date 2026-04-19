@@ -219,13 +219,26 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
         onMaximize={toggleMaximize}
         onClose={requestClose}
         badge={
-          dormant ? (
-            <span className="text-muted-foreground">dormant</span>
-          ) : session?.exited ? (
-            <span className="text-destructive">exit {session.exitCode ?? '—'}</span>
-          ) : (
-            <span className="text-green-500">● live</span>
-          )
+          <>
+            {dormant ? (
+              <span className="rounded-full bg-muted-foreground/20 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                dormant
+              </span>
+            ) : session?.exited ? (
+              <span className="rounded-full bg-destructive/20 px-2 py-0.5 text-[10px] font-medium text-destructive">
+                exit {session.exitCode ?? '—'}
+              </span>
+            ) : (
+              <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[10px] font-medium text-green-400">
+                ● live
+              </span>
+            )}
+            {session?.worktreeBranch ? (
+              <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-medium text-blue-400">
+                {session.worktreeBranch}
+              </span>
+            ) : null}
+          </>
         }
       >
         {dormant ? (

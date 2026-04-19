@@ -1,7 +1,8 @@
 import { validateTmuxWindowName } from '@shared/tmux-name'
-import { Pencil, Terminal, X } from 'lucide-react'
+import { Pencil, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { ClaudeCodeIcon } from '@/components/icons/claude-code-icon'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -132,7 +133,7 @@ function SessionRow({
   if (editing) {
     return (
       <div className="flex min-w-0 items-center gap-2 px-3 py-1 text-[11px]">
-        <Terminal className="size-3 shrink-0 text-muted-foreground" />
+        <ClaudeCodeIcon className="-ml-0.5 mr-0.5 size-3.5 shrink-0" />
         <InlineRenameInput
           className="flex-1"
           value={shortName}
@@ -166,9 +167,9 @@ function SessionRow({
           onStartEdit()
         }
       }}
-      className="group flex min-w-0 items-start gap-2 px-3 py-1 text-left text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground focus-visible:bg-accent/50 focus-visible:text-foreground focus-visible:outline-none"
+      className="group flex min-w-0 items-center gap-2 px-3 py-1 text-left text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground focus-visible:bg-accent/50 focus-visible:text-foreground focus-visible:outline-none"
     >
-      <Terminal className="mt-0.5 size-3 shrink-0" />
+      <ClaudeCodeIcon className="-ml-0.5 mr-0.5 size-3.5 shrink-0" />
       <div className="min-w-0 flex-1 overflow-hidden">
         <div className="flex items-center gap-1.5">
           <span className="truncate font-mono">{shortName}</span>

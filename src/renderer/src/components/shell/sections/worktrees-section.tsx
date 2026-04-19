@@ -86,11 +86,11 @@ function WorktreeRow({
       : 'Checking…'
 
   return (
-    <div className="group flex min-w-0 items-center gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50">
+    <div className="group flex min-w-0 items-center gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground">
       <GitBranch className="size-3 shrink-0" />
       <div className="min-w-0 flex-1 overflow-hidden">
-        <div className="truncate font-mono text-foreground">{worktree.branch ?? '(detached)'}</div>
-        <div className="truncate text-[10px]" title={worktree.path}>
+        <div className="truncate font-mono">{worktree.branch ?? '(detached)'}</div>
+        <div className="truncate text-[10px] text-muted-foreground/60" title={worktree.path}>
           {displayPath}
         </div>
       </div>

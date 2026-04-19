@@ -113,7 +113,7 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
   }
 
   return (
-    <div className="flex h-10 items-center border-b border-border bg-card" style={drag}>
+    <div className="flex h-10 w-full min-w-0 items-center border-b border-border bg-card" style={drag}>
       {showMaximizedBar ? (
         <div className="flex h-full flex-1 items-center gap-2 px-3 text-xs" style={noDrag}>
           <span className="truncate font-mono text-foreground">{maximizedInfo.title}</span>
@@ -147,7 +147,7 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
       ) : (
         <>
           <div
-            className="flex h-full min-w-0 items-center overflow-x-auto scrollbar-none max-w-content"
+            className="scrollbar-themed flex h-full min-w-0 flex-1 items-center overflow-x-auto border-r border-border"
             style={noDrag}
           >
             {tabs.map((tab) => {
@@ -201,7 +201,7 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
                     if (e.button === 1 && !tab.pinned) requestClose(tab.id)
                   }}
                   className={cn(
-                    'relative flex h-full shrink-0 cursor-pointer select-none items-center gap-2 border-r border-border px-3 text-xs',
+                    'relative flex h-full shrink-0 cursor-pointer select-none items-center gap-2 border-r border-border px-3 text-xs last:border-r-0',
                     active
                       ? 'bg-background text-foreground'
                       : 'text-muted-foreground hover:text-foreground',
@@ -231,7 +231,6 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
               )
             })}
           </div>
-          <div className="flex-1" />
         </>
       )}
       {/* Window controls */}

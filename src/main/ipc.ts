@@ -179,12 +179,13 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       windowName,
       cwd: ws.path,
       // Wrap in an interactive zsh so the user's ~/.zshrc loads (PATH,
-      // aliases, etc.). After claude exits (e.g. /exit), `tmux kill-window`
-      // forces the window closed — bypasses any user shell config that
-      // would otherwise leave a zsh prompt sitting in the pane. `exec` on
-      // the inner zsh keeps a parent shell from lingering between tmux's
-      // default-shell invocation and our zsh -ic call.
-      command: `exec zsh -ic 'claude --resume ${sessionId}; tmux kill-window'`,
+      // aliases, etc.). After claude exits (e.g. /exit), `tmux kill-window
+      // -t <target>` kills THIS window explicitly (not whatever pane is
+      // current). `kill -9 $$` is a belt-and-suspenders fallback: if a
+      // user's zsh config keeps the shell alive (zsh-you-should-use trap,
+      // ignoreeof, plugin confirm-exit, etc.), SIGKILL tears the shell
+      // down unconditionally so the pane can't linger.
+      command: `exec zsh -ic 'claude --resume ${sessionId}; tmux kill-window -t "${primarySession}:${windowName}" 2>/dev/null; kill -9 $$ 2>/dev/null'`,
     })
     const ptyId = await attachViewerPty({
       primarySession,
@@ -193,7 +194,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       cols,
       rows,
     })
-    return { ptyId, tmuxWindow }
+    return { ptyId, tmuxWindow, worktreeBranch: null }
   },
   'session:spawnClaude': async ({ workspaceId, cols, rows, customName, worktree }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
@@ -237,8 +238,9 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       windowName,
       cwd,
       // see the resume flow above for why this is wrapped in `exec zsh -ic`
-      // + `tmux kill-window` for clean window teardown on /exit.
-      command: `exec zsh -ic 'claude; tmux kill-window'`,
+      // + `tmux kill-window -t <target>` + `kill -9 $$` fallback for clean
+      // window teardown on /exit.
+      command: `exec zsh -ic 'claude; tmux kill-window -t "${primarySession}:${windowName}" 2>/dev/null; kill -9 $$ 2>/dev/null'`,
     })
 
     if (ephemeral) {
@@ -268,7 +270,14 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       cols,
       rows,
     })
-    return { ptyId, tmuxWindow }
+
+    let worktreeBranch: string | null = null
+    if (worktree?.kind === 'new') {
+      worktreeBranch = worktree.branch
+    } else if (worktree?.kind === 'existing') {
+      worktreeBranch = await worktreeManager.currentBranch(cwd)
+    }
+    return { ptyId, tmuxWindow, worktreeBranch }
   },
 
   'git:listBranches': async ({ workspaceId }) => {

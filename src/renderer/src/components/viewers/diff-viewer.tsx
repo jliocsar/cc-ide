@@ -419,7 +419,7 @@ const DiffHalfLine = memo(function DiffHalfLine({
       data-diff-row={side === 'new' ? '' : undefined}
       data-diff-line-no={side === 'new' && num !== null ? num : undefined}
       className={cn(
-        'flex items-start gap-2 border-l-2 px-2 leading-[1.6]',
+        'group flex items-start gap-2 border-l-2 px-2 leading-[1.6]',
         bg,
         selectable && 'cursor-pointer hover:shadow-[inset_0_0_0_9999px_rgba(255,255,255,0.08)]',
         commented
@@ -431,7 +431,10 @@ const DiffHalfLine = memo(function DiffHalfLine({
     >
       {stickyGutter ? (
         <div
-          className="flex shrink-0 gap-2"
+          className={cn(
+            'flex shrink-0 gap-2',
+            selectable && 'group-hover:shadow-[inset_0_0_0_9999px_rgba(255,255,255,0.08)]',
+          )}
           style={{
             position: 'sticky',
             left: 0,

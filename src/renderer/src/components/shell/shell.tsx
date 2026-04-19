@@ -115,7 +115,7 @@ export function Shell(): JSX.Element {
         <div
           className={cn(
             'grid min-h-0 flex-1 grid-rows-1 text-foreground transition-[grid-template-columns] duration-150',
-            sidebarVisible ? 'grid-cols-[260px_1fr]' : 'grid-cols-[40px_1fr]',
+            sidebarVisible ? 'grid-cols-[260px_minmax(0,1fr)]' : 'grid-cols-[40px_minmax(0,1fr)]',
           )}
         >
           <div className="overflow-hidden">

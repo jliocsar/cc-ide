@@ -259,7 +259,11 @@ export const ipcContract = {
       cols: z.number().int().positive(),
       rows: z.number().int().positive(),
     }),
-    response: z.object({ ptyId: z.string(), tmuxWindow: z.string() }),
+    response: z.object({
+      ptyId: z.string(),
+      tmuxWindow: z.string(),
+      worktreeBranch: z.string().nullable(),
+    }),
   },
   'session:spawnClaude': {
     request: z.object({
@@ -279,7 +283,11 @@ export const ipcContract = {
         ])
         .optional(),
     }),
-    response: z.object({ ptyId: z.string(), tmuxWindow: z.string() }),
+    response: z.object({
+      ptyId: z.string(),
+      tmuxWindow: z.string(),
+      worktreeBranch: z.string().nullable(),
+    }),
   },
   'git:listBranches': {
     request: z.object({ workspaceId: z.string() }),
