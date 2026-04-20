@@ -109,10 +109,18 @@ export async function createViewerSession(options: {
   if (create.code !== 0) {
     throw new Error(`tmux new-session (viewer) failed: ${create.stderr.trim()}`)
   }
-  const link = await run(['link-window', '-k', '-s', windowTarget, '-t', `${viewerName}:0`])
+  // Link into the end; then kill the placeholder by name. Don't rely on
+  // index 0 — users with `base-index 1` put __viewer_init__ at index 1,
+  // leaving a ghost window alive once the target dies.
+  const link = await run(['link-window', '-s', windowTarget, '-t', viewerName])
   if (link.code !== 0) {
     await run(['kill-session', '-t', viewerName])
     throw new Error(`tmux link-window on viewer failed: ${link.stderr.trim()}`)
+  }
+  const cleanup = await run(['kill-window', '-t', `${viewerName}:__viewer_init__`])
+  if (cleanup.code !== 0) {
+    await run(['kill-session', '-t', viewerName])
+    throw new Error(`tmux kill placeholder on viewer failed: ${cleanup.stderr.trim()}`)
   }
   return viewerName
 }

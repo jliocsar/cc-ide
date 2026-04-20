@@ -98,7 +98,7 @@ describe('tmux-adapter viewer session', () => {
     killSession(primarySession)
   })
 
-  it.skip('creates and links viewer session', async () => {
+  it('creates viewer with exactly one linked window and no placeholder', async () => {
     if (!tmuxOk) return
     const result = await createViewerSession({
       primarySession,
@@ -106,7 +106,9 @@ describe('tmux-adapter viewer session', () => {
       windowTarget: `${primarySession}:target-window`,
     })
     expect(result).toBe(viewerSession)
-    expect(await hasWindow(`${viewerSession}:0`)).toBe(true)
+    const windows = await listWindows(viewerSession)
+    expect(windows).toEqual(['target-window'])
+    expect(await hasWindow(`${viewerSession}:__viewer_init__`)).toBe(false)
   })
 
   it('hardenViewerSession disables status and prefixes', async () => {
