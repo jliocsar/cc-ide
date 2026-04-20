@@ -1,11 +1,12 @@
 import type { DiffHunkDTO, DiffHunkLineDTO, FileDiffDTO } from '@shared/ipc'
-import { Link2, Link2Off, MessageSquarePlus, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Link2, Link2Off, MessageSquarePlus, Trash2 } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { ThemedToken } from 'shiki'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { VerticalResizer } from '@/components/vertical-resizer'
 import { invoke } from '@/lib/ipc'
 import { guessLang, tokenizeLines } from '@/lib/shiki'
 import { cn } from '@/lib/utils'
@@ -16,6 +17,7 @@ import {
   useReviewComments,
 } from '@/state/review-comments'
 import { useSettings } from '@/state/settings'
+import { useUi } from '@/state/ui'
 
 const DIFF_FONT_MAP: Record<string, string> = {
   'geist-mono': "'Geist Mono', ui-monospace, monospace",
@@ -72,6 +74,11 @@ export function DiffViewer({
   const tabId = diffTabId(worktreePath, path, stage)
   const [diff, setDiff] = useState<FileDiffDTO | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [commentsCollapsed, setCommentsCollapsed] = useState(false)
+  const reviewPanelWidth = useUi((s) => s.reviewPanelWidth)
+  const setReviewPanelWidth = useUi((s) => s.setReviewPanelWidth)
+  const resetReviewPanelWidth = useUi((s) => s.resetReviewPanelWidth)
+  const [resizing, setResizing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -133,9 +140,45 @@ export function DiffViewer({
   }
 
   return (
-    <div className="grid h-full grid-cols-[minmax(0,1fr)_360px] grid-rows-[minmax(0,1fr)] bg-background">
-      <DiffHunks tabId={tabId} hunks={diff.hunks} path={path} />
-      <CommentsPanel tabId={tabId} workspaceId={workspaceId} />
+    <div
+      className={cn(
+        'grid h-full grid-rows-[minmax(0,1fr)] bg-background',
+        resizing ? 'transition-none' : 'transition-[grid-template-columns] duration-150',
+      )}
+      style={{
+        gridTemplateColumns: commentsCollapsed
+          ? 'minmax(0,1fr) 0px 32px'
+          : `minmax(0,1fr) 1px ${reviewPanelWidth}px`,
+      }}
+    >
+      <div className="h-full min-h-0 overflow-hidden">
+        <DiffHunks tabId={tabId} hunks={diff.hunks} path={path} />
+      </div>
+      {commentsCollapsed ? (
+        <div />
+      ) : (
+        <VerticalResizer
+          side="left"
+          width={reviewPanelWidth}
+          onWidth={setReviewPanelWidth}
+          onReset={resetReviewPanelWidth}
+          onResizeStart={() => setResizing(true)}
+          onResizeEnd={() => setResizing(false)}
+        />
+      )}
+      <div className="h-full min-h-0 overflow-hidden">
+        {commentsCollapsed ? (
+          <CommentsRail tabId={tabId} onExpand={() => setCommentsCollapsed(false)} />
+        ) : (
+          <div style={{ width: reviewPanelWidth, height: '100%' }}>
+            <CommentsPanel
+              tabId={tabId}
+              workspaceId={workspaceId}
+              onCollapse={() => setCommentsCollapsed(true)}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -204,9 +247,44 @@ function DiffHunks({
   const diffWrap = useSettings((s) => s.settings.diff.wrap)
   const diffStickyGutter = useSettings((s) => s.settings.diff.stickyGutter)
   const [syncScroll, setSyncScroll] = useState(true)
+  const [oldPaneWidthPct, setOldPaneWidthPct] = useState(50)
+  const resizingRef = useRef(false)
 
+  const containerRef = useRef<HTMLDivElement>(null)
   const oldPaneRef = useRef<HTMLDivElement>(null)
   const newPaneRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onMove(ev: PointerEvent): void {
+      if (!resizingRef.current) return
+      const rect = containerRef.current?.getBoundingClientRect()
+      if (!rect || rect.width === 0) return
+      const pct = ((ev.clientX - rect.left) / rect.width) * 100
+      setOldPaneWidthPct(Math.max(20, Math.min(80, pct)))
+    }
+    function onUp(): void {
+      if (!resizingRef.current) return
+      resizingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+  }, [])
+
+  function onResizerPointerDown(ev: React.PointerEvent): void {
+    if (ev.button !== 0) return
+    ev.preventDefault()
+    resizingRef.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
 
   // After-pane drives before-pane vertical sync
   useEffect(() => {
@@ -275,17 +353,17 @@ function DiffHunks({
   }
 
   return (
-    <div className="relative flex h-full overflow-hidden border-r border-border">
+    <div ref={containerRef} className="relative flex h-full overflow-hidden border-r border-border">
       {/* Old pane */}
       <div
         ref={oldPaneRef}
         className={cn(
-          'scrollbar-themed flex-1 overflow-x-auto border-r border-border',
+          'scrollbar-themed shrink-0 overflow-x-auto border-r border-border',
           syncScroll ? 'overflow-y-hidden' : 'overflow-y-auto',
         )}
-        style={fontStyle}
+        style={{ ...fontStyle, width: `${oldPaneWidthPct}%` }}
       >
-        <div className="w-max min-w-full">
+        <div className={cn(diffWrap ? 'w-full' : 'w-max min-w-full')}>
           {hunks.map((hunk, i) => (
             <div key={i} className="border-b border-border last:border-b-0">
               <div className="sticky top-0 z-20 bg-card px-3 py-1 text-[11px] text-muted-foreground">
@@ -311,14 +389,21 @@ function DiffHunks({
         </div>
       </div>
 
+      {/* Resizer */}
+      <div
+        onPointerDown={onResizerPointerDown}
+        onDoubleClick={() => setOldPaneWidthPct(50)}
+        className="relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize bg-transparent hover:bg-accent/40"
+      />
+
       {/* New pane */}
       <div
         ref={newPaneRef}
-        className="scrollbar-themed flex-1 overflow-auto"
+        className="scrollbar-themed min-w-0 flex-1 overflow-auto"
         style={fontStyle}
         onPointerDown={onNewSidePointerDown}
       >
-        <div className="w-max min-w-full">
+        <div className={cn(diffWrap ? 'w-full' : 'w-max min-w-full')}>
           {hunks.map((hunk, i) => (
             <div key={i} className="border-b border-border last:border-b-0">
               <div className="sticky top-0 z-20 bg-card px-3 py-1 text-[11px] text-muted-foreground">
@@ -348,14 +433,10 @@ function DiffHunks({
       </div>
 
       {/* Sync scroll toggle */}
-      <div className="absolute right-3 top-1 z-10">
+      <div className="absolute right-3 top-1 z-30 rounded-md border border-border bg-card/90 shadow-sm backdrop-blur-sm">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              onClick={() => setSyncScroll((v) => !v)}
-            >
+            <Button size="icon-xs" variant="ghost" onClick={() => setSyncScroll((v) => !v)}>
               {syncScroll ? <Link2 /> : <Link2Off />}
             </Button>
           </TooltipTrigger>
@@ -432,15 +513,14 @@ const DiffHalfLine = memo(function DiffHalfLine({
       {stickyGutter ? (
         <div
           className={cn(
-            'flex shrink-0 gap-2',
-            selectable && 'group-hover:shadow-[inset_0_0_0_9999px_rgba(255,255,255,0.08)]',
+            'flex shrink-0 gap-2 shadow-[1px_0_0_var(--border)]',
+            'group-hover:shadow-[inset_0_0_0_9999px_rgba(255,255,255,0.08),1px_0_0_var(--border)]',
           )}
           style={{
             position: 'sticky',
             left: 0,
             zIndex: 10,
             backgroundColor: gutterBg,
-            boxShadow: '2px 0 4px rgba(0,0,0,0.3)',
           }}
         >
           <span className="w-8 select-none text-right text-muted-foreground">{num ?? ''}</span>
@@ -450,13 +530,20 @@ const DiffHalfLine = memo(function DiffHalfLine({
         </div>
       ) : (
         <>
-          <span className="w-8 shrink-0 select-none text-right text-muted-foreground">{num ?? ''}</span>
+          <span className="w-8 shrink-0 select-none text-right text-muted-foreground">
+            {num ?? ''}
+          </span>
           <span className="w-3 shrink-0 select-none text-muted-foreground">
             {display === null ? '' : sigil}
           </span>
         </>
       )}
-      <span className={cn('min-w-0 flex-1', wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre')}>
+      <span
+        className={cn(
+          'min-w-0 flex-1',
+          wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre',
+        )}
+      >
         {display === null
           ? ' '
           : tokens && tokens.length > 0
@@ -474,9 +561,11 @@ const DiffHalfLine = memo(function DiffHalfLine({
 function CommentsPanel({
   tabId,
   workspaceId: _,
+  onCollapse,
 }: {
   tabId: string
   workspaceId: string
+  onCollapse: () => void
 }): JSX.Element {
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
   const setComment = useReviewComments((s) => s.setComment)
@@ -486,7 +575,20 @@ function CommentsPanel({
 
   return (
     <div className="flex h-full flex-col bg-card">
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border pl-2 pr-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={onCollapse}
+              aria-label="Collapse diff comments"
+            >
+              <ChevronRight />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Collapse</TooltipContent>
+        </Tooltip>
         <MessageSquarePlus className="size-3.5" />
         <span>Diff comments</span>
         <span className="ml-auto font-mono lowercase">
@@ -532,6 +634,38 @@ function CommentsPanel({
           )}
         </div>
       </ScrollArea>
+    </div>
+  )
+}
+
+function CommentsRail({ tabId, onExpand }: { tabId: string; onExpand: () => void }): JSX.Element {
+  const rangeCount = useReviewComments((s) => s.byTab[tabId]?.length ?? 0)
+
+  return (
+    <div className="flex h-full flex-col items-center gap-2 border-l border-border bg-card py-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={onExpand}
+            aria-label="Expand diff comments"
+          >
+            <ChevronLeft />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="left">Expand diff comments</TooltipContent>
+      </Tooltip>
+      {rangeCount > 0 ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="flex min-w-5 items-center justify-center rounded-full bg-primary/20 px-1.5 font-mono text-[10px] text-foreground">
+              {rangeCount}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{`${rangeCount} range${rangeCount === 1 ? '' : 's'}`}</TooltipContent>
+        </Tooltip>
+      ) : null}
     </div>
   )
 }

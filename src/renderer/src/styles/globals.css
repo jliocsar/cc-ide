@@ -72,9 +72,9 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, monospace;
-  --font-condensed: 'Space Grotesk', ui-sans-serif, sans-serif;
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --font-condensed: "Space Grotesk", ui-sans-serif, sans-serif;
 }
 
 @layer base {
@@ -92,7 +92,10 @@
     background: transparent;
     font-family: var(--font-mono);
   }
-  code, pre, kbd, samp {
+  code,
+  pre,
+  kbd,
+  samp {
     font-family: var(--font-mono);
   }
 }
@@ -132,6 +135,15 @@
   }
   &::-webkit-scrollbar-corner {
     background: transparent;
+  }
+}
+
+@keyframes cc-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 

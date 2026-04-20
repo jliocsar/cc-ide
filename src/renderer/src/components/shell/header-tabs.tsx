@@ -30,6 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { type DropPayload, setDropPayload } from '@/lib/drop-payload'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
@@ -140,25 +141,36 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
     >
       {showMaximizedBar ? (
         <div className="flex h-full flex-1 items-center gap-2 px-3 text-xs" style={noDrag}>
-          <span className="truncate font-mono text-foreground">{maximizedTitle}</span>
-          {maximizedBadge === 'live' ? (
-            <span className="text-green-500">● live</span>
-          ) : maximizedBadge === 'exited' ? (
-            <span className="text-destructive">exit {maximizedSession?.exitCode ?? '—'}</span>
-          ) : (
-            <span className="text-muted-foreground">dormant</span>
-          )}
-          <div className="flex-1" />
-          <button
-            type="button"
-            onClick={() => {
-              if (workspaceId) setMaximizedWindow(workspaceId, null)
-            }}
-            className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label="Restore window"
+          {/* Key on windowId so the title+badge block remounts and
+              crossfades when the user ctrl+scrolls between pages. */}
+          <div
+            key={maximizedWindowId ?? ''}
+            className="flex min-w-0 flex-1 items-center gap-2 animate-[cc-fade-in_200ms_ease-out]"
           >
-            <Minimize2 className="size-3.5" />
-          </button>
+            <span className="truncate font-mono text-foreground">{maximizedTitle}</span>
+            {maximizedBadge === 'live' ? (
+              <span className="text-green-500">● live</span>
+            ) : maximizedBadge === 'exited' ? (
+              <span className="text-destructive">exit {maximizedSession?.exitCode ?? '—'}</span>
+            ) : (
+              <span className="text-muted-foreground">dormant</span>
+            )}
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => {
+                  if (workspaceId) setMaximizedWindow(workspaceId, null)
+                }}
+                className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label="Restore window"
+              >
+                <Minimize2 className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Restore · Ctrl+Shift+F</TooltipContent>
+          </Tooltip>
         </div>
       ) : (
         <>

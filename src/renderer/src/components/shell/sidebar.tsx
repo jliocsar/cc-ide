@@ -87,6 +87,7 @@ export function Sidebar(): JSX.Element {
   }, [activeId])
 
   const sidebarVisible = useUi((s) => s.sidebarVisible)
+  const sidebarWidth = useUi((s) => s.sidebarWidth)
   const toggleSidebar = useUi((s) => s.toggleSidebar)
 
   if (!sidebarVisible) {
@@ -110,7 +111,10 @@ export function Sidebar(): JSX.Element {
   }
 
   return (
-    <aside className="flex h-full w-[260px] min-h-0 flex-col overflow-hidden border-r border-border bg-card">
+    <aside
+      className="flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-card"
+      style={{ width: sidebarWidth }}
+    >
       <div
         className="flex h-10 shrink-0 items-center gap-2 border-b border-border pl-3 pr-2 text-xs font-medium uppercase tracking-wider text-muted-foreground"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties & Record<string, string>}
@@ -168,7 +172,7 @@ export function Sidebar(): JSX.Element {
                       <div
                         key={w.id}
                         className={cn(
-                          'group flex items-center gap-2 px-3 py-1 transition-colors',
+                          'group flex items-center gap-2 px-3 py-1 text-[11px] transition-colors',
                           active
                             ? 'bg-accent text-accent-foreground'
                             : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
@@ -179,14 +183,14 @@ export function Sidebar(): JSX.Element {
                             <button
                               type="button"
                               onClick={() => setActive(w.id)}
-                              className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
+                              className="flex min-w-0 flex-1 items-center gap-2 text-left"
                             >
                               {active ? (
                                 <CheckCircle2 className="size-3 shrink-0" />
                               ) : (
                                 <Circle className="size-3 shrink-0" />
                               )}
-                              <span className="truncate font-mono text-[12px]">{w.name}</span>
+                              <span className="truncate font-mono">{w.name}</span>
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="right">{w.path}</TooltipContent>
@@ -518,11 +522,11 @@ function SectionHeader({
   actions?: React.ReactNode
 }): JSX.Element {
   return (
-    <AccordionTrigger className="group flex h-8 w-full items-center justify-start gap-1.5 rounded-none bg-muted/40 px-2 py-0 geist-features select-none text-[11px] font-medium uppercase [letter-spacing:1px] [line-height:14.5px] text-foreground/40 [font-family:var(--font-mono)] hover:bg-muted/60 hover:no-underline data-[state=open]:bg-muted/50">
+    <AccordionTrigger className="group flex h-8 w-full min-w-0 items-center justify-start gap-1.5 overflow-hidden rounded-none bg-muted/40 px-2 py-0 geist-features select-none text-[11px] font-medium uppercase [letter-spacing:1px] [line-height:14.5px] text-foreground/40 [font-family:var(--font-mono)] hover:bg-muted/60 hover:no-underline data-[state=open]:bg-muted/50">
       <Icon className="size-3.5 shrink-0" />
-      <span>{label}</span>
+      <span className="min-w-0 truncate">{label}</span>
       {count !== undefined ? (
-        <span className="font-mono text-[11px] normal-case tracking-normal opacity-70">
+        <span className="shrink-0 font-mono text-[11px] normal-case tracking-normal opacity-70">
           ({count})
         </span>
       ) : null}

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { VerticalResizer } from '@/components/vertical-resizer'
 import { friendlyFsError } from '@/lib/fs-errors'
 import { invoke, invoke as invokeIpc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
@@ -15,6 +16,7 @@ import {
   type RangeDraft,
   useReviewComments,
 } from '@/state/review-comments'
+import { useUi } from '@/state/ui'
 
 export function PlanViewer({
   workspaceId,
@@ -30,6 +32,10 @@ export function PlanViewer({
   const setMode = usePlanTabUi((s) => s.setMode)
   const toggleMode = usePlanTabUi((s) => s.toggleMode)
   const sidebarCollapsed = usePlanTabUi((s) => s.byTab[tabId]?.sidebarCollapsed ?? false)
+  const reviewPanelWidth = useUi((s) => s.reviewPanelWidth)
+  const setReviewPanelWidth = useUi((s) => s.setReviewPanelWidth)
+  const resetReviewPanelWidth = useUi((s) => s.resetReviewPanelWidth)
+  const [resizing, setResizing] = useState(false)
   const setSidebarCollapsed = usePlanTabUi((s) => s.setSidebarCollapsed)
 
   useEffect(() => {
@@ -79,8 +85,13 @@ export function PlanViewer({
     <div
       className={cn(
         'grid h-full min-h-0 bg-background',
-        sidebarCollapsed ? 'grid-cols-[1fr_32px]' : 'grid-cols-[1fr_360px]',
+        resizing ? 'transition-none' : 'transition-[grid-template-columns] duration-150',
       )}
+      style={{
+        gridTemplateColumns: sidebarCollapsed
+          ? 'minmax(0,1fr) 0px 32px'
+          : `minmax(0,1fr) 1px ${reviewPanelWidth}px`,
+      }}
     >
       <div className="h-full min-h-0 overflow-hidden border-r border-border">
         <MarkdownFileEditor
@@ -93,15 +104,31 @@ export function PlanViewer({
         />
       </div>
       {sidebarCollapsed ? (
-        <CommentsRail tabId={tabId} onExpand={() => setSidebarCollapsed(tabId, false)} />
+        <div />
       ) : (
-        <CommentsPanel
-          tabId={tabId}
-          mode={mode}
-          onSetMode={(m) => setMode(tabId, m)}
-          onCollapse={() => setSidebarCollapsed(tabId, true)}
+        <VerticalResizer
+          side="left"
+          width={reviewPanelWidth}
+          onWidth={setReviewPanelWidth}
+          onReset={resetReviewPanelWidth}
+          onResizeStart={() => setResizing(true)}
+          onResizeEnd={() => setResizing(false)}
         />
       )}
+      <div className="h-full min-h-0 overflow-hidden">
+        {sidebarCollapsed ? (
+          <CommentsRail tabId={tabId} onExpand={() => setSidebarCollapsed(tabId, false)} />
+        ) : (
+          <div style={{ width: reviewPanelWidth, height: '100%' }}>
+            <CommentsPanel
+              tabId={tabId}
+              mode={mode}
+              onSetMode={(m) => setMode(tabId, m)}
+              onCollapse={() => setSidebarCollapsed(tabId, true)}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

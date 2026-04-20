@@ -4,6 +4,7 @@ import { memo, type ReactNode, useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import claudeSymbolUrl from '@/assets/claude-symbol.svg'
 import { InlineRenameInput } from '@/components/ui/inline-rename-input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { useCanvas } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
@@ -212,30 +213,40 @@ function WindowFrameImpl({
           {badge}
           <div className="ml-auto flex items-center gap-1">
             {onMaximize ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onMaximize()
-                }}
-                className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                aria-label="Maximize window"
-              >
-                <Maximize2 className="size-3" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onMaximize()
+                    }}
+                    className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    aria-label="Maximize window"
+                  >
+                    <Maximize2 className="size-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Maximize · Ctrl+Shift+F</TooltipContent>
+              </Tooltip>
             ) : null}
             {onClose ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onClose()
-                }}
-                className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                aria-label="Close window"
-              >
-                <X className="size-3" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onClose()
+                    }}
+                    className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    aria-label="Close window"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Close window</TooltipContent>
+              </Tooltip>
             ) : null}
           </div>
         </div>

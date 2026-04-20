@@ -5,12 +5,14 @@ import { PromptsModal } from '@/components/palette/prompts-modal'
 import { SettingsModal } from '@/components/settings/settings-modal'
 import { PixelGridLoader } from '@/components/ui/pixel-grid-loader'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { VerticalResizer } from '@/components/vertical-resizer'
 import { useCanvasPersistence } from '@/hooks/use-canvas-persistence'
 import { useDropsPersistence } from '@/hooks/use-drops-persistence'
 import { useTabsPersistence } from '@/hooks/use-tabs-persistence'
 import { invoke, onEvent } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { useCanvas } from '@/state/canvas'
+import { useMaximizedWindow } from '@/state/maximized-window'
 import { usePalette } from '@/state/palette'
 import { usePlanTabUi } from '@/state/plan-tab-ui'
 import { useSessions } from '@/state/sessions'
@@ -34,7 +36,11 @@ export function Shell(): JSX.Element {
   const setActive = useTabs((s) => s.setActive)
   const togglePalette = usePalette((s) => s.togglePalette)
   const sidebarVisible = useUi((s) => s.sidebarVisible)
+  const sidebarWidth = useUi((s) => s.sidebarWidth)
+  const setSidebarWidth = useUi((s) => s.setSidebarWidth)
+  const resetSidebarWidth = useUi((s) => s.resetSidebarWidth)
   const toggleSidebar = useUi((s) => s.toggleSidebar)
+  const [resizingSidebar, setResizingSidebar] = useState(false)
   const activeWorkspaceId = useWorkspaces((s) => s.activeId)
   const conversationsLoaded = useSidebarData((s) => s.conversationsLoaded)
   const worktreesLoaded = useSidebarData((s) => s.worktreesLoaded)
@@ -98,6 +104,25 @@ export function Shell(): JSX.Element {
         const delta = ev.shiftKey ? -1 : 1
         const next = tabs[(idx + delta + tabs.length) % tabs.length]
         if (next) setActive(next.id)
+      } else if (ev.shiftKey && (ev.key === 'f' || ev.key === 'F')) {
+        // Ctrl/Cmd+Shift+F: toggle maximize for the focused terminal.
+        // Only fires on the Board tab where the canvas is visible.
+        const tabsState = useTabs.getState()
+        if (tabsState.activeId !== 'board') return
+        const ws = useWorkspaces.getState().activeId
+        if (!ws) return
+        const { byWorkspace, set: setMaximized } = useMaximizedWindow.getState()
+        const current = byWorkspace[ws] ?? null
+        if (current) {
+          ev.preventDefault()
+          setMaximized(ws, null)
+          return
+        }
+        const wins = useCanvas.getState().windows
+        if (wins.length === 0) return
+        const top = wins.reduce((a, b) => (a.zIndex >= b.zIndex ? a : b))
+        ev.preventDefault()
+        setMaximized(ws, top.id)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -114,13 +139,30 @@ export function Shell(): JSX.Element {
       >
         <div
           className={cn(
-            'grid min-h-0 flex-1 grid-rows-1 text-foreground transition-[grid-template-columns] duration-150',
-            sidebarVisible ? 'grid-cols-[260px_minmax(0,1fr)]' : 'grid-cols-[40px_minmax(0,1fr)]',
+            'grid min-h-0 flex-1 grid-rows-1 text-foreground',
+            resizingSidebar ? 'transition-none' : 'transition-[grid-template-columns] duration-150',
           )}
+          style={{
+            gridTemplateColumns: sidebarVisible
+              ? `${sidebarWidth}px 1px minmax(0,1fr)`
+              : '40px 0px minmax(0,1fr)',
+          }}
         >
           <div className="overflow-hidden">
             <Sidebar />
           </div>
+          {sidebarVisible ? (
+            <VerticalResizer
+              side="right"
+              width={sidebarWidth}
+              onWidth={setSidebarWidth}
+              onReset={resetSidebarWidth}
+              onResizeStart={() => setResizingSidebar(true)}
+              onResizeEnd={() => setResizingSidebar(false)}
+            />
+          ) : (
+            <div />
+          )}
           <div className="grid min-w-0 grid-rows-[40px_minmax(0,1fr)_24px]">
             <HeaderTabs maximized={maximized} />
             <div className="grid min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden [&>*]:h-full">

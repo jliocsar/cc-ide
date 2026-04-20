@@ -284,7 +284,7 @@ export function SettingsModal(): JSX.Element {
               label="Folder"
               description={`Relative folder inside each workspace for plans/ and prompts/. Default: ${DEFAULT_DATA_ROOT}. Existing files in the old location are not moved.`}
             >
-              <div className="flex w-[220px] flex-col gap-1">
+              <div className="flex w-[180px] flex-col gap-1">
                 <Input
                   id="workspace-data-root"
                   value={dataRootDraft}

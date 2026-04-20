@@ -55,7 +55,7 @@ export function ConversationsSection({ workspaceId }: { workspaceId: string }): 
             className="group flex min-w-0 items-start gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
           >
             <MessageSquare className="mt-0.5 size-3 shrink-0" />
-            <Tooltip>
+            <Tooltip delayDuration={800}>
               <TooltipTrigger asChild>
                 <div className="min-w-0 flex-1 overflow-hidden">
                   <div className="truncate font-mono">
