@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { MarkdownFileEditor } from '@/components/editor/markdown-file-editor'
+import { friendlyFsError } from '@/lib/fs-errors'
 import { invoke } from '@/lib/ipc'
 
 function promptTabId(workspaceId: string, relPath: string): string {
@@ -24,7 +25,7 @@ export function PromptViewer({
         const { content } = await invoke('prompts:read', { workspaceId, relPath })
         if (!cancelled) setContent(content)
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
+        if (!cancelled) setError(friendlyFsError(err, relPath))
       }
     })()
     return () => {

@@ -184,11 +184,11 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       sessionName: primarySession,
       windowName,
       cwd: ws.path,
-      // Source ~/.zshrc for PATH/aliases, then `exec claude` replaces the
-      // zsh process — no parent shell to linger after /exit. When claude
-      // returns, the pane's root process is gone, tmux closes the pane,
-      // and the window (single-pane) closes with it.
-      command: `exec zsh -ic 'exec claude --resume ${sessionId}'`,
+      // Interactive zsh sources ~/.zshrc (PATH + aliases — `claude` may
+      // be aliased to a user wrapper). After claude exits, `exit` tears
+      // the shell down unconditionally so the pane can't drop to a
+      // prompt, regardless of IGNOREEOF, plugin hooks, or similar.
+      command: `zsh -ic 'claude --resume ${sessionId}; exit'`,
     })
     const ptyId = await attachViewerPty({
       primarySession,
@@ -240,8 +240,8 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       sessionName: primarySession,
       windowName,
       cwd,
-      // see the resume flow above for why this is `exec zsh -ic 'exec claude'`.
-      command: `exec zsh -ic 'exec claude'`,
+      // see the resume flow above for why this is `zsh -ic 'claude; exit'`.
+      command: `zsh -ic 'claude; exit'`,
     })
 
     if (ephemeral) {

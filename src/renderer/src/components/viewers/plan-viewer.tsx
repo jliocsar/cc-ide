@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { friendlyFsError } from '@/lib/fs-errors'
 import { invoke, invoke as invokeIpc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { type PlanMode, usePlanTabUi } from '@/state/plan-tab-ui'
@@ -38,7 +39,7 @@ export function PlanViewer({
         const { content } = await invoke('plans:read', { workspaceId, relPath })
         if (!cancelled) setContent(content)
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
+        if (!cancelled) setError(friendlyFsError(err, relPath))
       }
     })()
     return () => {

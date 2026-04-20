@@ -92,6 +92,91 @@ export function Canvas(): JSX.Element {
     }
   }, [paged, activeWorkspaceId, maximizedWindowId, setMaximizedWindow])
 
+  // Page-step navigation in paged mode. Bound to Ctrl+wheel and
+  // Ctrl+Arrow. We animate scrollLeft by hand with easeInOutCubic —
+  // native `behavior: 'smooth'` is short and snap-type mandatory
+  // collapses it into a jump. macOS-workspaces feel: ~460ms ease.
+  useEffect(() => {
+    if (!paged) return
+    const scroller = scrollerRef.current
+    if (!scroller) return
+    let cooldown = 0
+    let raf = 0
+    const ANIM_MS = 260
+    const ease = (t: number): number => 1 - (1 - t) ** 3
+    const animateTo = (target: number): void => {
+      if (raf) cancelAnimationFrame(raf)
+      const start = scroller.scrollLeft
+      const delta = target - start
+      if (delta === 0) return
+      scroller.style.scrollSnapType = 'none'
+      const t0 = performance.now()
+      const step = (now: number): void => {
+        const t = Math.min(1, (now - t0) / ANIM_MS)
+        scroller.scrollLeft = start + delta * ease(t)
+        if (t < 1) {
+          raf = requestAnimationFrame(step)
+        } else {
+          raf = 0
+          scroller.style.scrollSnapType = ''
+        }
+      }
+      raf = requestAnimationFrame(step)
+    }
+    const stepPage = (dir: 1 | -1): void => {
+      const now = performance.now()
+      if (now < cooldown) return
+      const pages = Array.from(scroller.querySelectorAll<HTMLElement>('[data-window-id]'))
+      if (pages.length === 0) return
+      const center = scroller.scrollLeft + scroller.clientWidth / 2
+      let currentIdx = 0
+      let bestDist = Infinity
+      pages.forEach((el, i) => {
+        const mid = el.offsetLeft + el.offsetWidth / 2
+        const d = Math.abs(mid - center)
+        if (d < bestDist) {
+          bestDist = d
+          currentIdx = i
+        }
+      })
+      const nextIdx = Math.max(0, Math.min(pages.length - 1, currentIdx + dir))
+      if (nextIdx === currentIdx) return
+      const target = pages[nextIdx]
+      if (!target) return
+      cooldown = now + ANIM_MS
+      animateTo(target.offsetLeft)
+    }
+    const onWheel = (ev: WheelEvent): void => {
+      if (!(ev.ctrlKey || ev.metaKey)) return
+      ev.preventDefault()
+      ev.stopPropagation()
+      const delta = ev.deltaY + ev.deltaX
+      if (delta === 0) return
+      stepPage(delta > 0 ? 1 : -1)
+    }
+    const onKey = (ev: KeyboardEvent): void => {
+      if (!(ev.ctrlKey || ev.metaKey)) return
+      if (ev.shiftKey || ev.altKey) return
+      if (ev.key === 'ArrowRight') {
+        ev.preventDefault()
+        ev.stopPropagation()
+        stepPage(1)
+      } else if (ev.key === 'ArrowLeft') {
+        ev.preventDefault()
+        ev.stopPropagation()
+        stepPage(-1)
+      }
+    }
+    scroller.addEventListener('wheel', onWheel, { capture: true, passive: false })
+    window.addEventListener('keydown', onKey, { capture: true })
+    return () => {
+      scroller.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions)
+      window.removeEventListener('keydown', onKey, { capture: true } as EventListenerOptions)
+      if (raf) cancelAnimationFrame(raf)
+      scroller.style.scrollSnapType = ''
+    }
+  }, [paged])
+
   const spawnFromToolbar = useCallback(() => {
     const host = hostRef.current
     if (!host) return

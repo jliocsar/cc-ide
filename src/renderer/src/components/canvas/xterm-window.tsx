@@ -41,11 +41,16 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
   const shortName = w.tmuxWindow.split(':').slice(1).join(':') || w.tmuxWindow
   const terminalHostRef = useRef<HTMLDivElement>(null)
 
+  const pagedRef = useRef(paged)
+  pagedRef.current = paged
   useEffect(() => {
     const host = terminalHostRef.current
     if (!host) return
     const onWheel = (ev: WheelEvent) => {
       if (!(ev.ctrlKey || ev.metaKey)) return
+      // In paged mode, the canvas-level handler routes Ctrl+wheel into
+      // the horizontal snap scroller. Yield to it.
+      if (pagedRef.current) return
       ev.preventDefault()
       ev.stopPropagation()
       const vp = clientToCanvasViewport(ev.clientX, ev.clientY)

@@ -159,7 +159,7 @@ function WindowFrameImpl({
       className={cn(
         'flex flex-col overflow-hidden bg-[#0a0a0a] shadow-2xl',
         paged
-          ? 'relative h-full w-full shrink-0 grow-0 basis-full rounded-none [scroll-snap-align:center] [scroll-snap-stop:always]'
+          ? 'relative h-full w-full shrink-0 grow-0 basis-full rounded-none [scroll-snap-align:center]'
           : cn('absolute', maximized ? 'rounded-none' : 'rounded-md border border-border'),
       )}
       style={
