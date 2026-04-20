@@ -90,9 +90,12 @@ function WorktreeRow({
       <GitBranch className="size-3 shrink-0" />
       <div className="min-w-0 flex-1 overflow-hidden">
         <div className="truncate font-mono">{worktree.branch ?? '(detached)'}</div>
-        <div className="truncate text-[10px] text-muted-foreground/60" title={worktree.path}>
-          {displayPath}
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="truncate text-[10px] text-muted-foreground/60">{displayPath}</div>
+          </TooltipTrigger>
+          <TooltipContent side="right">{worktree.path}</TooltipContent>
+        </Tooltip>
       </div>
       <Tooltip>
         <TooltipTrigger asChild>

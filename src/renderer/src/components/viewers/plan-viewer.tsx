@@ -240,12 +240,14 @@ function CommentsRail({ tabId, onExpand }: { tabId: string; onExpand: () => void
         <TooltipContent side="left">Expand review comments</TooltipContent>
       </Tooltip>
       {rangeCount > 0 ? (
-        <span
-          className="flex min-w-5 items-center justify-center rounded-full bg-primary/20 px-1.5 font-mono text-[10px] text-foreground"
-          title={`${rangeCount} range${rangeCount === 1 ? '' : 's'}`}
-        >
-          {rangeCount}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="flex min-w-5 items-center justify-center rounded-full bg-primary/20 px-1.5 font-mono text-[10px] text-foreground">
+              {rangeCount}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{`${rangeCount} range${rangeCount === 1 ? '' : 's'}`}</TooltipContent>
+        </Tooltip>
       ) : null}
     </div>
   )

@@ -19,6 +19,20 @@ export const editorFontSchema = z.enum(['geist', 'geist-mono', 'space-grotesk', 
 export const diffFontSchema = z.enum(['geist-mono', 'system'])
 export const fontSizeSchema = z.number().int().min(8).max(32)
 
+export const DEFAULT_DATA_ROOT = '.cc-ide'
+
+// Relative path inside each workspace for plans/ and prompts/ subdirs.
+// No leading slash, no `..` segments, no NUL bytes, non-empty.
+export const dataRootSchema = z
+  .string()
+  .min(1, 'folder is required')
+  .refine((s) => !s.includes('\0'), 'must not contain null bytes')
+  .refine((s) => !s.startsWith('/') && !s.startsWith('\\'), 'must be a relative path')
+  .refine((s) => {
+    const parts = s.split(/[\\/]/)
+    return parts.every((p) => p !== '..' && p !== '' && !p.startsWith(' ') && !p.endsWith(' '))
+  }, 'must not contain `..` or empty segments')
+
 export const settingsSchema = z.object({
   editor: z
     .object({
@@ -41,6 +55,11 @@ export const settingsSchema = z.object({
       stickyGutter: z.boolean().default(true),
     })
     .default({ font: 'geist-mono', fontSize: 12, wrap: true, stickyGutter: true }),
+  workspace: z
+    .object({
+      dataRoot: dataRootSchema.default(DEFAULT_DATA_ROOT),
+    })
+    .default({ dataRoot: DEFAULT_DATA_ROOT }),
 })
 export type Settings = z.infer<typeof settingsSchema>
 
@@ -53,6 +72,7 @@ export const defaultSettings: Settings = {
   editor: { keybinds: 'vscode', font: 'geist', fontSize: 12 },
   terminal: { font: 'system', fontSize: 13 },
   diff: { font: 'geist-mono', fontSize: 12, wrap: true, stickyGutter: true },
+  workspace: { dataRoot: DEFAULT_DATA_ROOT },
 }
 
 async function ensureDir(): Promise<void> {

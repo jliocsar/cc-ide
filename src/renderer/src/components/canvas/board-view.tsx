@@ -1,7 +1,8 @@
 import { cn } from '@/lib/utils'
-import { useBoardUi } from '@/state/board-ui'
+import { resolveBoardMode, useBoardUi } from '@/state/board-ui'
 import { useWorkspaces } from '@/state/workspaces'
 import { Canvas } from './canvas'
+import { DevSandbox } from './dev-sandbox'
 import { GraphCanvas } from './graph-canvas'
 
 /**
@@ -13,10 +14,12 @@ import { GraphCanvas } from './graph-canvas'
 export function BoardView(): JSX.Element {
   const workspaceId = useWorkspaces((s) => s.activeId)
   const mode = useBoardUi((s) =>
-    workspaceId ? (s.modeByWorkspace[workspaceId] ?? 'sessions') : 'sessions',
+    resolveBoardMode(workspaceId ? s.modeByWorkspace[workspaceId] : undefined),
   )
 
   const sessionsActive = mode === 'sessions'
+  const graphActive = mode === 'graph'
+  const sandboxActive = mode === 'sandbox'
 
   return (
     <div className="relative h-full w-full">
@@ -32,12 +35,23 @@ export function BoardView(): JSX.Element {
       <div
         className={cn(
           'absolute inset-0 [&>*]:h-full [&>*]:w-full',
-          !sessionsActive ? 'visible' : 'invisible pointer-events-none',
+          graphActive ? 'visible' : 'invisible pointer-events-none',
         )}
-        aria-hidden={sessionsActive}
+        aria-hidden={!graphActive}
       >
         <GraphCanvas />
       </div>
+      {import.meta.env.DEV ? (
+        <div
+          className={cn(
+            'absolute inset-0 [&>*]:h-full [&>*]:w-full',
+            sandboxActive ? 'visible' : 'invisible pointer-events-none',
+          )}
+          aria-hidden={!sandboxActive}
+        >
+          <DevSandbox />
+        </div>
+      ) : null}
     </div>
   )
 }

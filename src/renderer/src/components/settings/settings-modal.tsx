@@ -1,4 +1,6 @@
 import type { DiffFontDTO, EditorFontDTO, EditorKeybindsDTO, TerminalFontDTO } from '@shared/ipc'
+import { Info } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -6,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -14,9 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Info } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useSettings } from '@/state/settings'
+import { DEFAULT_DATA_ROOT, useSettings, validateDataRoot } from '@/state/settings'
 
 const FONT_SIZES = [10, 11, 12, 13, 14, 15, 16, 18, 20] as const
 
@@ -94,6 +96,7 @@ export function SettingsModal(): JSX.Element {
   const diffFontSize = useSettings((s) => s.settings.diff.fontSize)
   const diffWrap = useSettings((s) => s.settings.diff.wrap)
   const diffStickyGutter = useSettings((s) => s.settings.diff.stickyGutter)
+  const workspaceDataRoot = useSettings((s) => s.settings.workspace.dataRoot)
   const setEditorKeybinds = useSettings((s) => s.setEditorKeybinds)
   const setEditorFont = useSettings((s) => s.setEditorFont)
   const setEditorFontSize = useSettings((s) => s.setEditorFontSize)
@@ -103,6 +106,21 @@ export function SettingsModal(): JSX.Element {
   const setDiffFontSize = useSettings((s) => s.setDiffFontSize)
   const setDiffWrap = useSettings((s) => s.setDiffWrap)
   const setDiffStickyGutter = useSettings((s) => s.setDiffStickyGutter)
+  const setWorkspaceDataRoot = useSettings((s) => s.setWorkspaceDataRoot)
+
+  // Local draft: the input reflects user typing. Commit on blur or Enter,
+  // only if it validates. Revert on Escape.
+  const [dataRootDraft, setDataRootDraft] = useState(workspaceDataRoot)
+  useEffect(() => {
+    setDataRootDraft(workspaceDataRoot)
+  }, [workspaceDataRoot])
+  const dataRootError = validateDataRoot(dataRootDraft)
+  const dataRootDirty = dataRootDraft !== workspaceDataRoot
+
+  async function commitDataRoot(): Promise<void> {
+    if (!dataRootDirty || dataRootError) return
+    await setWorkspaceDataRoot(dataRootDraft)
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -199,10 +217,7 @@ export function SettingsModal(): JSX.Element {
               Diff
             </h3>
             <SettingRow id="diff-font" label="Font">
-              <Select
-                value={diffFont}
-                onValueChange={(v) => void setDiffFont(v as DiffFontDTO)}
-              >
+              <Select value={diffFont} onValueChange={(v) => void setDiffFont(v as DiffFontDTO)}>
                 <SelectTrigger id="diff-font" className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -256,6 +271,43 @@ export function SettingsModal(): JSX.Element {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+            </SettingRow>
+          </section>
+
+          {/* Workspace */}
+          <section className="flex flex-col gap-2">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Plans &amp; Prompts
+            </h3>
+            <SettingRow
+              id="workspace-data-root"
+              label="Folder"
+              description={`Relative folder inside each workspace for plans/ and prompts/. Default: ${DEFAULT_DATA_ROOT}. Existing files in the old location are not moved.`}
+            >
+              <div className="flex w-[220px] flex-col gap-1">
+                <Input
+                  id="workspace-data-root"
+                  value={dataRootDraft}
+                  onChange={(e) => setDataRootDraft(e.target.value)}
+                  onBlur={() => void commitDataRoot()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void commitDataRoot()
+                      ;(e.target as HTMLInputElement).blur()
+                    } else if (e.key === 'Escape') {
+                      setDataRootDraft(workspaceDataRoot)
+                      ;(e.target as HTMLInputElement).blur()
+                    }
+                  }}
+                  placeholder={DEFAULT_DATA_ROOT}
+                  aria-invalid={dataRootError !== null}
+                  className="font-mono text-xs"
+                />
+                {dataRootError ? (
+                  <span className="text-[10px] text-destructive">{dataRootError}</span>
+                ) : null}
+              </div>
             </SettingRow>
           </section>
         </div>

@@ -2,6 +2,7 @@ import { type FSWatcher, promises as fsp, watch } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { broadcast } from '../event-bus'
+import { DEFAULT_DATA_ROOT } from './plan-fs-tree'
 import { pathToSlug } from './session-discovery'
 
 const DEBOUNCE_MS = 300
@@ -95,10 +96,11 @@ export async function ensureWorktreeWatcher(
 export async function ensurePlansWatcher(
   workspaceId: string,
   workspacePath: string,
+  dataRoot: string = DEFAULT_DATA_ROOT,
 ): Promise<void> {
   const entry = getOrCreate(workspaceId)
   if (entry.plans) return
-  const dir = join(workspacePath, '.cc-ide', 'plans')
+  const dir = join(workspacePath, dataRoot, 'plans')
   const w = await tryWatch(dir, { recursive: true }, () => {
     if (entry.plansTimer) clearTimeout(entry.plansTimer)
     entry.plansTimer = setTimeout(() => {
@@ -111,10 +113,11 @@ export async function ensurePlansWatcher(
 export async function ensurePromptsWatcher(
   workspaceId: string,
   workspacePath: string,
+  dataRoot: string = DEFAULT_DATA_ROOT,
 ): Promise<void> {
   const entry = getOrCreate(workspaceId)
   if (entry.prompts) return
-  const dir = join(workspacePath, '.cc-ide', 'prompts')
+  const dir = join(workspacePath, dataRoot, 'prompts')
   const w = await tryWatch(dir, { recursive: true }, () => {
     if (entry.promptsTimer) clearTimeout(entry.promptsTimer)
     entry.promptsTimer = setTimeout(() => {
@@ -122,6 +125,22 @@ export async function ensurePromptsWatcher(
     }, DEBOUNCE_MS)
   })
   entry.prompts = w
+}
+
+// Invalidate plans+prompts watchers across all workspaces. Called after
+// `settings.workspace.dataRoot` changes so the next ensure*Watcher picks
+// up the new location.
+export function disposePlansAndPromptsWatchers(): void {
+  for (const entry of registry.values()) {
+    entry.plans?.close()
+    entry.plans = undefined
+    entry.prompts?.close()
+    entry.prompts = undefined
+    if (entry.plansTimer) clearTimeout(entry.plansTimer)
+    entry.plansTimer = undefined
+    if (entry.promptsTimer) clearTimeout(entry.promptsTimer)
+    entry.promptsTimer = undefined
+  }
 }
 
 export function disposeAllWatchers(): void {

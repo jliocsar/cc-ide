@@ -1,6 +1,7 @@
 import { MessageSquare, Play } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { getCanvasViewportCenter } from '@/lib/canvas-host'
 import { useCanvas, worldFromViewport } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
@@ -51,16 +52,24 @@ export function ConversationsSection({ workspaceId }: { workspaceId: string }): 
         {conversations.map((s) => (
           <div
             key={s.id}
-            title={s.firstUserMessage ?? s.id}
             className="group flex min-w-0 items-start gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
           >
             <MessageSquare className="mt-0.5 size-3 shrink-0" />
-            <div className="min-w-0 flex-1 overflow-hidden">
-              <div className="truncate font-mono">{s.firstUserMessage ?? '(no user messages)'}</div>
-              <div className="truncate text-[10px] text-muted-foreground/60">
-                {new Date(s.updatedAt).toLocaleString()} · {s.messageCount} msg
-              </div>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="truncate font-mono">
+                    {s.firstUserMessage ?? '(no user messages)'}
+                  </div>
+                  <div className="truncate text-[10px] text-muted-foreground/60">
+                    {new Date(s.updatedAt).toLocaleString()} · {s.messageCount} msg
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-sm">
+                {s.firstUserMessage ?? s.id}
+              </TooltipContent>
+            </Tooltip>
             <Button
               size="icon-xs"
               variant="ghost"

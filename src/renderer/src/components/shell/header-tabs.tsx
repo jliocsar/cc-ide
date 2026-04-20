@@ -2,6 +2,7 @@ import {
   ChevronDown,
   Copy,
   FileText,
+  FlaskConical,
   GitCompare,
   LayoutGrid,
   MessageSquare,
@@ -32,9 +33,11 @@ import {
 import { type DropPayload, setDropPayload } from '@/lib/drop-payload'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
-import { type BoardMode, useBoardUi } from '@/state/board-ui'
+import { type BoardMode, resolveBoardMode, useBoardUi } from '@/state/board-ui'
+import { useCanvas } from '@/state/canvas'
 import { useMaximizedWindow } from '@/state/maximized-window'
 import { usePlanTabUi } from '@/state/plan-tab-ui'
+import { useSessions } from '@/state/sessions'
 import { type Tab, useTabs } from '@/state/tabs'
 import { useWorkspaces } from '@/state/workspaces'
 
@@ -86,14 +89,32 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
   const setPendingCloseId = usePlanTabUi((s) => s.setPendingCloseId)
   const workspaceId = useWorkspaces((s) => s.activeId)
   const boardMode = useBoardUi((s) =>
-    workspaceId ? (s.modeByWorkspace[workspaceId] ?? 'sessions') : 'sessions',
+    resolveBoardMode(workspaceId ? s.modeByWorkspace[workspaceId] : undefined),
   )
-  const maximizedInfo = useMaximizedWindow((s) =>
+  const maximizedWindowId = useMaximizedWindow((s) =>
     workspaceId ? (s.byWorkspace[workspaceId] ?? null) : null,
   )
   const setMaximizedWindow = useMaximizedWindow((s) => s.set)
+  const maximizedWindow = useCanvas((s) =>
+    maximizedWindowId ? s.windows.find((w) => w.id === maximizedWindowId) : undefined,
+  )
+  const maximizedSession = useSessions((s) =>
+    maximizedWindow?.sessionId
+      ? s.sessions.find((x) => x.ptyId === maximizedWindow.sessionId)
+      : undefined,
+  )
   const isBoardActive = activeId === 'board'
-  const showMaximizedBar = isBoardActive && maximizedInfo !== null
+  const showMaximizedBar = isBoardActive && maximizedWindowId !== null && !!maximizedWindow
+  const maximizedTitle = maximizedWindow
+    ? maximizedWindow.tmuxWindow.split(':').slice(1).join(':') || maximizedWindow.tmuxWindow
+    : ''
+  const maximizedBadge: 'live' | 'exited' | 'dormant' = !maximizedWindow
+    ? 'dormant'
+    : maximizedWindow.sessionId === null
+      ? 'dormant'
+      : maximizedSession?.exited
+        ? 'exited'
+        : 'live'
   const [draggingId, setDraggingId] = useState<string | null>(null)
 
   function requestClose(id: string): void {
@@ -113,14 +134,17 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
   }
 
   return (
-    <div className="flex h-10 w-full min-w-0 items-center border-b border-border bg-card" style={drag}>
+    <div
+      className="flex h-10 w-full min-w-0 items-center border-b border-border bg-card"
+      style={drag}
+    >
       {showMaximizedBar ? (
         <div className="flex h-full flex-1 items-center gap-2 px-3 text-xs" style={noDrag}>
-          <span className="truncate font-mono text-foreground">{maximizedInfo.title}</span>
-          {maximizedInfo.badge === 'live' ? (
+          <span className="truncate font-mono text-foreground">{maximizedTitle}</span>
+          {maximizedBadge === 'live' ? (
             <span className="text-green-500">● live</span>
-          ) : maximizedInfo.badge === 'exited' ? (
-            <span className="text-destructive">exit {maximizedInfo.exitCode ?? '—'}</span>
+          ) : maximizedBadge === 'exited' ? (
+            <span className="text-destructive">exit {maximizedSession?.exitCode ?? '—'}</span>
           ) : (
             <span className="text-muted-foreground">dormant</span>
           )}
@@ -135,19 +159,11 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
           >
             <Minimize2 className="size-3.5" />
           </button>
-          <button
-            type="button"
-            onClick={() => maximizedInfo.onClose()}
-            className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label="Close window"
-          >
-            <X className="size-3.5" />
-          </button>
         </div>
       ) : (
         <>
           <div
-            className="scrollbar-themed flex h-full min-w-0 flex-1 items-center overflow-x-auto border-r border-border"
+            className="scrollbar-themed flex h-full min-w-0 items-center overflow-x-auto border-r border-border"
             style={noDrag}
           >
             {tabs.map((tab) => {
@@ -155,12 +171,16 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
               const Icon = isBoard
                 ? boardMode === 'graph'
                   ? Network
-                  : LayoutGrid
+                  : boardMode === 'sandbox'
+                    ? FlaskConical
+                    : LayoutGrid
                 : ICON_BY_KIND[tab.kind]
               const title = isBoard
                 ? boardMode === 'graph'
                   ? 'Dependency Graph'
-                  : 'Sessions'
+                  : boardMode === 'sandbox'
+                    ? 'Dev Sandbox'
+                    : 'Sessions'
                 : tab.title
               const active = tab.id === activeId
               const payload = dragPayloadFor(tab)
@@ -231,6 +251,7 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
               )
             })}
           </div>
+          <div className="h-full flex-1" style={drag} />
         </>
       )}
       {/* Window controls */}
@@ -293,7 +314,7 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
 function BoardModeChevron(): JSX.Element | null {
   const workspaceId = useWorkspaces((s) => s.activeId)
   const mode = useBoardUi((s) =>
-    workspaceId ? (s.modeByWorkspace[workspaceId] ?? 'sessions') : 'sessions',
+    resolveBoardMode(workspaceId ? s.modeByWorkspace[workspaceId] : undefined),
   )
   const setMode = useBoardUi((s) => s.setMode)
   if (!workspaceId) return null
@@ -324,6 +345,12 @@ function BoardModeChevron(): JSX.Element | null {
           <Network />
           Dependency Graph {mode === 'graph' ? '•' : ''}
         </DropdownMenuItem>
+        {import.meta.env.DEV ? (
+          <DropdownMenuItem onClick={() => pick('sandbox')}>
+            <FlaskConical />
+            Dev Sandbox {mode === 'sandbox' ? '•' : ''}
+          </DropdownMenuItem>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   )

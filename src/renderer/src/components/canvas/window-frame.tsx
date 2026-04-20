@@ -17,6 +17,9 @@ type Props = {
   width: number
   height: number
   zIndex: number
+  // Paged: a sibling is maximized and the canvas is in scroll-snap mode.
+  // All windows lay out as relative 100%-basis flex children.
+  paged?: boolean
   maximized?: boolean
   onMaximize?: () => void
   onClose?: () => void
@@ -36,6 +39,7 @@ function WindowFrameImpl({
   width,
   height,
   zIndex,
+  paged,
   maximized,
   onMaximize,
   onClose,
@@ -139,26 +143,38 @@ function WindowFrameImpl({
   const displayTitle =
     shortName ?? (title.includes(':') ? title.split(':').slice(1).join(':') || title : title)
 
+  // Paged layout (sibling is maximized): render as relative flex child
+  // occupying a full scroll-snap page. Suppresses chrome — the header tab
+  // bar provides the active-window controls.
+  const chromeless = paged || maximized
+
   return (
     <div
+      data-window-id={id}
       onPointerDown={(e) => {
         if (e.ctrlKey || e.metaKey) return
         e.stopPropagation()
         focusWindow(id)
       }}
       className={cn(
-        'absolute flex flex-col overflow-hidden bg-[#0a0a0a] shadow-2xl',
-        maximized ? 'rounded-none' : 'rounded-md border border-border',
+        'flex flex-col overflow-hidden bg-[#0a0a0a] shadow-2xl',
+        paged
+          ? 'relative h-full w-full shrink-0 grow-0 basis-full rounded-none [scroll-snap-align:center] [scroll-snap-stop:always]'
+          : cn('absolute', maximized ? 'rounded-none' : 'rounded-md border border-border'),
       )}
-      style={{
-        left: x,
-        top: y,
-        width,
-        height,
-        zIndex,
-      }}
+      style={
+        paged
+          ? undefined
+          : {
+              left: x,
+              top: y,
+              width,
+              height,
+              zIndex,
+            }
+      }
     >
-      {!maximized && (
+      {!chromeless && (
         <div
           onPointerDown={onTitlebarPointerDown}
           onDoubleClick={onTitlebarDoubleClick}
@@ -227,7 +243,7 @@ function WindowFrameImpl({
 
       <div className="relative flex-1 overflow-hidden">{children}</div>
 
-      {!maximized && (
+      {!chromeless && (
         <div
           onPointerDown={onResizePointerDown}
           className="absolute bottom-0 right-0 size-3 cursor-nwse-resize"

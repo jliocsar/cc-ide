@@ -27,6 +27,7 @@ import * as settingsStore from './modules/settings-store'
 import * as tabsStore from './modules/tabs-store'
 import * as tmux from './modules/tmux-adapter'
 import {
+  disposePlansAndPromptsWatchers,
   ensurePlansWatcher,
   ensurePromptsWatcher,
   ensureSessionWatcher,
@@ -65,6 +66,11 @@ async function attachViewerPty(opts: {
       await tmux.killViewerSession(viewerName)
     },
   })
+}
+
+async function getDataRoot(): Promise<string> {
+  const settings = await settingsStore.readSettings()
+  return settings.workspace.dataRoot
 }
 
 function slugifyBranch(branch: string): string {
@@ -178,14 +184,11 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       sessionName: primarySession,
       windowName,
       cwd: ws.path,
-      // Wrap in an interactive zsh so the user's ~/.zshrc loads (PATH,
-      // aliases, etc.). After claude exits (e.g. /exit), `tmux kill-window
-      // -t <target>` kills THIS window explicitly (not whatever pane is
-      // current). `kill -9 $$` is a belt-and-suspenders fallback: if a
-      // user's zsh config keeps the shell alive (zsh-you-should-use trap,
-      // ignoreeof, plugin confirm-exit, etc.), SIGKILL tears the shell
-      // down unconditionally so the pane can't linger.
-      command: `exec zsh -ic 'claude --resume ${sessionId}; tmux kill-window -t "${primarySession}:${windowName}" 2>/dev/null; kill -9 $$ 2>/dev/null'`,
+      // Source ~/.zshrc for PATH/aliases, then `exec claude` replaces the
+      // zsh process — no parent shell to linger after /exit. When claude
+      // returns, the pane's root process is gone, tmux closes the pane,
+      // and the window (single-pane) closes with it.
+      command: `exec zsh -ic 'exec claude --resume ${sessionId}'`,
     })
     const ptyId = await attachViewerPty({
       primarySession,
@@ -237,10 +240,8 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       sessionName: primarySession,
       windowName,
       cwd,
-      // see the resume flow above for why this is wrapped in `exec zsh -ic`
-      // + `tmux kill-window -t <target>` + `kill -9 $$` fallback for clean
-      // window teardown on /exit.
-      command: `exec zsh -ic 'claude; tmux kill-window -t "${primarySession}:${windowName}" 2>/dev/null; kill -9 $$ 2>/dev/null'`,
+      // see the resume flow above for why this is `exec zsh -ic 'exec claude'`.
+      command: `exec zsh -ic 'exec claude'`,
     })
 
     if (ephemeral) {
@@ -400,84 +401,89 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
   },
   'prompts:tree': async ({ workspaceId }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    void ensurePromptsWatcher(workspaceId, ws.path)
-    const tree = await promptsFsTree.listTree(ws.path)
+    const dataRoot = await getDataRoot()
+    void ensurePromptsWatcher(workspaceId, ws.path, dataRoot)
+    const tree = await promptsFsTree.listTree(ws.path, dataRoot)
     return { tree }
   },
   'prompts:read': async ({ workspaceId, relPath }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    const content = await promptsFsTree.readPrompt(ws.path, relPath)
+    const content = await promptsFsTree.readPrompt(ws.path, relPath, await getDataRoot())
     return { content }
   },
   'prompts:write': async ({ workspaceId, relPath, content }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    await promptsFsTree.writePrompt(ws.path, relPath, content)
+    await promptsFsTree.writePrompt(ws.path, relPath, content, await getDataRoot())
     return { ok: true }
   },
   'prompts:create': async ({ workspaceId, relPath }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    await promptsFsTree.createPrompt(ws.path, relPath)
+    await promptsFsTree.createPrompt(ws.path, relPath, await getDataRoot())
     return { ok: true }
   },
   'prompts:createFolder': async ({ workspaceId, relPath }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    await promptsFsTree.createFolder(ws.path, relPath)
+    await promptsFsTree.createFolder(ws.path, relPath, await getDataRoot())
     return { ok: true }
   },
   'prompts:rename': async ({ workspaceId, fromRel, toRel, overwrite }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    await promptsFsTree.rename(ws.path, fromRel, toRel, { overwrite })
+    await promptsFsTree.rename(ws.path, fromRel, toRel, {
+      overwrite,
+      dataRoot: await getDataRoot(),
+    })
     return { ok: true }
   },
   'prompts:delete': async ({ workspaceId, relPath }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    await promptsFsTree.deletePath(ws.path, relPath)
+    await promptsFsTree.deletePath(ws.path, relPath, await getDataRoot())
     return { ok: true }
   },
   'plans:tree': async ({ workspaceId }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    const migration = await planFsTree.migrateLegacyIfNeeded(workspaceId, ws.path)
+    const dataRoot = await getDataRoot()
+    const migration = await planFsTree.migrateLegacyIfNeeded(workspaceId, ws.path, dataRoot)
     if (migration === 'migrated') {
       console.log(
-        `[plans] migrated legacy plans for workspace ${workspaceId} → ${ws.path}/.cc-ide/plans`,
+        `[plans] migrated legacy plans for workspace ${workspaceId} → ${ws.path}/${dataRoot}/plans`,
       )
     } else if (migration === 'skipped-dest-populated') {
       console.warn(
-        `[plans] legacy plans at ~/.cc-ide/plans/${workspaceId} left in place: destination ${ws.path}/.cc-ide/plans already has content`,
+        `[plans] legacy plans at ~/.cc-ide/plans/${workspaceId} left in place: destination ${ws.path}/${dataRoot}/plans already has content`,
       )
     }
-    void ensurePlansWatcher(workspaceId, ws.path)
-    const tree = await planFsTree.listTree(ws.path)
+    void ensurePlansWatcher(workspaceId, ws.path, dataRoot)
+    const tree = await planFsTree.listTree(ws.path, dataRoot)
     return { tree }
   },
   'plans:read': async ({ workspaceId, relPath }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    const content = await planFsTree.readPlan(ws.path, relPath)
+    const content = await planFsTree.readPlan(ws.path, relPath, await getDataRoot())
     return { content }
   },
   'plans:write': async ({ workspaceId, relPath, content }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    await planFsTree.writePlan(ws.path, relPath, content)
+    await planFsTree.writePlan(ws.path, relPath, content, await getDataRoot())
     return { ok: true }
   },
   'plans:create': async ({ workspaceId, relPath }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    await planFsTree.createPlan(ws.path, relPath)
+    await planFsTree.createPlan(ws.path, relPath, await getDataRoot())
     return { ok: true }
   },
   'plans:createFolder': async ({ workspaceId, relPath }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    await planFsTree.createFolder(ws.path, relPath)
+    await planFsTree.createFolder(ws.path, relPath, await getDataRoot())
     return { ok: true }
   },
   'plans:rename': async ({ workspaceId, fromRel, toRel, overwrite }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    await planFsTree.rename(ws.path, fromRel, toRel, { overwrite })
+    await planFsTree.rename(ws.path, fromRel, toRel, { overwrite, dataRoot: await getDataRoot() })
     return { ok: true }
   },
   'plans:delete': async ({ workspaceId, relPath }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
-    await planFsTree.deletePath(ws.path, relPath)
+    await planFsTree.deletePath(ws.path, relPath, await getDataRoot())
     return { ok: true }
   },
   'tabs:load': async ({ workspaceId }) => {
@@ -493,7 +499,11 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     return { settings }
   },
   'settings:set': async ({ patch }) => {
+    const prev = await settingsStore.readSettings()
     const settings = await settingsStore.updateSettings(patch)
+    if (prev.workspace.dataRoot !== settings.workspace.dataRoot) {
+      disposePlansAndPromptsWatchers()
+    }
     broadcast('settings:changed', { settings })
     return { settings }
   },

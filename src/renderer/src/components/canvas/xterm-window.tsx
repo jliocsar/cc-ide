@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { clientToCanvasViewport, getCanvasHost } from '@/lib/canvas-host'
+import { clientToCanvasViewport } from '@/lib/canvas-host'
 import { buildDropString, type DropPayload, readDropPayload } from '@/lib/drop-payload'
 import { invoke } from '@/lib/ipc'
 import { type CanvasWindow, useCanvas } from '@/state/canvas'
@@ -24,15 +24,12 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
   const removeWindow = useCanvas((s) => s.removeWindow)
   const zoomAt = useCanvas((s) => s.zoomAt)
   const workspaceId = useWorkspaces((s) => s.activeId)
-  const maximizedInfo = useMaximizedWindow((s) =>
+  const maximizedWindowId = useMaximizedWindow((s) =>
     workspaceId ? (s.byWorkspace[workspaceId] ?? null) : null,
   )
   const setMaximized = useMaximizedWindow((s) => s.set)
-  const isMaximized = maximizedInfo?.windowId === w.id
-  // Only subscribe to camera while maximized — non-maximized windows otherwise
-  // re-render on every pan/zoom frame because the parent canvas applies a
-  // CSS transform from camera state.
-  const maximizedCamera = useCanvas((s) => (isMaximized ? s.camera : null))
+  const paged = maximizedWindowId !== null
+  const isMaximized = maximizedWindowId === w.id
   const session = useSessions((s) =>
     w.sessionId ? s.sessions.find((x) => x.ptyId === w.sessionId) : undefined,
   )
@@ -138,33 +135,8 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
 
   const toggleMaximize = useCallback(() => {
     if (!workspaceId) return
-    if (isMaximized) {
-      setMaximized(workspaceId, null)
-      return
-    }
-    const badge: 'live' | 'exited' | 'dormant' = dormant
-      ? 'dormant'
-      : session?.exited
-        ? 'exited'
-        : 'live'
-    setMaximized(workspaceId, {
-      windowId: w.id,
-      title: shortName,
-      badge,
-      exitCode: session?.exitCode,
-      onClose: requestClose,
-    })
-  }, [
-    workspaceId,
-    isMaximized,
-    setMaximized,
-    dormant,
-    session?.exited,
-    session?.exitCode,
-    w.id,
-    shortName,
-    requestClose,
-  ])
+    setMaximized(workspaceId, isMaximized ? null : w.id)
+  }, [workspaceId, isMaximized, setMaximized, w.id])
 
   const onTerminalDragOver = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -189,32 +161,18 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
     [handleDrop],
   )
 
-  let fx = w.x
-  let fy = w.y
-  let fw = w.width
-  let fh = w.height
-  let fz = w.zIndex
-  if (isMaximized && maximizedCamera) {
-    const host = getCanvasHost()
-    const rect = host?.getBoundingClientRect()
-    fx = -maximizedCamera.x / maximizedCamera.zoom
-    fy = -maximizedCamera.y / maximizedCamera.zoom
-    fw = (rect?.width ?? 800) / maximizedCamera.zoom
-    fh = (rect?.height ?? 600) / maximizedCamera.zoom
-    fz = 9999
-  }
-
   return (
     <>
       <WindowFrame
         id={w.id}
         title={w.title}
         tmuxWindow={alive ? w.tmuxWindow : undefined}
-        x={fx}
-        y={fy}
-        width={fw}
-        height={fh}
-        zIndex={fz}
+        x={w.x}
+        y={w.y}
+        width={w.width}
+        height={w.height}
+        zIndex={w.zIndex}
+        paged={paged}
         maximized={isMaximized}
         onMaximize={toggleMaximize}
         onClose={requestClose}

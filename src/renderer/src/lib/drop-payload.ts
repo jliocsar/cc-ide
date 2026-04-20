@@ -1,4 +1,5 @@
 import { type CommentRange, formatDropPath, serializeComments } from '@shared/comment-serializer'
+import { useSettings } from '@/state/settings'
 
 export type DropPayload =
   | { kind: 'plan'; workspaceId: string; relPath: string }
@@ -37,8 +38,12 @@ export function readDropPayload(dt: DataTransfer): DropPayload | null {
 }
 
 export function dropPathFor(payload: DropPayload): string {
-  if (payload.kind === 'plan') return `.cc-ide/plans/${payload.relPath}`
-  if (payload.kind === 'prompt') return `.cc-ide/prompts/${payload.relPath}`
+  // Read latest settings at paste time so a changed dataRoot applies
+  // without needing to reload the app. Fall back to '.cc-ide' if the
+  // store hasn't hydrated yet.
+  const dataRoot = useSettings.getState().settings.workspace?.dataRoot ?? '.cc-ide'
+  if (payload.kind === 'plan') return `${dataRoot}/plans/${payload.relPath}`
+  if (payload.kind === 'prompt') return `${dataRoot}/prompts/${payload.relPath}`
   if (payload.kind === 'file') return payload.relPath
   if (payload.kind === 'diff-batch') return payload.files[0]?.path ?? ''
   return payload.path

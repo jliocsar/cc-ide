@@ -174,19 +174,23 @@ export function Sidebar(): JSX.Element {
                             : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
                         )}
                       >
-                        <button
-                          type="button"
-                          onClick={() => setActive(w.id)}
-                          title={w.path}
-                          className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
-                        >
-                          {active ? (
-                            <CheckCircle2 className="size-3 shrink-0" />
-                          ) : (
-                            <Circle className="size-3 shrink-0" />
-                          )}
-                          <span className="truncate font-mono text-[12px]">{w.name}</span>
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => setActive(w.id)}
+                              className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
+                            >
+                              {active ? (
+                                <CheckCircle2 className="size-3 shrink-0" />
+                              ) : (
+                                <Circle className="size-3 shrink-0" />
+                              )}
+                              <span className="truncate font-mono text-[12px]">{w.name}</span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">{w.path}</TooltipContent>
+                        </Tooltip>
                         <button
                           type="button"
                           onClick={() => {

@@ -2,7 +2,15 @@ import { create } from 'zustand'
 import type { Camera } from './canvas'
 import type { EdgeKind } from './depgraph'
 
-export type BoardMode = 'sessions' | 'graph'
+export type BoardMode = 'sessions' | 'graph' | 'sandbox'
+
+// Sandbox is a dev-only mode. If a prod build boots with a persisted
+// sandbox selection, fall back to sessions so the canvas isn't blank.
+export function resolveBoardMode(mode: BoardMode | undefined): BoardMode {
+  if (!mode) return 'sessions'
+  if (mode === 'sandbox' && !import.meta.env.DEV) return 'sessions'
+  return mode
+}
 
 export type NodeSizeMode = 'fixed' | 'degree' | 'loc'
 export type NodeColorMode = 'folder' | 'filetype' | 'uniform'
@@ -89,7 +97,7 @@ export const useBoardUi = create<BoardUiState>((set, get) => ({
       modeByWorkspace: { ...s.modeByWorkspace, [workspaceId]: mode },
     })),
 
-  getMode: (workspaceId) => get().modeByWorkspace[workspaceId] ?? 'sessions',
+  getMode: (workspaceId) => resolveBoardMode(get().modeByWorkspace[workspaceId]),
 
   toggleRail: (workspaceId) =>
     set((s) => ({

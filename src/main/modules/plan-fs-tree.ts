@@ -30,12 +30,16 @@ function legacyBase(): string {
   return legacyBaseOverride ?? join(homedir(), '.cc-ide', 'plans')
 }
 
-function plansRoot(workspacePath: string): string {
+// Per-workspace root is `<workspace>/<dataRoot>/plans`. Default dataRoot
+// is `.cc-ide`; configurable via Settings → Plans & Prompts folder.
+export const DEFAULT_DATA_ROOT = '.cc-ide'
+
+function plansRoot(workspacePath: string, dataRoot: string = DEFAULT_DATA_ROOT): string {
   if (!workspacePath) throw new Error('workspacePath is required')
-  return join(workspacePath, '.cc-ide', 'plans')
+  return join(workspacePath, dataRoot, 'plans')
 }
 
-function resolveSafe(workspacePath: string, relPath: string): string {
+function resolveSafe(workspacePath: string, relPath: string, dataRoot?: string): string {
   if (typeof relPath !== 'string') throw new Error('relPath must be a string')
   if (relPath.includes('\0')) throw new Error('relPath contains null byte')
   const normalized = posix.normalize(relPath.replace(/\\/g, '/'))
@@ -43,7 +47,7 @@ function resolveSafe(workspacePath: string, relPath: string): string {
   if (normalized === '..' || normalized.startsWith('../')) {
     throw new Error(`relPath escapes plans root: ${relPath}`)
   }
-  const root = plansRoot(workspacePath)
+  const root = plansRoot(workspacePath, dataRoot)
   const platformRel = normalized === '.' ? '' : normalized.split('/').join(sep)
   const abs = resolve(root, platformRel)
   const rootResolved = resolve(root)
@@ -89,12 +93,13 @@ export type MigrationResult = 'migrated' | 'skipped-no-source' | 'skipped-dest-p
 export async function migrateLegacyIfNeeded(
   workspaceId: string,
   workspacePath: string,
+  dataRoot?: string,
 ): Promise<MigrationResult> {
   if (!workspaceId || workspaceId.includes('/') || workspaceId.includes('\\')) {
     throw new Error(`invalid workspaceId: ${workspaceId}`)
   }
   const legacy = join(legacyBase(), workspaceId)
-  const dest = plansRoot(workspacePath)
+  const dest = plansRoot(workspacePath, dataRoot)
   const legacyHasContent = await dirHasContent(legacy)
   if (!legacyHasContent) return 'skipped-no-source'
   const destEmpty = await dirIsEmpty(dest)
@@ -139,15 +144,19 @@ async function readDirRecursive(absDir: string, relDir: string): Promise<PlanNod
   return [...dirs, ...files]
 }
 
-export async function listTree(workspacePath: string): Promise<PlanDir> {
-  const root = plansRoot(workspacePath)
+export async function listTree(workspacePath: string, dataRoot?: string): Promise<PlanDir> {
+  const root = plansRoot(workspacePath, dataRoot)
   await ensureDir(root)
   const children = await readDirRecursive(root, '')
   return { kind: 'dir', name: '', relPath: '', children }
 }
 
-export async function readPlan(workspacePath: string, relPath: string): Promise<string> {
-  const abs = resolveSafe(workspacePath, relPath)
+export async function readPlan(
+  workspacePath: string,
+  relPath: string,
+  dataRoot?: string,
+): Promise<string> {
+  const abs = resolveSafe(workspacePath, relPath, dataRoot)
   return fs.readFile(abs, 'utf8')
 }
 
@@ -155,16 +164,21 @@ export async function writePlan(
   workspacePath: string,
   relPath: string,
   content: string,
+  dataRoot?: string,
 ): Promise<void> {
-  const abs = resolveSafe(workspacePath, relPath)
+  const abs = resolveSafe(workspacePath, relPath, dataRoot)
   await ensureDir(join(abs, '..'))
   await atomicWriteFile(abs, content)
 }
 
-export async function createPlan(workspacePath: string, relPath: string): Promise<void> {
+export async function createPlan(
+  workspacePath: string,
+  relPath: string,
+  dataRoot?: string,
+): Promise<void> {
   if (!relPath || !relPath.trim()) throw new Error('relPath is required')
   if (!/\.md$/i.test(relPath)) throw new Error(`plan filename must end in .md: ${relPath}`)
-  const abs = resolveSafe(workspacePath, relPath)
+  const abs = resolveSafe(workspacePath, relPath, dataRoot)
   await ensureDir(join(abs, '..'))
   try {
     const handle = await fs.open(abs, 'wx')
@@ -177,9 +191,13 @@ export async function createPlan(workspacePath: string, relPath: string): Promis
   }
 }
 
-export async function createFolder(workspacePath: string, relPath: string): Promise<void> {
+export async function createFolder(
+  workspacePath: string,
+  relPath: string,
+  dataRoot?: string,
+): Promise<void> {
   if (!relPath || !relPath.trim()) throw new Error('relPath is required')
-  const abs = resolveSafe(workspacePath, relPath)
+  const abs = resolveSafe(workspacePath, relPath, dataRoot)
   const stat = await fs.stat(abs).catch(() => null)
   if (stat && stat.isFile()) throw new Error(`path is a file, not a folder: ${relPath}`)
   if (stat && stat.isDirectory()) throw new Error(`folder already exists: ${relPath}`)
@@ -190,12 +208,13 @@ export async function rename(
   workspacePath: string,
   fromRel: string,
   toRel: string,
-  opts?: { overwrite?: boolean },
+  opts?: { overwrite?: boolean; dataRoot?: string },
 ): Promise<void> {
   if (!fromRel || !toRel) throw new Error('both fromRel and toRel are required')
   if (fromRel === toRel) return
-  const fromAbs = resolveSafe(workspacePath, fromRel)
-  const toAbs = resolveSafe(workspacePath, toRel)
+  const dataRoot = opts?.dataRoot
+  const fromAbs = resolveSafe(workspacePath, fromRel, dataRoot)
+  const toAbs = resolveSafe(workspacePath, toRel, dataRoot)
   if (toRel === fromRel || toRel.startsWith(fromRel + '/')) {
     throw new Error('cannot move a folder into itself or one of its descendants')
   }
@@ -212,8 +231,12 @@ export async function rename(
   await fs.rename(fromAbs, toAbs)
 }
 
-export async function deletePath(workspacePath: string, relPath: string): Promise<void> {
+export async function deletePath(
+  workspacePath: string,
+  relPath: string,
+  dataRoot?: string,
+): Promise<void> {
   if (!relPath || relPath === '') throw new Error('relPath is required')
-  const abs = resolveSafe(workspacePath, relPath)
+  const abs = resolveSafe(workspacePath, relPath, dataRoot)
   await fs.rm(abs, { recursive: true, force: true })
 }

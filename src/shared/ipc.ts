@@ -121,6 +121,9 @@ export const settingsSchema = z.object({
     wrap: z.boolean(),
     stickyGutter: z.boolean(),
   }),
+  workspace: z.object({
+    dataRoot: z.string(),
+  }),
 })
 export type SettingsDTO = z.infer<typeof settingsSchema>
 export const settingsPatchSchema = z.object({
@@ -143,6 +146,11 @@ export const settingsPatchSchema = z.object({
       fontSize: z.number().optional(),
       wrap: z.boolean().optional(),
       stickyGutter: z.boolean().optional(),
+    })
+    .optional(),
+  workspace: z
+    .object({
+      dataRoot: z.string().optional(),
     })
     .optional(),
 })

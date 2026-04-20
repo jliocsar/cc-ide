@@ -22,12 +22,32 @@ type State = {
   setDiffFontSize: (s: number) => Promise<void>
   setDiffWrap: (w: boolean) => Promise<void>
   setDiffStickyGutter: (v: boolean) => Promise<void>
+  setWorkspaceDataRoot: (p: string) => Promise<void>
 }
+
+export const DEFAULT_DATA_ROOT = '.cc-ide'
 
 const defaultSettings: SettingsDTO = {
   editor: { keybinds: 'vscode', font: 'geist', fontSize: 12 },
   terminal: { font: 'system', fontSize: 13 },
   diff: { font: 'geist-mono', fontSize: 12, wrap: true, stickyGutter: true },
+  workspace: { dataRoot: DEFAULT_DATA_ROOT },
+}
+
+// Mirrors the validation in main/modules/settings-store.ts. Returns an
+// error message if the path is invalid, null if OK.
+export function validateDataRoot(s: string): string | null {
+  if (!s || s.length === 0) return 'folder is required'
+  if (s.includes('\0')) return 'must not contain null bytes'
+  if (s.startsWith('/') || s.startsWith('\\')) return 'must be a relative path'
+  const parts = s.split(/[\\/]/)
+  for (const p of parts) {
+    if (p === '..') return 'must not contain `..` segments'
+    if (p === '') return 'must not contain empty segments'
+    if (p.startsWith(' ') || p.endsWith(' '))
+      return 'segments must not have leading/trailing spaces'
+  }
+  return null
 }
 
 async function patch(p: Parameters<typeof invoke<'settings:set'>>[1]['patch']) {
@@ -49,6 +69,7 @@ export const useSettings = create<State>((set) => ({
   setDiffFontSize: (s) => patch({ diff: { fontSize: s } }),
   setDiffWrap: (w) => patch({ diff: { wrap: w } }),
   setDiffStickyGutter: (v) => patch({ diff: { stickyGutter: v } }),
+  setWorkspaceDataRoot: (p) => patch({ workspace: { dataRoot: p } }),
 }))
 
 let bootstrapped = false
