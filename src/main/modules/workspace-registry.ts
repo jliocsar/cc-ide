@@ -7,8 +7,13 @@ import { type Workspace, workspaceSchema } from '@shared/ipc'
 import { z } from 'zod'
 import { atomicWriteFile } from './fs-atomic'
 
-const DATA_DIR = join(homedir(), '.cc-ide')
-const REGISTRY_PATH = join(DATA_DIR, 'workspaces.json')
+let dataDir = join(homedir(), '.cc-ide')
+let registryPath = join(dataDir, 'workspaces.json')
+
+export function __setRootForTests(path: string): void {
+  dataDir = path
+  registryPath = join(dataDir, 'workspaces.json')
+}
 
 const registryFileSchema = z.object({
   version: z.literal(1),
@@ -16,12 +21,12 @@ const registryFileSchema = z.object({
 })
 
 async function ensureDir(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true })
+  await fs.mkdir(dataDir, { recursive: true })
 }
 
 async function readRegistry(): Promise<Workspace[]> {
   try {
-    const raw = await fs.readFile(REGISTRY_PATH, 'utf8')
+    const raw = await fs.readFile(registryPath, 'utf8')
     const parsed = registryFileSchema.safeParse(JSON.parse(raw))
     if (!parsed.success) return []
     return parsed.data.workspaces
@@ -33,7 +38,7 @@ async function readRegistry(): Promise<Workspace[]> {
 
 async function writeRegistry(workspaces: Workspace[]): Promise<void> {
   await ensureDir()
-  await atomicWriteFile(REGISTRY_PATH, JSON.stringify({ version: 1, workspaces }, null, 2))
+  await atomicWriteFile(registryPath, JSON.stringify({ version: 1, workspaces }, null, 2))
 }
 
 async function isGitRepo(path: string): Promise<boolean> {

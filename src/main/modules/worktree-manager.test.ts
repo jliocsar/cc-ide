@@ -231,6 +231,36 @@ describe('canDeleteWorktree', () => {
   })
 })
 
+describe('parsePorcelain edge cases', () => {
+  it('reports detached worktree with isDetached=true and no branch', async () => {
+    const wtPath = join(repoDir, 'wt-detached')
+    const sha = await gitOrThrow(['rev-parse', 'HEAD'], repoDir)
+    await gitOrThrow(['worktree', 'add', '--detach', wtPath, sha], repoDir)
+    const all = await listWorktrees(repoDir)
+    const det = all.find((w) => w.path === wtPath)
+    expect(det?.isDetached).toBe(true)
+    expect(det?.branch).toBeNull()
+    const guard = await canDeleteWorktree(det!)
+    expect(guard.ok).toBe(false)
+    if (!guard.ok) expect(guard.reasons).toContain('no-remote-tracking')
+  })
+
+  it('reports locked worktree with isLocked=true', async () => {
+    const wtPath = join(repoDir, 'wt-locked')
+    await createWorktree({
+      repoPath: repoDir,
+      worktreePath: wtPath,
+      branch: 'feat/locked',
+      baseBranch: 'main',
+    })
+    await gitOrThrow(['worktree', 'lock', wtPath], repoDir)
+    const all = await listWorktrees(repoDir)
+    const locked = all.find((w) => w.path === wtPath)
+    expect(locked?.isLocked).toBe(true)
+    await gitOrThrow(['worktree', 'unlock', wtPath], repoDir)
+  })
+})
+
 describe('deleteWorktree', () => {
   it('removes worktree and list reflects it', async () => {
     const wtPath = join(repoDir, 'wt-del')

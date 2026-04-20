@@ -77,4 +77,27 @@ describe('nearest ancestor', () => {
     const entry = cascade.nearest(join(root, 'src/x.ts'))
     expect(entry?.options.strict).toBe(true)
   })
+
+  it('reload drops the entry when the tsconfig is gone', async () => {
+    await write('tsconfig.json', JSON.stringify({}))
+    const cascade = new TsconfigCascade()
+    await cascade.load(root, ['tsconfig.json'])
+    expect(cascade.tsconfigPaths()).toContain(join(root, 'tsconfig.json'))
+    await fs.rm(join(root, 'tsconfig.json'))
+    await cascade.reload(join(root, 'tsconfig.json'))
+    expect(cascade.tsconfigPaths()).not.toContain(join(root, 'tsconfig.json'))
+  })
+
+  it('parseOne returns null on unparseable JSON (and load skips it)', async () => {
+    await write('tsconfig.json', '<<< bogus tsconfig >>>')
+    const cascade = new TsconfigCascade()
+    await cascade.load(root, ['tsconfig.json'])
+    expect(cascade.tsconfigPaths()).toEqual([])
+  })
+
+  it('load skips a tsconfig path that does not exist on disk', async () => {
+    const cascade = new TsconfigCascade()
+    await cascade.load(root, ['missing/tsconfig.json'])
+    expect(cascade.tsconfigPaths()).toEqual([])
+  })
 })

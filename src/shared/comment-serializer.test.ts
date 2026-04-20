@@ -192,6 +192,14 @@ real
 `)
   })
 
+  it('handles duplicate file paths without crashing', () => {
+    const out = serializeComments([
+      { path: 'src/dup.ts', ranges: [{ start: 1, len: 1, comment: 'a' }] },
+      { path: 'src/dup.ts', ranges: [{ start: 2, len: 1, comment: 'b' }] },
+    ])
+    expect(out).toContain('@src/dup.ts')
+  })
+
   it('preserves insertion order for ranges with equal start (stable sort)', () => {
     const out = serializeComments([
       {

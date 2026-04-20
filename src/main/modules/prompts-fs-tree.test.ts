@@ -157,6 +157,42 @@ describe('rename', () => {
     await rename(workspace, 'a.md', 'a.md')
     expect(await readPrompt(workspace, 'a.md')).toBe('')
   })
+
+  it('refuses to rename a .md file to a non-.md path', async () => {
+    await createPrompt(workspace, 'a.md')
+    await expect(rename(workspace, 'a.md', 'a.txt')).rejects.toThrow(/must end in \.md/)
+  })
+})
+
+describe('listTree errors', () => {
+  it('rethrows non-ENOENT readdir failures', async () => {
+    await fs.mkdir(join(workspace, '.cc-ide'), { recursive: true })
+    await fs.writeFile(join(workspace, '.cc-ide', 'prompts'), 'not-a-dir', 'utf8')
+    await expect(listTree(workspace)).rejects.toThrow()
+  })
+
+  it('rethrows EACCES on a sub-directory readdir', async () => {
+    await createPrompt(workspace, 'top.md')
+    await createFolder(workspace, 'sub')
+    const subDir = join(workspace, '.cc-ide', 'prompts', 'sub')
+    await fs.chmod(subDir, 0o000)
+    try {
+      await expect(listTree(workspace)).rejects.toThrow()
+    } finally {
+      await fs.chmod(subDir, 0o755)
+    }
+  })
+
+  it('createPrompt rethrows on non-EEXIST open failure', async () => {
+    await createFolder(workspace, 'locked')
+    const lockedDir = join(workspace, '.cc-ide', 'prompts', 'locked')
+    await fs.chmod(lockedDir, 0o500)
+    try {
+      await expect(createPrompt(workspace, 'locked/new.md')).rejects.toThrow()
+    } finally {
+      await fs.chmod(lockedDir, 0o755)
+    }
+  })
 })
 
 describe('deletePath', () => {

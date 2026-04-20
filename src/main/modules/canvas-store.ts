@@ -3,11 +3,15 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { atomicWriteFile } from './fs-atomic'
 
-const CANVAS_DIR = join(homedir(), '.cc-ide', 'canvas')
+let root = join(homedir(), '.cc-ide', 'canvas')
+
+export function __setRootForTests(path: string): void {
+  root = path
+}
 
 function fileFor(workspaceId: string): string {
   const safe = workspaceId.replace(/[^a-zA-Z0-9_-]/g, '_')
-  return join(CANVAS_DIR, `${safe}.json`)
+  return join(root, `${safe}.json`)
 }
 
 export async function loadCanvas(workspaceId: string): Promise<unknown | null> {
@@ -21,6 +25,6 @@ export async function loadCanvas(workspaceId: string): Promise<unknown | null> {
 }
 
 export async function saveCanvas(workspaceId: string, state: unknown): Promise<void> {
-  await fs.mkdir(CANVAS_DIR, { recursive: true })
+  await fs.mkdir(root, { recursive: true })
   await atomicWriteFile(fileFor(workspaceId), JSON.stringify(state, null, 2))
 }

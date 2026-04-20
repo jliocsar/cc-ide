@@ -55,4 +55,19 @@ describe('generateClaudeWindowName', () => {
     })
     expect(name).toBe('claude-oreo')
   })
+
+  it('falls back to timestamp slug when every random pick is empty', async () => {
+    const name = await generateClaudeWindowName('primary', {
+      random: () => '!!!',
+      listWindows: async () => [],
+    })
+    expect(name).toMatch(/^claude-[a-z0-9]+$/)
+  })
+
+  it('loads cat-names dep when no random override is provided', async () => {
+    const name = await generateClaudeWindowName('primary', {
+      listWindows: async () => [],
+    })
+    expect(name).toMatch(/^claude-[a-z0-9-]+$/)
+  })
 })

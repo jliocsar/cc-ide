@@ -43,4 +43,10 @@ describe('tabs-store', () => {
     const files = await fs.readdir(root)
     expect(files.every((f) => !f.includes('..') && !f.includes('/'))).toBe(true)
   })
+
+  it('rethrows non-ENOENT read errors (corrupt JSON)', async () => {
+    await fs.mkdir(root, { recursive: true })
+    await fs.writeFile(join(root, 'ws-bad.json'), '<<< not json >>>', 'utf8')
+    await expect(loadTabs('ws-bad')).rejects.toThrow()
+  })
 })

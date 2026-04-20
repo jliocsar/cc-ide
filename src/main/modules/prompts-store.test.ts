@@ -121,6 +121,32 @@ describe('PromptsStore', () => {
     expect(result).toHaveLength(2)
   })
 
+  it('9b. getPrompt returns the matching prompt or null', async () => {
+    const a = await createPrompt({ title: 'A', body: 'a' })
+    expect((await getPrompt(a.id))?.id).toBe(a.id)
+    expect(await getPrompt('nope')).toBeNull()
+  })
+
+  it('9c. listPrompts returns [] when file parses but mismatches the schema', async () => {
+    await fs.writeFile(promptsPath, JSON.stringify({ version: 2, prompts: [] }), 'utf8')
+    expect(await listPrompts()).toEqual([])
+  })
+
+  it('9d. updatePrompt and deletePrompt edge cases', async () => {
+    const a = await createPrompt({ title: 'A', body: 'a' })
+    const updated = await updatePrompt(a.id, { title: 'A!', favorite: true })
+    expect(updated?.title).toBe('A!')
+    expect(updated?.favorite).toBe(true)
+    // updatePrompt with no title preserves existing title
+    const noTitle = await updatePrompt(a.id, { favorite: false })
+    expect(noTitle?.title).toBe('A!')
+    expect(noTitle?.favorite).toBe(false)
+    await expect(updatePrompt('nope', { title: 'x' })).rejects.toThrow(/not found/)
+    await deletePrompt(a.id)
+    await deletePrompt('nope')
+    expect(await listPrompts()).toEqual([])
+  })
+
   it('10. survives corrupt file — list returns [], subsequent create succeeds', async () => {
     await fs.writeFile(promptsPath, '<<< not json >>>', 'utf8')
     const list = await listPrompts()

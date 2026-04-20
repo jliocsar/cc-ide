@@ -182,6 +182,59 @@ describe('getFileDiff', () => {
     expect(hunk.lines[2]!.newLineNo).toBe(3)
   })
 
+  it('builds a placeholder when the path is not in the cache', async () => {
+    await initialCommit(testDir)
+    // file is committed; no pending changes → cache has no entry
+    const result = await getFileDiff(testDir, 'file.txt', 'unstaged')
+    expect(result.hunks).toEqual([])
+    expect(result.tooLarge).toBe(false)
+    expect(result.file.status).toBe('modified')
+  })
+
+  it('returns binary=true with empty hunks for binary files', async () => {
+    await initialCommit(testDir)
+    // Write actual binary content (null bytes)
+    const buf = Buffer.from([0, 1, 2, 3, 0, 4, 5, 6, 0xff, 0])
+    await fs.writeFile(join(testDir, 'image.bin'), buf)
+    await git(testDir, 'add', 'image.bin')
+    const result = await getFileDiff(testDir, 'image.bin', 'staged')
+    expect(result.binary).toBe(true)
+    expect(result.hunks).toEqual([])
+  })
+
+  it('returns tooLarge true when staged diff exceeds size limit', async () => {
+    await initialCommit(testDir, 'big.txt', 'seed\n')
+    // 6MB of unique-ish content forces git diff output past the 5MB SIZE_LIMIT.
+    let big = ''
+    for (let i = 0; i < 100_000; i++) {
+      big += `line-${i}-` + 'x'.repeat(50) + '\n'
+    }
+    await fs.writeFile(join(testDir, 'big.txt'), big)
+    await git(testDir, 'add', 'big.txt')
+    const result = await getFileDiff(testDir, 'big.txt', 'staged')
+    expect(result.tooLarge).toBe(true)
+    expect(result.hunks).toEqual([])
+  })
+
+  it('returns tooLarge true for an untracked file exceeding 20k lines', async () => {
+    await initialCommit(testDir)
+    const big = Array.from({ length: 20_001 }, (_, i) => `line${i}`).join('\n') + '\n'
+    await fs.writeFile(join(testDir, 'huge.txt'), big)
+    const result = await getFileDiff(testDir, 'huge.txt', 'unstaged')
+    expect(result.tooLarge).toBe(true)
+    expect(result.hunks).toEqual([])
+  })
+
+  it('returns empty hunks for untracked path that disappeared after listing', async () => {
+    await initialCommit(testDir)
+    await fs.writeFile(join(testDir, 'ghost.txt'), 'boo\n')
+    await listChangedFiles(testDir)
+    await fs.unlink(join(testDir, 'ghost.txt'))
+    const result = await getFileDiff(testDir, 'ghost.txt', 'unstaged')
+    expect(result.hunks).toEqual([])
+    expect(result.tooLarge).toBe(false)
+  })
+
   it('returns tooLarge true for a file exceeding 20k lines', async () => {
     // Write a file with >20k lines, then create initial commit with empty,
     // then modify to big content

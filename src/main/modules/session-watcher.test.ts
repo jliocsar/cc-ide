@@ -64,6 +64,49 @@ describe('session-watcher', () => {
     expect(__getTrackedForTests()).toHaveLength(1)
   })
 
+  it('swallows listWindows errors in tick', async () => {
+    track(entry())
+    vi.spyOn(tmux, 'listWindows').mockRejectedValue(new Error('tmux down'))
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await __tickNowForTests('ccide-deadbeef')
+    expect(errSpy).toHaveBeenCalled()
+    expect(__getTrackedForTests()).toHaveLength(1)
+  })
+
+  it('swallows errors thrown by the exit handler', async () => {
+    setExitHandler(() => {
+      throw new Error('handler boom')
+    })
+    track(entry())
+    vi.spyOn(tmux, 'listWindows').mockResolvedValue([])
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await __tickNowForTests('ccide-deadbeef')
+    expect(errSpy).toHaveBeenCalled()
+    expect(__getTrackedForTests()).toEqual([])
+  })
+
+  it('ensurePoll sets an interval that is cleared on untrack', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(tmux, 'listWindows').mockResolvedValue([])
+    track(entry())
+    vi.advanceTimersByTime(3000)
+    untrack('ccide-deadbeef', 'claude-oreo')
+    vi.useRealTimers()
+  })
+
+  it('skips tracked entries that belong to a different primary session', async () => {
+    const calls: Tracked[] = []
+    setExitHandler((t) => {
+      calls.push(t)
+    })
+    track(entry({ primarySession: 'ccide-other', windowName: 'claude-other' }))
+    track(entry({ primarySession: 'ccide-deadbeef', windowName: 'claude-mine' }))
+    vi.spyOn(tmux, 'listWindows').mockResolvedValue([])
+    await __tickNowForTests('ccide-deadbeef')
+    expect(calls.map((c) => c.windowName)).toEqual(['claude-mine'])
+    expect(__getTrackedForTests().some((t) => t.windowName === 'claude-other')).toBe(true)
+  })
+
   it('only fires for windows that disappeared; keeps others', async () => {
     const calls: Tracked[] = []
     setExitHandler((t) => {

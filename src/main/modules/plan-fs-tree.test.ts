@@ -164,6 +164,66 @@ describe('rename', () => {
     await rename(workspace, 'a.md', 'a.md')
     expect(await readPlan(workspace, 'a.md')).toBe('')
   })
+
+  it('refuses to rename a .md file to a non-.md path', async () => {
+    await createPlan(workspace, 'a.md')
+    await expect(rename(workspace, 'a.md', 'a.txt')).rejects.toThrow(/must end in \.md/)
+  })
+})
+
+describe('createPlan errors', () => {
+  it('throws when the plan already exists', async () => {
+    await createPlan(workspace, 'dup.md')
+    await expect(createPlan(workspace, 'dup.md')).rejects.toThrow(/already exists/)
+  })
+})
+
+describe('listTree errors', () => {
+  it('rethrows non-ENOENT readdir failures', async () => {
+    // Make .cc-ide/plans a regular file so readdir throws ENOTDIR
+    await fs.mkdir(join(workspace, '.cc-ide'), { recursive: true })
+    await fs.writeFile(join(workspace, '.cc-ide', 'plans'), 'not-a-dir', 'utf8')
+    await expect(listTree(workspace)).rejects.toThrow()
+  })
+
+  it('rethrows EACCES on a sub-directory readdir', async () => {
+    await createPlan(workspace, 'top.md')
+    await createFolder(workspace, 'sub')
+    const subDir = join(workspace, '.cc-ide', 'plans', 'sub')
+    await fs.chmod(subDir, 0o000)
+    try {
+      await expect(listTree(workspace)).rejects.toThrow()
+    } finally {
+      await fs.chmod(subDir, 0o755)
+    }
+  })
+
+  it('createPlan rethrows on a non-EEXIST open failure', async () => {
+    await createFolder(workspace, 'locked')
+    const lockedDir = join(workspace, '.cc-ide', 'plans', 'locked')
+    await fs.chmod(lockedDir, 0o500) // read+exec but no write
+    try {
+      await expect(createPlan(workspace, 'locked/new.md')).rejects.toThrow()
+    } finally {
+      await fs.chmod(lockedDir, 0o755)
+    }
+  })
+
+  it('migrateLegacyIfNeeded propagates non-ENOENT errors from dirHasContent', async () => {
+    // Legacy path exists as a regular file → readdir throws ENOTDIR
+    await fs.writeFile(join(legacyRoot, 'ws-bad'), 'i am a file', 'utf8')
+    await expect(migrateLegacyIfNeeded('ws-bad', workspace)).rejects.toThrow()
+  })
+
+  it('migrateLegacyIfNeeded propagates non-ENOENT errors from dirIsEmpty', async () => {
+    // Seed legacy normally, but make dest a regular file → readdir throws ENOTDIR
+    const legacyWs = join(legacyRoot, 'ws-bad-dest')
+    await fs.mkdir(legacyWs, { recursive: true })
+    await fs.writeFile(join(legacyWs, 'a.md'), 'x', 'utf8')
+    await fs.mkdir(join(workspace, '.cc-ide'), { recursive: true })
+    await fs.writeFile(join(workspace, '.cc-ide', 'plans'), 'i am a file', 'utf8')
+    await expect(migrateLegacyIfNeeded('ws-bad-dest', workspace)).rejects.toThrow()
+  })
 })
 
 describe('deletePath', () => {

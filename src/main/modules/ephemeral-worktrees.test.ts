@@ -80,4 +80,10 @@ describe('ephemeral-worktrees', () => {
     await fs.writeFile(join(tmpRoot, 'ws-broken.json'), '{ not: json')
     expect(await list('ws-broken')).toEqual([])
   })
+
+  it('returns empty when the file parses but mismatches the schema', async () => {
+    await fs.mkdir(tmpRoot, { recursive: true })
+    await fs.writeFile(join(tmpRoot, 'ws-bad.json'), JSON.stringify({ version: 2, entries: [] }))
+    expect(await list('ws-bad')).toEqual([])
+  })
 })

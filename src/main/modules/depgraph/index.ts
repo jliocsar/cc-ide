@@ -245,6 +245,10 @@ function emitSnapshot(sub: Subscription, scanDone: boolean): void {
 
 // ──────────────────── State application ────────────────────
 
+export function __applyToStateForTests(state: WorkspaceGraphState, delta: GraphDelta): void {
+  applyToState(state, delta)
+}
+
 function applyToState(state: WorkspaceGraphState, delta: GraphDelta): void {
   if (delta.addNodes) {
     for (const n of delta.addNodes) state.nodes.set(n.id, n)

@@ -43,6 +43,11 @@ describe('validateTmuxWindowName', () => {
     const r = validateTmuxWindowName('__ccide_idle__')
     expect(r.ok).toBe(false)
   })
+
+  it('rejects non-string input defensively', () => {
+    const r = validateTmuxWindowName(42 as unknown as string)
+    expect(r.ok).toBe(false)
+  })
 })
 
 describe('slugifyFirstMessage', () => {

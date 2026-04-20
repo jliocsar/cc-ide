@@ -271,4 +271,52 @@ describe('listSessions — firstUserMessage extraction', () => {
     const [session] = await listSessionsBySlug(projectSlug, tmpRoot)
     expect(session?.firstUserMessage).toBe('Array text content')
   })
+
+  it('returns null firstUserMessage when array content has no text item', async () => {
+    const id = randomUUID()
+    const lines = [makeUserLine([{ type: 'image', source: 'x' }], '2026-04-01T00:00:00.000Z')]
+    await writeSession(projectDir, id, lines)
+
+    const [session] = await listSessionsBySlug(projectSlug, tmpRoot)
+    expect(session?.firstUserMessage).toBeNull()
+  })
+
+  it('treats empty-string user content as no firstUserMessage', async () => {
+    const id = randomUUID()
+    const lines = [makeUserLine('   ', '2026-04-01T00:00:00.000Z')]
+    await writeSession(projectDir, id, lines)
+    const [session] = await listSessionsBySlug(projectSlug, tmpRoot)
+    expect(session?.firstUserMessage).toBeNull()
+  })
+
+  it('skips non-object JSONL lines (numbers, strings, null)', async () => {
+    const id = randomUUID()
+    const lines = [
+      'null',
+      '42',
+      '"raw"',
+      JSON.stringify({ type: 999, timestamp: 'x' }), // type is not a string
+      makeUserLine('actual', '2026-04-01T00:00:00.000Z'),
+    ]
+    await writeSession(projectDir, id, lines)
+    const [session] = await listSessionsBySlug(projectSlug, tmpRoot)
+    expect(session?.firstUserMessage).toBe('actual')
+  })
+
+  it('falls back to mtime when no parseable timestamp on any line', async () => {
+    const id = randomUUID()
+    const lines = [makeUserLine('hi', 'not-a-real-timestamp')]
+    await writeSession(projectDir, id, lines)
+    const [session] = await listSessionsBySlug(projectSlug, tmpRoot)
+    expect(session?.createdAt).toBeNull()
+    expect(typeof session?.updatedAt).toBe('number')
+  })
+
+  it('rethrows non-ENOENT readdir errors', async () => {
+    // Make the slug path a regular file instead of a directory so readdir
+    // returns ENOTDIR — that's not ENOENT, so the function rethrows.
+    const filePath = join(tmpRoot, 'file-instead')
+    await fs.writeFile(filePath, 'x', 'utf8')
+    await expect(listSessionsBySlug('file-instead', tmpRoot)).rejects.toThrow()
+  })
 })

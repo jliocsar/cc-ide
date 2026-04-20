@@ -167,6 +167,133 @@ describe('TsParser.scan', () => {
     ).toBeTruthy()
   })
 
+  it('handles triple-slash path references as type edges', async () => {
+    await write('tsconfig.json', JSON.stringify({}))
+    await write('a.ts', `/// <reference path="./b.ts" />\nexport const a = 1\n`)
+    await write('b.ts', `export const b = 1\n`)
+    await commit()
+
+    const parser = new TsParser()
+    const { edges } = await collectScan(parser)
+    const e = edges.find((x) => x.from === 'a.ts' && x.to === 'b.ts')
+    expect(e?.kinds).toContain('type')
+  })
+
+  it('handles triple-slash type references as external type edges', async () => {
+    await write('tsconfig.json', JSON.stringify({}))
+    await write('a.ts', `/// <reference types="node" />\nexport const a = 1\n`)
+    await commit()
+
+    const parser = new TsParser()
+    const { nodes, edges } = await collectScan(parser)
+    expect(nodes).toContain('external:node')
+    const e = edges.find((x) => x.from === 'a.ts' && x.to === 'external:node')
+    expect(e?.kinds).toContain('type')
+  })
+
+  it('handles scoped triple-slash type references', async () => {
+    await write('tsconfig.json', JSON.stringify({}))
+    await write('a.ts', `/// <reference types="@types/node" />\nexport const a = 1\n`)
+    await commit()
+
+    const parser = new TsParser()
+    const { nodes } = await collectScan(parser)
+    expect(nodes.some((n) => n.startsWith('external:@types/'))).toBe(true)
+  })
+
+  it('handles import-equals require syntax', async () => {
+    await write('tsconfig.json', JSON.stringify({ compilerOptions: { module: 'commonjs' } }))
+    await write('a.ts', `import b = require('./b')\nexport const a = b\n`)
+    await write('b.ts', `export = 1\n`)
+    await commit()
+
+    const parser = new TsParser()
+    const { edges } = await collectScan(parser)
+    expect(edges.find((e) => e.from === 'a.ts' && e.to === 'b.ts')).toBeTruthy()
+  })
+
+  it('handles require() calls as dynamic imports', async () => {
+    await write('tsconfig.json', JSON.stringify({}))
+    await write('a.ts', `const b = require('./b')\nexport const a = b\n`)
+    await write('b.ts', `module.exports = 1\n`)
+    await commit()
+
+    const parser = new TsParser()
+    const { edges } = await collectScan(parser)
+    expect(edges.find((e) => e.from === 'a.ts' && e.to === 'b.ts')?.kinds).toContain('dynamic')
+  })
+
+  it('merges kinds when a file both imports and triple-slash-refs the same target', async () => {
+    await write('tsconfig.json', JSON.stringify({}))
+    await write(
+      'a.ts',
+      `/// <reference path="./b.ts" />\nimport { b } from './b'\nexport const a = b\n`,
+    )
+    await write('b.ts', `export const b = 1\n`)
+    await commit()
+
+    const parser = new TsParser()
+    const { edges } = await collectScan(parser)
+    const edge = edges.find((e) => e.from === 'a.ts' && e.to === 'b.ts')
+    expect(edge?.kinds).toEqual(expect.arrayContaining(['static', 'type']))
+  })
+
+  it('skips files staged in git but missing from disk during scan', async () => {
+    await write('tsconfig.json', JSON.stringify({}))
+    await write('a.ts', `export const a = 1\n`)
+    await write('ghost.ts', `export const ghost = 1\n`)
+    await commit()
+    // Remove ghost.ts from disk; it stays in the git index until removed.
+    await fs.unlink(join(root, 'ghost.ts'))
+
+    const parser = new TsParser()
+    const { nodes } = await collectScan(parser)
+    expect(nodes).toContain('a.ts')
+    expect(nodes).not.toContain('ghost.ts')
+  })
+
+  it('onFileChange works even when called before scan for that workspace', async () => {
+    await write('tsconfig.json', JSON.stringify({}))
+    await write('a.ts', `export const a = 1\n`)
+    await write('b.ts', `import { a } from './a'\nexport const b = a\n`)
+    await commit()
+
+    const parser = new TsParser()
+    // call onFileChange without running scan first — init branches fire
+    const delta = await parser.onFileChange(join(root, 'b.ts'), root)
+    expect(delta).toBeTruthy()
+  })
+
+  it('merges kinds when two distinct specifiers resolve to the same file', async () => {
+    await write('tsconfig.json', JSON.stringify({}))
+    await write(
+      'a.ts',
+      `import { b } from './b'\nimport type { B } from './b.ts'\nexport const a = b\nexport type Z = B\n`,
+    )
+    await write('b.ts', `export const b = 1\nexport interface B { n: number }\n`)
+    await commit()
+
+    const parser = new TsParser()
+    const { edges } = await collectScan(parser)
+    const edge = edges.find((e) => e.from === 'a.ts' && e.to === 'b.ts')
+    expect(edge?.kinds).toEqual(expect.arrayContaining(['static', 'type']))
+  })
+
+  it('dedupes when same specifier appears multiple times', async () => {
+    await write('tsconfig.json', JSON.stringify({}))
+    await write(
+      'a.ts',
+      `import { x } from './b'\nimport { y } from './b'\nexport const a = x + y\n`,
+    )
+    await write('b.ts', `export const x = 1\nexport const y = 2\n`)
+    await commit()
+
+    const parser = new TsParser()
+    const { edges } = await collectScan(parser)
+    const found = edges.filter((e) => e.from === 'a.ts' && e.to === 'b.ts')
+    expect(found).toHaveLength(1)
+  })
+
   it('tags asset imports', async () => {
     await write('tsconfig.json', JSON.stringify({}))
     await write('a.ts', `import './styles.css'\nexport const a = 1\n`)
@@ -201,6 +328,26 @@ describe('TsParser.onFileChange', () => {
       kinds: ['static'],
     })
     expect(delta?.removeEdges).toContainEqual({ from: 'a.ts', to: 'b.ts' })
+  })
+
+  it('updates edge kinds when import kind flips between scans', async () => {
+    await write('tsconfig.json', JSON.stringify({}))
+    await write('a.ts', `import { b } from './b'\nexport const a = b\n`)
+    await write('b.ts', `export const b = 1\n`)
+    await commit()
+
+    const parser = new TsParser()
+    await collectScan(parser)
+
+    // change to type-only import: same target, different kinds
+    const absA = join(root, 'a.ts')
+    await fs.writeFile(absA, `import type { b } from './b'\nexport type A = typeof b\n`)
+    const delta = await parser.onFileChange(absA, root)
+    expect(delta?.updateEdgeKinds).toContainEqual({
+      from: 'a.ts',
+      to: 'b.ts',
+      kinds: ['type'],
+    })
   })
 
   it('returns null for no-op save', async () => {

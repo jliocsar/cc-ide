@@ -49,6 +49,12 @@ describe('drops-store', () => {
     expect(await listDrops('ws')).toEqual([])
   })
 
+  it('treats invalid schema as empty', async () => {
+    await fs.mkdir(dir, { recursive: true })
+    await fs.writeFile(join(dir, 'ws.json'), '{"entries": [{"id": 123}]}', 'utf8')
+    expect(await listDrops('ws')).toEqual([])
+  })
+
   it('does not leak tmp files on successful write', async () => {
     await writeDrops('ws', [entry()])
     const files = await fs.readdir(dir)
