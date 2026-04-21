@@ -15,7 +15,7 @@ import {
   Trash2,
   TreePine,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Accordion,
   AccordionContent,
@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils'
 import { selectDropsFor, useDrops } from '@/state/drops'
 import { usePlansTree } from '@/state/plans-tree'
 import { usePromptsTree } from '@/state/prompts-tree'
+import { useSessions } from '@/state/sessions'
 import { useSidebarData } from '@/state/sidebar-data'
 import { useSpawnModal } from '@/state/spawn-modal'
 import { useUi } from '@/state/ui'
@@ -46,6 +47,15 @@ export function Sidebar(): JSX.Element {
   const { workspaces, activeId, loaded, refresh, pickAndAdd, setActive, remove } = useWorkspaces()
   const worktrees = useSidebarData((s) => s.worktrees)
   const clearSidebar = useSidebarData((s) => s.clear)
+  const sessions = useSessions((s) => s.sessions)
+  const liveCountByWorkspace = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const s of sessions) {
+      if (s.exited) continue
+      counts.set(s.workspaceId, (counts.get(s.workspaceId) ?? 0) + 1)
+    }
+    return counts
+  }, [sessions])
 
   useEffect(() => {
     void refresh()
@@ -168,6 +178,7 @@ export function Sidebar(): JSX.Element {
                 ) : (
                   workspaces.map((w) => {
                     const active = w.id === activeId
+                    const liveCount = liveCountByWorkspace.get(w.id) ?? 0
                     return (
                       <div
                         key={w.id}
@@ -191,6 +202,14 @@ export function Sidebar(): JSX.Element {
                                 <Circle className="size-3 shrink-0" />
                               )}
                               <span className="truncate font-mono">{w.name}</span>
+                              {liveCount > 0 ? (
+                                <span
+                                  className="shrink-0 rounded-sm bg-muted px-1 py-px font-mono text-[9px] leading-none text-muted-foreground"
+                                  title={`${liveCount} live session${liveCount === 1 ? '' : 's'}`}
+                                >
+                                  {liveCount}
+                                </span>
+                              ) : null}
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="right">{w.path}</TooltipContent>
