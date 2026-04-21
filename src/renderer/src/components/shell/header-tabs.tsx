@@ -12,7 +12,7 @@ import {
   Square,
   X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
   AlertDialog,
@@ -117,6 +117,30 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
         ? 'exited'
         : 'live'
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const startSentinelRef = useRef<HTMLDivElement | null>(null)
+  const endSentinelRef = useRef<HTMLDivElement | null>(null)
+  const [atStart, setAtStart] = useState(true)
+  const [atEnd, setAtEnd] = useState(true)
+
+  useEffect(() => {
+    const root = scrollRef.current
+    const start = startSentinelRef.current
+    const end = endSentinelRef.current
+    if (!root || !start || !end) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.target === start) setAtStart(entry.isIntersecting)
+          else if (entry.target === end) setAtEnd(entry.isIntersecting)
+        }
+      },
+      { root, threshold: 1 },
+    )
+    io.observe(start)
+    io.observe(end)
+    return () => io.disconnect()
+  }, [showMaximizedBar])
 
   function requestClose(id: string): void {
     const isDirty = dirtyMap[id]?.dirty ?? false
@@ -175,93 +199,119 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
       ) : (
         <>
           <div
-            className="scrollbar-themed flex h-full min-w-0 items-center overflow-x-auto border-r border-border"
-            style={noDrag}
+            className={cn(
+              'relative flex h-full min-w-0 items-center',
+              tabs.length > 1 ? 'border-r border-border' : null,
+            )}
           >
-            {tabs.map((tab) => {
-              const isBoard = tab.kind === 'board'
-              const Icon = isBoard
-                ? boardMode === 'graph'
-                  ? Network
-                  : boardMode === 'sandbox'
-                    ? FlaskConical
-                    : LayoutGrid
-                : ICON_BY_KIND[tab.kind]
-              const title = isBoard
-                ? boardMode === 'graph'
-                  ? 'Dependency Graph'
-                  : boardMode === 'sandbox'
-                    ? 'Dev Sandbox'
-                    : 'Sessions'
-                : tab.title
-              const active = tab.id === activeId
-              const payload = dragPayloadFor(tab)
-              const canReorder = !tab.pinned
-              const dirty = dirtyMap[tab.id]?.dirty ?? false
-              return (
-                <div
-                  key={tab.id}
-                  draggable={!!payload || canReorder}
-                  onDragStart={(e) => {
-                    if (payload) setDropPayload(e.dataTransfer, payload)
-                    if (canReorder) {
-                      e.dataTransfer.setData(TAB_REORDER_MIME, tab.id)
-                      e.dataTransfer.setDragImage(transparentDragImage(), 0, 0)
-                      setDraggingId(tab.id)
-                    }
-                    e.dataTransfer.effectAllowed = 'copyMove'
-                  }}
-                  onDragEnd={() => setDraggingId(null)}
-                  onDragOver={(e) => {
-                    if (!e.dataTransfer.types.includes(TAB_REORDER_MIME)) return
-                    if (tab.pinned) return
-                    e.preventDefault()
-                    e.dataTransfer.dropEffect = 'move'
-                    if (draggingId && draggingId !== tab.id) {
-                      reorderTab(draggingId, tab.id)
-                    }
-                  }}
-                  onDrop={(e) => {
-                    const srcId = e.dataTransfer.getData(TAB_REORDER_MIME)
-                    setDraggingId(null)
-                    if (!srcId) return
-                    e.preventDefault()
-                    if (srcId !== tab.id) reorderTab(srcId, tab.id)
-                  }}
-                  onClick={() => setActive(tab.id)}
-                  onAuxClick={(e) => {
-                    if (e.button === 1 && !tab.pinned) requestClose(tab.id)
-                  }}
-                  className={cn(
-                    'relative flex h-full shrink-0 cursor-pointer select-none items-center gap-2 border-r border-border px-3 text-xs last:border-r-0',
-                    active
-                      ? 'bg-background text-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
-                    draggingId === tab.id ? 'opacity-60' : null,
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                  <span className="max-w-[200px] truncate font-mono">
-                    {dirty ? <span className="mr-1 text-foreground">•</span> : null}
-                    {title}
-                  </span>
-                  {tab.kind === 'board' ? <BoardModeChevron /> : null}
-                  {!tab.pinned ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        requestClose(tab.id)
-                      }}
-                      className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                      aria-label="Close tab"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  ) : null}
-                </div>
-              )
-            })}
+            <div
+              ref={scrollRef}
+              className="scrollbar-none flex h-full min-w-0 items-center overflow-x-auto"
+              style={noDrag}
+            >
+              <div ref={startSentinelRef} aria-hidden className="h-full w-px shrink-0" />
+              {tabs.map((tab, i) => {
+                const isBoard = tab.kind === 'board'
+                const isLast = i === tabs.length - 1
+                const Icon = isBoard
+                  ? boardMode === 'graph'
+                    ? Network
+                    : boardMode === 'sandbox'
+                      ? FlaskConical
+                      : LayoutGrid
+                  : ICON_BY_KIND[tab.kind]
+                const title = isBoard
+                  ? boardMode === 'graph'
+                    ? 'Dependency Graph'
+                    : boardMode === 'sandbox'
+                      ? 'Dev Sandbox'
+                      : 'Sessions'
+                  : tab.title
+                const active = tab.id === activeId
+                const payload = dragPayloadFor(tab)
+                const canReorder = !tab.pinned
+                const dirty = dirtyMap[tab.id]?.dirty ?? false
+                return (
+                  <div
+                    key={tab.id}
+                    draggable={!!payload || canReorder}
+                    onDragStart={(e) => {
+                      if (payload) setDropPayload(e.dataTransfer, payload)
+                      if (canReorder) {
+                        e.dataTransfer.setData(TAB_REORDER_MIME, tab.id)
+                        e.dataTransfer.setDragImage(transparentDragImage(), 0, 0)
+                        setDraggingId(tab.id)
+                      }
+                      e.dataTransfer.effectAllowed = 'copyMove'
+                    }}
+                    onDragEnd={() => setDraggingId(null)}
+                    onDragOver={(e) => {
+                      if (!e.dataTransfer.types.includes(TAB_REORDER_MIME)) return
+                      if (tab.pinned) return
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'move'
+                      if (draggingId && draggingId !== tab.id) {
+                        reorderTab(draggingId, tab.id)
+                      }
+                    }}
+                    onDrop={(e) => {
+                      const srcId = e.dataTransfer.getData(TAB_REORDER_MIME)
+                      setDraggingId(null)
+                      if (!srcId) return
+                      e.preventDefault()
+                      if (srcId !== tab.id) reorderTab(srcId, tab.id)
+                    }}
+                    onClick={() => setActive(tab.id)}
+                    onAuxClick={(e) => {
+                      if (e.button === 1 && !tab.pinned) requestClose(tab.id)
+                    }}
+                    className={cn(
+                      'relative flex h-full shrink-0 cursor-pointer select-none items-center gap-2 px-3 text-xs',
+                      isLast && tabs.length > 1 ? null : 'border-r border-border',
+                      active
+                        ? 'bg-background text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                      draggingId === tab.id ? 'opacity-60' : null,
+                    )}
+                  >
+                    <Icon className="size-3.5" />
+                    <span className="max-w-[200px] truncate font-mono">
+                      {dirty ? <span className="mr-1 text-foreground">•</span> : null}
+                      {title}
+                    </span>
+                    {tab.kind === 'board' ? <BoardModeChevron /> : null}
+                    {!tab.pinned ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          requestClose(tab.id)
+                        }}
+                        className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        aria-label="Close tab"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    ) : null}
+                  </div>
+                )
+              })}
+              <div ref={endSentinelRef} aria-hidden className="h-full w-px shrink-0" />
+            </div>
+            <div
+              aria-hidden
+              className={cn(
+                'pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-card to-transparent transition-opacity duration-150',
+                atStart ? 'opacity-0' : 'opacity-100',
+              )}
+            />
+            <div
+              aria-hidden
+              className={cn(
+                'pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-card to-transparent transition-opacity duration-150',
+                atEnd ? 'opacity-0' : 'opacity-100',
+              )}
+            />
           </div>
           <div className="h-full flex-1" style={drag} />
         </>
