@@ -2,6 +2,7 @@ import type {
   AgentSubagentStartEvent,
   AgentSubagentStopEvent,
   AgentSubagentTranscriptLineEvent,
+  AgentTeammateStartEvent,
 } from '@shared/ipc'
 import { useEffect } from 'react'
 import { onEvent } from '@/lib/ipc'
@@ -9,9 +10,12 @@ import { useCanvas } from '@/state/canvas'
 import { useSubagentTranscripts } from '@/state/subagent-transcripts'
 
 // Lookup key for correlating main-process agent events back to a canvas
-// window we spawned locally for that subagent.
+// window we spawned locally for that subagent/teammate.
 function subagentKey(parentSessionId: string, agentId: string): string {
   return `subagent::${parentSessionId}::${agentId}`
+}
+function teammateKey(sessionId: string): string {
+  return `teammate::${sessionId}`
 }
 
 function findParentWindow(parentCcIdeWindow: string | null): string | null {
@@ -90,15 +94,56 @@ function handleTranscriptLine(ev: AgentSubagentTranscriptLineEvent): void {
   useSubagentTranscripts.getState().append(id, ev.entries)
 }
 
+function handleTeammateStart(ev: AgentTeammateStartEvent): void {
+  if (!ev.tmuxSocket || !ev.tmuxPane) return
+  const parentWindowId = findParentWindow(ev.parentCcIdeWindow)
+  if (!parentWindowId) return
+  const canvas = useCanvas.getState()
+  const id = teammateKey(ev.sessionId)
+  if (canvas.windows.some((w) => w.id === id)) return
+  const pos = nextChildPosition(parentWindowId)
+  canvas.addWindow({
+    id,
+    kind: 'teammate',
+    tmuxWindow: '',
+    sessionId: null,
+    title: ev.agentName && ev.teamName ? `${ev.agentName}@${ev.teamName}` : id,
+    x: pos.x,
+    y: pos.y,
+    width: 640,
+    height: 400,
+    parentWindowId,
+    agentMeta: {
+      parentSessionId: ev.parentSessionId,
+      agentId: ev.sessionId, // teammate has its own session_id
+      agentType: ev.agentType,
+      teamName: ev.teamName,
+      agentName: ev.agentName,
+      agentColor: ev.agentColor,
+      tmuxSocket: ev.tmuxSocket,
+      tmuxPane: ev.tmuxPane,
+    },
+  })
+  canvas.addEdge({
+    id: `edge::${id}`,
+    fromWindowId: parentWindowId,
+    toWindowId: id,
+    kind: 'teammate',
+    state: 'active',
+  })
+}
+
 export function useAgentEvents(): void {
   useEffect(() => {
     const offStart = onEvent('agent:subagentStart', handleSubagentStart)
     const offStop = onEvent('agent:subagentStop', handleSubagentStop)
     const offLine = onEvent('agent:subagentTranscriptLine', handleTranscriptLine)
+    const offTeam = onEvent('agent:teammateStart', handleTeammateStart)
     return () => {
       offStart()
       offStop()
       offLine()
+      offTeam()
     }
   }, [])
 }

@@ -9,6 +9,7 @@
 | `canvas/<workspaceId>.json` | `canvas-store.ts` | per-workspace canvas snapshot (camera + windows) |
 | `plans/<workspaceId>/**/*.md` | `plan-fs-tree.ts` | **legacy plan location** — auto-migrated on first `plans:tree` call. Don't write here. |
 | `hooks/cc-ide-hook.sh` | `claude-hooks-installer.ts` | Claude-hook bridge script. Overwritten on every launch. Invoked by Claude as `bash … session-start\|subagent-start\|subagent-stop`. |
+| `tmp/teammate-*.fifo` | `teammate-mirror.ts` | Named pipes used by `tmux pipe-pane` to stream mirrored pane output. Created per teammate attach, best-effort deleted on detach/quit. |
 
 ## Workspace-owned (writable) under `<workspace>/.cc-ide/`
 

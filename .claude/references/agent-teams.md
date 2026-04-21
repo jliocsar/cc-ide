@@ -119,6 +119,12 @@ This is read-only and does not interfere with the user's tmux session. Direct re
 | Cmdline flags            | N/A                             | `--parent-session-id`, `--team-name`, `--agent-name`, `--agent-color` |
 | Session env              | Inherited from parent           | Fresh, includes `TMUX_PANE`        |
 
+## Implementation status
+
+- **Hook plumbing** (Phase 1): shipped. HTTP server on `127.0.0.1:9224`, `~/.cc-ide/hooks/cc-ide-hook.sh`, `~/.claude/settings.json` patched idempotently, `CC_IDE_WINDOW` env injected at Claude spawn.
+- **Subagent windows** (Phase 2): shipped. Live jsonl tail via `subagent-tail.ts`, `SubagentWindow` message-feed component, curved SVG edges.
+- **Teammate windows** (Phase 3): shipped. `teammate-mirror.ts` uses `tmux capture-pane` for initial scrollback + `tmux pipe-pane` streaming a fifo for live output; `teammate:sendKeys` / `paste` route keystrokes back into the pane via the user's tmux socket. `TeammateXterm` renders it.
+
 ## Rehydration on IDE restart (deferred — not in v1)
 
 Teammate tmux panes persist across IDE restarts because the user's tmux server is long-lived. The app does not currently rehydrate teammate windows on restart — stale canvas entries are cleaned up at launch.

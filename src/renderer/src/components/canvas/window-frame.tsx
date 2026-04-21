@@ -26,6 +26,11 @@ type Props = {
   onClose?: () => void
   children: ReactNode
   badge?: ReactNode
+  // Optional replacement for the default Claude logo (used by teammates to
+  // show a colored dot, by subagents to show a cogs icon, etc.).
+  leadingIcon?: ReactNode
+  // Optional suffix after the title — e.g. "(teammate)".
+  titleSuffix?: ReactNode
 }
 
 const MIN_W = 320
@@ -46,6 +51,8 @@ function WindowFrameImpl({
   onClose,
   children,
   badge,
+  leadingIcon,
+  titleSuffix,
 }: Props): JSX.Element {
   const updateWindow = useCanvas((s) => s.updateWindow)
   const focusWindow = useCanvas((s) => s.focusWindow)
@@ -181,7 +188,7 @@ function WindowFrameImpl({
           onDoubleClick={onTitlebarDoubleClick}
           className="flex h-7 shrink-0 cursor-grab select-none items-center gap-2 border-b border-border bg-card px-3 text-[11px] font-mono text-muted-foreground active:cursor-grabbing"
         >
-          <img src={claudeSymbolUrl} alt="" className="size-3.5 shrink-0" />
+          {leadingIcon ?? <img src={claudeSymbolUrl} alt="" className="size-3.5 shrink-0" />}
           {editing && tmuxWindow && shortName !== null ? (
             <InlineRenameInput
               className="flex-1"
@@ -210,6 +217,7 @@ function WindowFrameImpl({
               {displayTitle}
             </span>
           )}
+          {titleSuffix}
           {badge}
           <div className="ml-auto flex items-center gap-1">
             {onMaximize ? (

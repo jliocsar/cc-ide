@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type WindowKind = 'claude' | 'subagent'
+export type WindowKind = 'claude' | 'subagent' | 'teammate'
 
 export type AgentMeta = {
   // Common.
@@ -12,6 +12,12 @@ export type AgentMeta = {
   // Populated by SubagentStop.
   agentTranscriptPath?: string | null
   lastAssistantMessage?: string | null
+  // Teammate-specific.
+  teamName?: string | null
+  agentName?: string | null
+  agentColor?: string | null
+  tmuxSocket?: string | null
+  tmuxPane?: string | null
 }
 
 export type CanvasWindow = {
@@ -237,6 +243,7 @@ export const useCanvas = create<State>((set, get) => ({
     // another SubagentStart. Skip them on hydrate so stale entries don't linger.
     const restored = snapshot.windows
       .filter((w) => (w.kind ?? 'claude') === 'claude')
+      // subagents + teammates are runtime-only; regenerated on next hook event
       .map((w) => ({ ...w, sessionId: null }))
     set({
       camera: snapshot.camera,
@@ -253,6 +260,7 @@ export const useCanvas = create<State>((set, get) => ({
       camera: s.camera,
       windows: s.windows
         .filter((w) => (w.kind ?? 'claude') === 'claude')
+        // subagents + teammates are runtime-only; regenerated on next hook event
         .map(({ sessionId: _ignored, ...rest }) => rest),
       nextZ: s.nextZ,
     }

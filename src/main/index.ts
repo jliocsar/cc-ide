@@ -10,6 +10,7 @@ import {
   bindAgentEvents as bindSubagentTail,
   disposeAll as disposeSubagentTail,
 } from './modules/subagent-tail'
+import { disposeAll as disposeTeammateMirror } from './modules/teammate-mirror'
 import { disposeAllWatchers } from './modules/watchers'
 
 if (is.dev) {
@@ -92,6 +93,7 @@ app.on('before-quit', () => {
   disposeSessionWatcher()
   void depgraph.disposeAll()
   disposeSubagentTail()
+  disposeTeammateMirror()
   void stopHookServer()
 })
 

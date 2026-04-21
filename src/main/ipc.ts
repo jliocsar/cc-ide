@@ -25,6 +25,7 @@ import * as sessionDiscovery from './modules/session-discovery'
 import * as sessionWatcher from './modules/session-watcher'
 import * as settingsStore from './modules/settings-store'
 import * as tabsStore from './modules/tabs-store'
+import * as teammateMirror from './modules/teammate-mirror'
 import * as tmux from './modules/tmux-adapter'
 import {
   disposePlansAndPromptsWatchers,
@@ -562,6 +563,27 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
   'window:isMaximized': async () => {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
     return { maximized: win?.isMaximized() ?? false }
+  },
+  'teammate:attach': async ({ socket, pane }) => {
+    const snapshot = await teammateMirror.getPaneSnapshot(socket, pane)
+    await teammateMirror.startMirror({ socket, pane })
+    return { snapshot }
+  },
+  'teammate:detach': async ({ socket, pane }) => {
+    await teammateMirror.stopMirror({ socket, pane })
+    return { ok: true }
+  },
+  'teammate:sendKeys': async ({ socket, pane, data }) => {
+    await teammateMirror.sendKeys({ socket, pane, data })
+    return { ok: true }
+  },
+  'teammate:sendSpecialKey': async ({ socket, pane, key }) => {
+    await teammateMirror.sendSpecialKey({ socket, pane, key })
+    return { ok: true }
+  },
+  'teammate:paste': async ({ socket, pane, data }) => {
+    await teammateMirror.pasteBuffer({ socket, pane, data })
+    return { ok: true }
   },
   'session:attachExisting': async ({ workspaceId, tmuxWindow, cols, rows }) => {
     const ws = await workspaceRegistry.getWorkspace(workspaceId)

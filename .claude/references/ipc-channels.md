@@ -32,6 +32,11 @@ All request/response channels use Zod schemas on both sides of the boundary. Zod
 | `prompts:create` / `prompts:update` / `prompts:delete` | CRUD. |
 | `plans:tree` | Recursive `PlanDir` rooted at the workspace's plans dir. |
 | `plans:read` / `plans:write` / `plans:create` / `plans:createFolder` / `plans:rename` / `plans:delete` | File ops with path-safety guard. |
+| `teammate:attach` | `{ socket, pane }` → `{ snapshot }`. Captures current scrollback + starts pipe-pane mirroring. |
+| `teammate:detach` | `{ socket, pane }` → `{ ok }`. Stops pipe-pane, closes fifo. |
+| `teammate:sendKeys` | `{ socket, pane, data }` — literal `send-keys -l`. Coalesced per animation frame in the renderer. |
+| `teammate:sendSpecialKey` | `{ socket, pane, key }` — named tmux keys (Enter, C-c, …). Validated against a regex to block shell injection. |
+| `teammate:paste` | `{ socket, pane, data }` — big-paste path via `load-buffer -` + `paste-buffer -d`. Renderer routes >64KB through this. |
 
 ## Event channels (main → renderer)
 
@@ -43,6 +48,8 @@ All request/response channels use Zod schemas on both sides of the boundary. Zod
 | `agent:subagentStart` | Resolved subagent spawn (parent session + agent id/type). |
 | `agent:subagentStop` | Subagent finished; carries `agent_transcript_path` + `last_assistant_message`. |
 | `agent:subagentTranscriptLine` | `{ parentSessionId, agentId, entries: TranscriptEntry[] }` — live transcript appends from `subagent-tail.ts`. Entries are parsed jsonl rows: `assistant-text`, `tool-use`, `tool-result`, `user-text`. |
+| `teammate:data` | `{ socket, pane, data }` — bytes streamed from `tmux pipe-pane`. Renderer feeds into xterm unmodified (ANSI preserved). |
+| `teammate:mirrorExit` | `{ socket, pane }` — pipe-pane EOF (pane closed or tmux server died). Renderer writes a dim "pane closed" hint and holds the scrollback. |
 
 Broadcast implementation: `src/main/modules/pty-manager.ts::broadcast` iterates `BrowserWindow.getAllWindows()`.
 

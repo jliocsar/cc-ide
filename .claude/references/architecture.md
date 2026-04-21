@@ -20,6 +20,7 @@ src/
 │       ├── hook-server.ts             # HTTP on 127.0.0.1:9224; Claude hook payloads
 │       ├── agent-map.ts               # session_id ↔ canvas window correlation + teammate flag parser; Node emitter for tail modules
 │       ├── subagent-tail.ts           # fs.watch-based jsonl tailer; emits parsed transcript lines to renderer
+│       ├── teammate-mirror.ts         # tmux capture-pane + pipe-pane fifo + send-keys / paste-buffer
 │       └── claude-hooks-installer.ts  # patches ~/.claude/settings.json + installs ~/.cc-ide/hooks/cc-ide-hook.sh
 │
 ├── preload/

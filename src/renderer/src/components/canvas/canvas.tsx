@@ -11,6 +11,7 @@ import { useWorkspaces } from '@/state/workspaces'
 import { CanvasContextMenu, type ContextMenuState } from './canvas-context-menu'
 import { EdgeLayer } from './edge-layer'
 import { SubagentWindow } from './subagent-window'
+import { TeammateWindow } from './teammate-window'
 import { XtermWindow } from './xterm-window'
 import { ZoomControls } from './zoom-controls'
 
@@ -250,13 +251,12 @@ export function Canvas(): JSX.Element {
         }
       >
         {!paged && <EdgeLayer />}
-        {(paged ? pagedWindows : windows).map((w) =>
-          (w.kind ?? 'claude') === 'subagent' ? (
-            <SubagentWindow key={w.id} w={w} />
-          ) : (
-            <XtermWindow key={w.id} w={w} />
-          ),
-        )}
+        {(paged ? pagedWindows : windows).map((w) => {
+          const kind = w.kind ?? 'claude'
+          if (kind === 'subagent') return <SubagentWindow key={w.id} w={w} />
+          if (kind === 'teammate') return <TeammateWindow key={w.id} w={w} />
+          return <XtermWindow key={w.id} w={w} />
+        })}
       </div>
 
       {!hasWindows ? (

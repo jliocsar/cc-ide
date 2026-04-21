@@ -564,6 +564,26 @@ export const ipcContract = {
     request: z.object({}),
     response: z.object({ maximized: z.boolean() }),
   },
+  'teammate:attach': {
+    request: z.object({ socket: z.string(), pane: z.string() }),
+    response: z.object({ snapshot: z.string() }),
+  },
+  'teammate:detach': {
+    request: z.object({ socket: z.string(), pane: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  'teammate:sendKeys': {
+    request: z.object({ socket: z.string(), pane: z.string(), data: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  'teammate:sendSpecialKey': {
+    request: z.object({ socket: z.string(), pane: z.string(), key: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  'teammate:paste': {
+    request: z.object({ socket: z.string(), pane: z.string(), data: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
 } as const
 
 export type IpcContract = typeof ipcContract
@@ -679,6 +699,21 @@ export type AgentSubagentTranscriptLineEvent = z.infer<
   typeof agentSubagentTranscriptLineEventSchema
 >
 
+// Bytes streamed from a mirrored tmux pane (teammate window). The renderer
+// feeds these into xterm as they arrive.
+export const teammateDataEventSchema = z.object({
+  socket: z.string(),
+  pane: z.string(),
+  data: z.string(),
+})
+export type TeammateDataEvent = z.infer<typeof teammateDataEventSchema>
+
+export const teammateMirrorExitEventSchema = z.object({
+  socket: z.string(),
+  pane: z.string(),
+})
+export type TeammateMirrorExitEvent = z.infer<typeof teammateMirrorExitEventSchema>
+
 export const eventChannels = {
   'pty:data': ptyDataEventSchema,
   'pty:exit': ptyExitEventSchema,
@@ -698,6 +733,8 @@ export const eventChannels = {
   'agent:subagentStart': agentSubagentStartEventSchema,
   'agent:subagentStop': agentSubagentStopEventSchema,
   'agent:subagentTranscriptLine': agentSubagentTranscriptLineEventSchema,
+  'teammate:data': teammateDataEventSchema,
+  'teammate:mirrorExit': teammateMirrorExitEventSchema,
 } as const
 
 export type IpcEventChannel = keyof typeof eventChannels
