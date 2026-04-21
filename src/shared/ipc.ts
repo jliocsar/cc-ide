@@ -597,6 +597,88 @@ export const windowMaximizedEventSchema = z.object({
   maximized: z.boolean(),
 })
 
+// ──────────────────── Agent events (teammates + subagents) ────────────────────
+//
+// Fired by the HTTP hook-server (main) when Claude's hooks POST resolved
+// spawn/stop events. See references/agent-teams.md for the on-disk model and
+// rules/hooks-integration.md for the install contract.
+
+export const agentTeammateStartEventSchema = z.object({
+  sessionId: z.string(),
+  parentSessionId: z.string(),
+  parentCcIdeWindow: z.string(),
+  teamName: z.string().nullable(),
+  agentName: z.string().nullable(),
+  agentColor: z.string().nullable(),
+  agentType: z.string().nullable(),
+  tmuxSocket: z.string().nullable(),
+  tmuxPane: z.string().nullable(),
+  cwd: z.string().nullable(),
+  transcriptPath: z.string().nullable(),
+})
+export type AgentTeammateStartEvent = z.infer<typeof agentTeammateStartEventSchema>
+
+export const agentSubagentStartEventSchema = z.object({
+  parentSessionId: z.string(),
+  parentCcIdeWindow: z.string().nullable(),
+  agentId: z.string(),
+  agentType: z.string().nullable(),
+  teammateName: z.string().nullable(),
+  cwd: z.string().nullable(),
+})
+export type AgentSubagentStartEvent = z.infer<typeof agentSubagentStartEventSchema>
+
+export const agentSubagentStopEventSchema = z.object({
+  parentSessionId: z.string(),
+  agentId: z.string(),
+  agentTranscriptPath: z.string().nullable(),
+  lastAssistantMessage: z.string().nullable(),
+})
+export type AgentSubagentStopEvent = z.infer<typeof agentSubagentStopEventSchema>
+
+// Parsed subagent transcript line. `tool-use` pairs with a later `tool-result`
+// via toolUseId (the renderer collapses the pair into a single rendered unit).
+export const transcriptEntrySchema = z.discriminatedUnion('kind', [
+  z.object({
+    uuid: z.string(),
+    ts: z.number(),
+    kind: z.literal('assistant-text'),
+    text: z.string(),
+  }),
+  z.object({
+    uuid: z.string(),
+    ts: z.number(),
+    kind: z.literal('tool-use'),
+    toolName: z.string(),
+    toolInput: z.unknown(),
+    toolUseId: z.string(),
+  }),
+  z.object({
+    uuid: z.string(),
+    ts: z.number(),
+    kind: z.literal('tool-result'),
+    toolUseId: z.string(),
+    text: z.string(),
+    isError: z.boolean(),
+  }),
+  z.object({
+    uuid: z.string(),
+    ts: z.number(),
+    kind: z.literal('user-text'),
+    text: z.string(),
+  }),
+])
+export type TranscriptEntry = z.infer<typeof transcriptEntrySchema>
+
+export const agentSubagentTranscriptLineEventSchema = z.object({
+  parentSessionId: z.string(),
+  agentId: z.string(),
+  entries: z.array(transcriptEntrySchema),
+})
+export type AgentSubagentTranscriptLineEvent = z.infer<
+  typeof agentSubagentTranscriptLineEventSchema
+>
+
 export const eventChannels = {
   'pty:data': ptyDataEventSchema,
   'pty:exit': ptyExitEventSchema,
@@ -612,6 +694,10 @@ export const eventChannels = {
   'graph:scanProgress': graphScanProgressEventSchema,
   'graph:scanEnd': graphScanEndEventSchema,
   'graph:error': graphErrorEventSchema,
+  'agent:teammateStart': agentTeammateStartEventSchema,
+  'agent:subagentStart': agentSubagentStartEventSchema,
+  'agent:subagentStop': agentSubagentStopEventSchema,
+  'agent:subagentTranscriptLine': agentSubagentTranscriptLineEventSchema,
 } as const
 
 export type IpcEventChannel = keyof typeof eventChannels

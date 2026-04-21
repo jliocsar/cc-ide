@@ -2,8 +2,14 @@ import { join } from 'node:path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, shell } from 'electron'
 import { registerIpcHandlers } from './ipc'
+import { ensureClaudeHooksInstalled } from './modules/claude-hooks-installer'
 import * as depgraph from './modules/depgraph'
+import { HOOK_PORT, startHookServer, stopHookServer } from './modules/hook-server'
 import { disposeAll as disposeSessionWatcher } from './modules/session-watcher'
+import {
+  bindAgentEvents as bindSubagentTail,
+  disposeAll as disposeSubagentTail,
+} from './modules/subagent-tail'
 import { disposeAllWatchers } from './modules/watchers'
 
 if (is.dev) {
@@ -54,7 +60,7 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   electronApp.setAppUserModelId('dev.cc-ide')
 
   app.on('browser-window-created', (_, window) => {
@@ -62,6 +68,18 @@ app.whenReady().then(() => {
   })
 
   registerIpcHandlers()
+
+  // Hook server + installer are best-effort. A failure here (port in use, fs
+  // error) must not block the app launch — users without the hook plumbing
+  // still get a working IDE, just without teammate/subagent auto-spawn.
+  try {
+    const port = await startHookServer({ port: HOOK_PORT })
+    await ensureClaudeHooksInstalled({ port })
+    bindSubagentTail()
+  } catch (err) {
+    console.error('[main] claude hook server/install failed — continuing without:', err)
+  }
+
   createWindow()
 
   app.on('activate', () => {
@@ -73,6 +91,8 @@ app.on('before-quit', () => {
   disposeAllWatchers()
   disposeSessionWatcher()
   void depgraph.disposeAll()
+  disposeSubagentTail()
+  void stopHookServer()
 })
 
 app.on('window-all-closed', () => {

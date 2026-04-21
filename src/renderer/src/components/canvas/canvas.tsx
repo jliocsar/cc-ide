@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { Button } from '@/components/ui/button'
+import { useAgentEvents } from '@/hooks/use-agent-events'
 import { useCanvasControls } from '@/hooks/use-canvas-controls'
 import { setCanvasHost } from '@/lib/canvas-host'
 import { useCanvas } from '@/state/canvas'
@@ -8,6 +9,8 @@ import { useMaximizedWindow } from '@/state/maximized-window'
 import { useSpawnModal } from '@/state/spawn-modal'
 import { useWorkspaces } from '@/state/workspaces'
 import { CanvasContextMenu, type ContextMenuState } from './canvas-context-menu'
+import { EdgeLayer } from './edge-layer'
+import { SubagentWindow } from './subagent-window'
 import { XtermWindow } from './xterm-window'
 import { ZoomControls } from './zoom-controls'
 
@@ -21,6 +24,8 @@ export function Canvas(): JSX.Element {
   const activeWorkspaceId = useWorkspaces((s) => s.activeId)
   const openSpawnModal = useSpawnModal((s) => s.open)
   const modalOpen = useSpawnModal((s) => s.isOpen)
+
+  useAgentEvents()
 
   const maximizedWindowId = useMaximizedWindow((s) =>
     activeWorkspaceId ? (s.byWorkspace[activeWorkspaceId] ?? null) : null,
@@ -93,7 +98,7 @@ export function Canvas(): JSX.Element {
   }, [paged, activeWorkspaceId, maximizedWindowId, setMaximizedWindow])
 
   // Page-step navigation in paged mode. Bound to Ctrl+wheel and
-  // Ctrl+Arrow. We animate scrollLeft by hand with easeInOutCubic —
+  // Ctrl+Shift+Arrow. We animate scrollLeft by hand with easeInOutCubic —
   // native `behavior: 'smooth'` is short and snap-type mandatory
   // collapses it into a jump. macOS-workspaces feel: ~460ms ease.
   useEffect(() => {
@@ -156,7 +161,7 @@ export function Canvas(): JSX.Element {
     }
     const onKey = (ev: KeyboardEvent): void => {
       if (!(ev.ctrlKey || ev.metaKey)) return
-      if (ev.shiftKey || ev.altKey) return
+      if (!ev.shiftKey || ev.altKey) return
       if (ev.key === 'ArrowRight') {
         ev.preventDefault()
         ev.stopPropagation()
@@ -244,9 +249,14 @@ export function Canvas(): JSX.Element {
               }
         }
       >
-        {(paged ? pagedWindows : windows).map((w) => (
-          <XtermWindow key={w.id} w={w} />
-        ))}
+        {!paged && <EdgeLayer />}
+        {(paged ? pagedWindows : windows).map((w) =>
+          (w.kind ?? 'claude') === 'subagent' ? (
+            <SubagentWindow key={w.id} w={w} />
+          ) : (
+            <XtermWindow key={w.id} w={w} />
+          ),
+        )}
       </div>
 
       {!hasWindows ? (

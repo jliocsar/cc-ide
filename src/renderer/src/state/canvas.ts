@@ -1,7 +1,22 @@
 import { create } from 'zustand'
 
+export type WindowKind = 'claude' | 'subagent'
+
+export type AgentMeta = {
+  // Common.
+  parentSessionId: string
+  agentId: string
+  agentType: string | null
+  // Subagent-specific.
+  teammateName?: string | null
+  // Populated by SubagentStop.
+  agentTranscriptPath?: string | null
+  lastAssistantMessage?: string | null
+}
+
 export type CanvasWindow = {
   id: string
+  kind?: WindowKind // undefined ≡ 'claude' (back-compat with persisted snapshots)
   tmuxWindow: string
   sessionId: string | null
   title: string
@@ -10,6 +25,19 @@ export type CanvasWindow = {
   width: number
   height: number
   zIndex: number
+  parentWindowId?: string | null
+  exited?: boolean
+  agentMeta?: AgentMeta
+}
+
+export type EdgeKind = 'subagent' | 'teammate'
+export type EdgeState = 'active' | 'orphan'
+export type Edge = {
+  id: string
+  fromWindowId: string
+  toWindowId: string
+  kind: EdgeKind
+  state: EdgeState
 }
 
 export type Camera = { x: number; y: number; zoom: number }
@@ -24,9 +52,12 @@ export type PersistedCanvas = {
 const ZOOM_MIN = 0.3
 const ZOOM_MAX = 2.5
 
+export const EMPTY_EDGES: readonly Edge[] = Object.freeze([] as Edge[])
+
 type State = {
   camera: Camera
   windows: CanvasWindow[]
+  edges: Edge[]
   nextZ: number
 
   addWindow: (init: Omit<CanvasWindow, 'zIndex'>) => void
@@ -34,6 +65,12 @@ type State = {
   updateWindow: (id: string, patch: Partial<CanvasWindow>) => void
   focusWindow: (id: string) => void
   renameByTmuxWindow: (oldTmuxWindow: string, newTmuxWindow: string) => void
+  markWindowExited: (id: string, patch?: Partial<AgentMeta>) => void
+
+  addEdge: (edge: Edge) => void
+  removeEdge: (id: string) => void
+  removeEdgesForWindow: (windowId: string) => void
+  setEdgeState: (id: string, state: EdgeState) => void
 
   pan: (dx: number, dy: number) => void
   zoomAt: (factor: number, viewportX: number, viewportY: number) => void
@@ -78,6 +115,7 @@ function easeOutCubic(t: number): number {
 export const useCanvas = create<State>((set, get) => ({
   camera: { x: 0, y: 0, zoom: 1 },
   windows: [],
+  edges: [],
   nextZ: 1,
 
   addWindow: (init) =>
@@ -86,7 +124,11 @@ export const useCanvas = create<State>((set, get) => ({
       nextZ: s.nextZ + 1,
     })),
 
-  removeWindow: (id) => set((s) => ({ windows: s.windows.filter((w) => w.id !== id) })),
+  removeWindow: (id) =>
+    set((s) => ({
+      windows: s.windows.filter((w) => w.id !== id),
+      edges: s.edges.filter((e) => e.fromWindowId !== id && e.toWindowId !== id),
+    })),
 
   updateWindow: (id, patch) =>
     set((s) => ({
@@ -106,6 +148,34 @@ export const useCanvas = create<State>((set, get) => ({
           ? { ...w, tmuxWindow: newTmuxWindow, title: newTmuxWindow }
           : w,
       ),
+    })),
+
+  markWindowExited: (id, agentPatch) =>
+    set((s) => ({
+      windows: s.windows.map((w) => {
+        if (w.id !== id) return w
+        const nextMeta: AgentMeta | undefined =
+          w.agentMeta && agentPatch ? { ...w.agentMeta, ...agentPatch } : w.agentMeta
+        return { ...w, exited: true, agentMeta: nextMeta }
+      }),
+    })),
+
+  addEdge: (edge) =>
+    set((s) => {
+      if (s.edges.some((e) => e.id === edge.id)) return s
+      return { edges: [...s.edges, edge] }
+    }),
+
+  removeEdge: (id) => set((s) => ({ edges: s.edges.filter((e) => e.id !== id) })),
+
+  removeEdgesForWindow: (windowId) =>
+    set((s) => ({
+      edges: s.edges.filter((e) => e.fromWindowId !== windowId && e.toWindowId !== windowId),
+    })),
+
+  setEdgeState: (id, edgeState) =>
+    set((s) => ({
+      edges: s.edges.map((e) => (e.id === id ? { ...e, state: edgeState } : e)),
     })),
 
   pan: (dx, dy) =>
@@ -160,12 +230,18 @@ export const useCanvas = create<State>((set, get) => ({
 
   hydrate: (snapshot) => {
     if (!snapshot) {
-      set({ camera: { x: 0, y: 0, zoom: 1 }, windows: [], nextZ: 1 })
+      set({ camera: { x: 0, y: 0, zoom: 1 }, windows: [], edges: [], nextZ: 1 })
       return
     }
+    // Subagent windows are ephemeral — they're re-created when the parent fires
+    // another SubagentStart. Skip them on hydrate so stale entries don't linger.
+    const restored = snapshot.windows
+      .filter((w) => (w.kind ?? 'claude') === 'claude')
+      .map((w) => ({ ...w, sessionId: null }))
     set({
       camera: snapshot.camera,
-      windows: snapshot.windows.map((w) => ({ ...w, sessionId: null })),
+      windows: restored,
+      edges: [],
       nextZ: snapshot.nextZ,
     })
   },
@@ -175,7 +251,9 @@ export const useCanvas = create<State>((set, get) => ({
     return {
       version: 1,
       camera: s.camera,
-      windows: s.windows.map(({ sessionId: _ignored, ...rest }) => rest),
+      windows: s.windows
+        .filter((w) => (w.kind ?? 'claude') === 'claude')
+        .map(({ sessionId: _ignored, ...rest }) => rest),
       nextZ: s.nextZ,
     }
   },

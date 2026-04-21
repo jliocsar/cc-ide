@@ -8,6 +8,7 @@
 | `prompts.json` | `prompts-store.ts` | global prompt store (cross-project library): `{ version: 1, prompts: Prompt[] }` |
 | `canvas/<workspaceId>.json` | `canvas-store.ts` | per-workspace canvas snapshot (camera + windows) |
 | `plans/<workspaceId>/**/*.md` | `plan-fs-tree.ts` | **legacy plan location** — auto-migrated on first `plans:tree` call. Don't write here. |
+| `hooks/cc-ide-hook.sh` | `claude-hooks-installer.ts` | Claude-hook bridge script. Overwritten on every launch. Invoked by Claude as `bash … session-start\|subagent-start\|subagent-stop`. |
 
 ## Workspace-owned (writable) under `<workspace>/.cc-ide/`
 
@@ -27,6 +28,13 @@ All JSON writes are atomic: write `.tmp` → `rename`. All readers tolerate ENOE
 | Path | Read by | Purpose |
 |---|---|---|
 | `~/.claude/projects/<slug>/*.jsonl` | `session-discovery.ts` | Claude's own transcripts per project; source of truth for the Sessions sidebar. Slug derivation: absolute path → replace `/` and `.` with `-`. `/foo/bar` → `-foo-bar`. |
+| `~/.claude/projects/<slug>/<sid>/subagents/agent-<aid>.jsonl` | (Phase 2, `subagent-tail.ts`) | Subagent transcripts, tailed live. See `agent-teams.md`. |
+
+## Claude-owned (write, narrowly)
+
+| Path | Written by | Purpose |
+|---|---|---|
+| `~/.claude/settings.json` | `claude-hooks-installer.ts` | Adds three `cc-ide` hook entries (SessionStart/SubagentStart/SubagentStop). Preserves everything else. Backs up to `.cc-ide-corrupt-<ts>.bkp` if the file is corrupt. See `rules/hooks-integration.md`. |
 
 The IDE never writes here. If Claude's on-disk format changes upstream, the only place to update is `session-discovery.ts`.
 

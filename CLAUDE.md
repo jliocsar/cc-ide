@@ -13,6 +13,7 @@ Claude Code IDE. Electron + React. Orchestrates multiple Claude Code instances a
 - [.claude/rules/ui.md](.claude/rules/ui.md) — dark-only monochrome; shadcn rules; reserved shortcuts (Ctrl+K/W/B, Ctrl+0/=/-).
 - [.claude/rules/scope.md](.claude/rules/scope.md) — out-of-scope items; do not drift.
 - [.claude/rules/dependencies.md](.claude/rules/dependencies.md) — ask before adding any dep.
+- [.claude/rules/hooks-integration.md](.claude/rules/hooks-integration.md) — `~/.claude/settings.json` patching + the HTTP hook server on 127.0.0.1:9224.
 
 ## References (informational)
 
@@ -22,6 +23,7 @@ Claude Code IDE. Electron + React. Orchestrates multiple Claude Code instances a
 - [.claude/references/canvas-model.md](.claude/references/canvas-model.md) — world transform, pan/zoom math, persistence.
 - [.claude/references/data-paths.md](.claude/references/data-paths.md) — `$HOME/.cc-ide/` layout and Claude-owned paths.
 - [.claude/references/debug-with-agent-browser.md](.claude/references/debug-with-agent-browser.md) — attach to Electron at `:9223`, flow checklist.
+- [.claude/references/agent-teams.md](.claude/references/agent-teams.md) — how subagents and teammates behave on disk and in the process tree.
 - [.claude/references/phase-summary.md](.claude/references/phase-summary.md) — what each phase 0–6 shipped.
 - [.claude/references/lessons.md](.claude/references/lessons.md) — bugs hit and how we fixed them.
 

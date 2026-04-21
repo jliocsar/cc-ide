@@ -39,6 +39,10 @@ All request/response channels use Zod schemas on both sides of the boundary. Zod
 |---|---|
 | `pty:data` | `{ ptyId, data: string }` — streams UTF-8 chunks from the pty. |
 | `pty:exit` | `{ ptyId, exitCode: number \| null }` — fires once per pty; pty is removed from the manager after. |
+| `agent:teammateStart` | Resolved teammate spawn (parent+team+color+tmux pane). Fired by `hook-server.ts` → `agent-map.ts`. See `agent-teams.md`. |
+| `agent:subagentStart` | Resolved subagent spawn (parent session + agent id/type). |
+| `agent:subagentStop` | Subagent finished; carries `agent_transcript_path` + `last_assistant_message`. |
+| `agent:subagentTranscriptLine` | `{ parentSessionId, agentId, entries: TranscriptEntry[] }` — live transcript appends from `subagent-tail.ts`. Entries are parsed jsonl rows: `assistant-text`, `tool-use`, `tool-result`, `user-text`. |
 
 Broadcast implementation: `src/main/modules/pty-manager.ts::broadcast` iterates `BrowserWindow.getAllWindows()`.
 

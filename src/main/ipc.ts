@@ -188,7 +188,9 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       // be aliased to a user wrapper). After claude exits, `exit` tears
       // the shell down unconditionally so the pane can't drop to a
       // prompt, regardless of IGNOREEOF, plugin hooks, or similar.
-      command: `zsh -ic 'claude --resume ${sessionId}; exit'`,
+      // CC_IDE_WINDOW is the side-channel used by our Claude hooks to
+      // correlate session_id → canvas window (see references/agent-teams.md).
+      command: `zsh -ic 'CC_IDE_WINDOW=${windowName} claude --resume ${sessionId}; exit'`,
     })
     const ptyId = await attachViewerPty({
       primarySession,
@@ -241,7 +243,8 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       windowName,
       cwd,
       // see the resume flow above for why this is `zsh -ic 'claude; exit'`.
-      command: `zsh -ic 'claude; exit'`,
+      // CC_IDE_WINDOW side-channel for Claude-hook correlation.
+      command: `zsh -ic 'CC_IDE_WINDOW=${windowName} claude; exit'`,
     })
 
     if (ephemeral) {
