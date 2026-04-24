@@ -18,10 +18,6 @@ type Props = {
   width: number
   height: number
   zIndex: number
-  // Paged: a sibling is maximized and the canvas is in scroll-snap mode.
-  // All windows lay out as relative 100%-basis flex children.
-  paged?: boolean
-  maximized?: boolean
   onMaximize?: () => void
   onClose?: () => void
   children: ReactNode
@@ -45,8 +41,6 @@ function WindowFrameImpl({
   width,
   height,
   zIndex,
-  paged,
-  maximized,
   onMaximize,
   onClose,
   children,
@@ -69,15 +63,15 @@ function WindowFrameImpl({
   heightRef.current = height
   const editingRef = useRef(editing)
   editingRef.current = editing
-  const maximizedRef = useRef(maximized)
-  maximizedRef.current = maximized
 
   const onTitlebarPointerDown = useCallback(
     (ev: React.PointerEvent<HTMLDivElement>) => {
       if (ev.button !== 0) return
       if (ev.ctrlKey || ev.metaKey) return
-      if (maximizedRef.current) return
       if (editingRef.current) return
+      // Drag must not move windows in paged mode — the canvas is a scroller
+      // there and individual window position is meaningless.
+      if (ev.currentTarget.closest('[data-paged="true"]')) return
       if (ev.target instanceof Element && ev.target.closest('button, input, [data-rename-target]'))
         return
       ev.stopPropagation()
@@ -151,11 +145,6 @@ function WindowFrameImpl({
   const displayTitle =
     shortName ?? (title.includes(':') ? title.split(':').slice(1).join(':') || title : title)
 
-  // Paged layout (sibling is maximized): render as relative flex child
-  // occupying a full scroll-snap page. Suppresses chrome — the header tab
-  // bar provides the active-window controls.
-  const chromeless = paged || maximized
-
   return (
     <div
       data-window-id={id}
@@ -165,113 +154,107 @@ function WindowFrameImpl({
         focusWindow(id)
       }}
       className={cn(
-        'flex flex-col overflow-hidden bg-[#0a0a0a] shadow-2xl',
-        paged
-          ? 'relative h-full w-full shrink-0 grow-0 basis-full rounded-none [scroll-snap-align:center]'
-          : cn('absolute', maximized ? 'rounded-none' : 'rounded-md border border-border'),
+        'cc-window-frame',
+        'absolute flex flex-col overflow-hidden rounded-md border border-border bg-[#0a0a0a] shadow-2xl',
       )}
-      style={
-        paged
-          ? undefined
-          : {
-              left: x,
-              top: y,
-              width,
-              height,
-              zIndex,
-            }
-      }
+      // CSS in paged mode overrides position/size; `order` controls page
+      // sequence inside the flex scroller (sorted by canvas-x). Setting it
+      // unconditionally costs nothing outside paged mode.
+      style={{
+        left: x,
+        top: y,
+        width,
+        height,
+        zIndex,
+        order: Math.round(x),
+      }}
     >
-      {!chromeless && (
-        <div
-          onPointerDown={onTitlebarPointerDown}
-          onDoubleClick={onTitlebarDoubleClick}
-          className="flex h-7 shrink-0 cursor-grab select-none items-center gap-2 border-b border-border bg-card px-3 text-[11px] font-mono text-muted-foreground active:cursor-grabbing"
-        >
-          {leadingIcon ?? <img src={claudeSymbolUrl} alt="" className="size-3.5 shrink-0" />}
-          {editing && tmuxWindow && shortName !== null ? (
-            <InlineRenameInput
-              className="flex-1"
-              value={shortName}
-              validate={validateTmuxWindowName}
-              onCancel={() => setEditing(false)}
-              onCommit={async (next) => {
-                try {
-                  await useSessions.getState().rename(tmuxWindow, next)
-                  setEditing(false)
-                } catch (err) {
-                  toast.error(err instanceof Error ? err.message : String(err))
-                }
-              }}
-            />
-          ) : (
-            <span
-              data-rename-target={tmuxWindow ? '' : undefined}
-              className={cn('truncate', tmuxWindow && 'cursor-text')}
-              onDoubleClick={(e) => {
-                if (!tmuxWindow) return
-                e.stopPropagation()
-                setEditing(true)
-              }}
-            >
-              {displayTitle}
-            </span>
-          )}
-          {titleSuffix}
-          {badge}
-          <div className="ml-auto flex items-center gap-1">
-            {onMaximize ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onMaximize()
-                    }}
-                    className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                    aria-label="Maximize window"
-                  >
-                    <Maximize2 className="size-3" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Maximize · Ctrl+Shift+F</TooltipContent>
-              </Tooltip>
-            ) : null}
-            {onClose ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onClose()
-                    }}
-                    className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                    aria-label="Close window"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Close window</TooltipContent>
-              </Tooltip>
-            ) : null}
-          </div>
+      <div
+        onPointerDown={onTitlebarPointerDown}
+        onDoubleClick={onTitlebarDoubleClick}
+        className="cc-window-chrome flex h-7 shrink-0 cursor-grab select-none items-center gap-2 border-b border-border bg-card px-3 text-[11px] font-mono text-muted-foreground active:cursor-grabbing"
+      >
+        {leadingIcon ?? <img src={claudeSymbolUrl} alt="" className="size-3.5 shrink-0" />}
+        {editing && tmuxWindow && shortName !== null ? (
+          <InlineRenameInput
+            className="flex-1"
+            value={shortName}
+            validate={validateTmuxWindowName}
+            onCancel={() => setEditing(false)}
+            onCommit={async (next) => {
+              try {
+                await useSessions.getState().rename(tmuxWindow, next)
+                setEditing(false)
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : String(err))
+              }
+            }}
+          />
+        ) : (
+          <span
+            data-rename-target={tmuxWindow ? '' : undefined}
+            className={cn('truncate', tmuxWindow && 'cursor-text')}
+            onDoubleClick={(e) => {
+              if (!tmuxWindow) return
+              e.stopPropagation()
+              setEditing(true)
+            }}
+          >
+            {displayTitle}
+          </span>
+        )}
+        {titleSuffix}
+        {badge}
+        <div className="ml-auto flex items-center gap-1">
+          {onMaximize ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onMaximize()
+                  }}
+                  className="rounded p-0.5 text-muted-foreground transition-[color,background-color,scale] hover:bg-accent hover:text-foreground active:scale-[0.96]"
+                  aria-label="Maximize window"
+                >
+                  <Maximize2 className="size-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Maximize · Ctrl+Shift+F</TooltipContent>
+            </Tooltip>
+          ) : null}
+          {onClose ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onClose()
+                  }}
+                  className="rounded p-0.5 text-muted-foreground transition-[color,background-color,scale] hover:bg-accent hover:text-foreground active:scale-[0.96]"
+                  aria-label="Close window"
+                >
+                  <X className="size-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Close window</TooltipContent>
+            </Tooltip>
+          ) : null}
         </div>
-      )}
+      </div>
 
       <div className="relative flex-1 overflow-hidden">{children}</div>
 
-      {!chromeless && (
-        <div
-          onPointerDown={onResizePointerDown}
-          className="absolute bottom-0 right-0 size-3 cursor-nwse-resize"
-          style={{
-            background:
-              'linear-gradient(135deg, transparent 50%, var(--muted-foreground) 50%, var(--muted-foreground) 60%, transparent 60%, transparent 70%, var(--muted-foreground) 70%, var(--muted-foreground) 80%, transparent 80%)',
-          }}
-        />
-      )}
+      <div
+        onPointerDown={onResizePointerDown}
+        className="cc-window-chrome cc-resize-handle absolute bottom-0 right-0 size-3 cursor-nwse-resize"
+        style={{
+          background:
+            'linear-gradient(135deg, transparent 50%, var(--muted-foreground) 50%, var(--muted-foreground) 60%, transparent 60%, transparent 70%, var(--muted-foreground) 70%, var(--muted-foreground) 80%, transparent 80%)',
+        }}
+      />
     </div>
   )
 }

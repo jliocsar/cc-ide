@@ -27,6 +27,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { onEvent } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
+import { MAX_WINDOWS_PER_WORKSPACE, useCanvas } from '@/state/canvas'
 import { selectDropsFor, useDrops } from '@/state/drops'
 import { usePlansTree } from '@/state/plans-tree'
 import { usePromptsTree } from '@/state/prompts-tree'
@@ -204,7 +205,7 @@ export function Sidebar(): JSX.Element {
                               <span className="truncate font-mono">{w.name}</span>
                               {liveCount > 0 ? (
                                 <span
-                                  className="shrink-0 rounded-sm bg-muted px-1 py-px font-mono text-[9px] leading-none text-muted-foreground"
+                                  className="shrink-0 rounded-sm bg-muted px-1 py-px font-mono text-[9px] leading-none tabular-nums text-muted-foreground"
                                   title={`${liveCount} live session${liveCount === 1 ? '' : 's'}`}
                                 >
                                   {liveCount}
@@ -263,6 +264,7 @@ export function Sidebar(): JSX.Element {
 function SessionsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
   const openSpawnModal = useSpawnModal((s) => s.open)
   const modalOpen = useSpawnModal((s) => s.isOpen)
+  const atCap = useCanvas((s) => s.windows.length >= MAX_WINDOWS_PER_WORKSPACE)
 
   return (
     <AccordionItem value="sessions" className="border-b-0">
@@ -273,12 +275,12 @@ function SessionsAccordion({ workspaceId }: { workspaceId: string }): JSX.Elemen
           <Button
             size="icon-xs"
             variant="ghost"
-            disabled={modalOpen}
+            disabled={modalOpen || atCap}
             onClick={(e) => {
               e.stopPropagation()
               openSpawnModal()
             }}
-            aria-label="New session"
+            aria-label={atCap ? `At ${MAX_WINDOWS_PER_WORKSPACE}-terminal cap` : 'New session'}
           >
             <Plus />
           </Button>
@@ -297,6 +299,7 @@ function ConversationsAccordion({ workspaceId }: { workspaceId: string }): JSX.E
   const refresh = useSidebarData((s) => s.refreshConversations)
   const openSpawnModal = useSpawnModal((s) => s.open)
   const modalOpen = useSpawnModal((s) => s.isOpen)
+  const atCap = useCanvas((s) => s.windows.length >= MAX_WINDOWS_PER_WORKSPACE)
 
   return (
     <AccordionItem value="conversations" className="border-b-0">
@@ -320,12 +323,12 @@ function ConversationsAccordion({ workspaceId }: { workspaceId: string }): JSX.E
             <Button
               size="icon-xs"
               variant="ghost"
-              disabled={modalOpen}
+              disabled={modalOpen || atCap}
               onClick={(e) => {
                 e.stopPropagation()
                 openSpawnModal()
               }}
-              aria-label="New session"
+              aria-label={atCap ? `At ${MAX_WINDOWS_PER_WORKSPACE}-terminal cap` : 'New session'}
             >
               <Plus />
             </Button>

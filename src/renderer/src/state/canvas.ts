@@ -58,6 +58,10 @@ export type PersistedCanvas = {
 const ZOOM_MIN = 0.3
 const ZOOM_MAX = 2.5
 
+// Hard cap per workspace. UI spawn paths block at this limit;
+// agent-driven spawns (subagent/teammate) are not blocked.
+export const MAX_WINDOWS_PER_WORKSPACE = 16
+
 export const EMPTY_EDGES: readonly Edge[] = Object.freeze([] as Edge[])
 
 type State = {

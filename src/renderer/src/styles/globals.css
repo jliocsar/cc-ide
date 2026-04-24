@@ -155,3 +155,51 @@
 [data-pan-mod="dragging"] * {
   cursor: grabbing !important;
 }
+
+/* Canvas paged-mode layout. Toggled via [data-paged="true"] on the canvas
+ * root so flipping it is zero React work — only one node re-renders to set
+ * the data-attribute. WindowFrame stays mounted; chrome hides via CSS.
+ *
+ * !important is required throughout: WindowFrame sets left/top/width/height/
+ * zIndex/transform inline (specificity 1000) so we can stay 100% inline-style
+ * in non-paged mode. Removing !important would leave the absolute coords
+ * leaking through and break the flex/scroll-snap layout. */
+[data-paged="true"] .cc-scroller {
+  display: flex;
+  flex-direction: row;
+  inset: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  transform: none !important;
+}
+
+[data-paged="true"] .cc-scroller > .cc-window-frame {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  border-radius: 0 !important;
+  border: 0 !important;
+  z-index: auto !important;
+}
+
+[data-paged="true"] .cc-window-chrome {
+  display: none !important;
+}
+
+[data-paged="true"] .cc-dot-grid {
+  display: none !important;
+}
+
+/* Extend resize-handle hit area to ~24x24 without growing the visible
+ * gradient. Pseudo extends up + left into the window (frame is
+ * overflow:hidden so we can't extend outward). */
+.cc-resize-handle::before {
+  content: "";
+  position: absolute;
+  inset: -12px 0 0 -12px;
+}

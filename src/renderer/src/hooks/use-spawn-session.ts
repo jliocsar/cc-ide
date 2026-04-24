@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
+import { toast } from 'sonner'
 import { getCanvasViewportCenter } from '@/lib/canvas-host'
-import { useCanvas, worldFromViewport } from '@/state/canvas'
+import { MAX_WINDOWS_PER_WORKSPACE, useCanvas, worldFromViewport } from '@/state/canvas'
 import { type SpawnWorktreeOption, useSessions } from '@/state/sessions'
 import { useWorkspaces } from '@/state/workspaces'
 
@@ -30,6 +31,10 @@ export function useSpawnSession(): {
     ) => {
       if (!activeWorkspaceId) {
         setError('Add a workspace first.')
+        return
+      }
+      if (useCanvas.getState().windows.length >= MAX_WINDOWS_PER_WORKSPACE) {
+        toast.error(`Workspace capped at ${MAX_WINDOWS_PER_WORKSPACE} terminals. Close one first.`)
         return
       }
       setSpawning(true)

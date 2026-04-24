@@ -1,9 +1,10 @@
 import { MessageSquare, Play } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { getCanvasViewportCenter } from '@/lib/canvas-host'
-import { useCanvas, worldFromViewport } from '@/state/canvas'
+import { MAX_WINDOWS_PER_WORKSPACE, useCanvas, worldFromViewport } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
 import { useSidebarData } from '@/state/sidebar-data'
 
@@ -15,10 +16,15 @@ export function ConversationsSection({ workspaceId }: { workspaceId: string }): 
   const status = useSidebarData((s) => s.conversationsStatus)
   const error = useSidebarData((s) => s.conversationsError)
   const resumeSession = useSessions((s) => s.resume)
+  const atCap = useCanvas((s) => s.windows.length >= MAX_WINDOWS_PER_WORKSPACE)
   const [resuming, setResuming] = useState<string | null>(null)
 
   async function onResume(sessionId: string) {
     if (resuming) return
+    if (useCanvas.getState().windows.length >= MAX_WINDOWS_PER_WORKSPACE) {
+      toast.error(`Workspace capped at ${MAX_WINDOWS_PER_WORKSPACE} terminals. Close one first.`)
+      return
+    }
     setResuming(sessionId)
     try {
       const { ptyId, tmuxWindow } = await resumeSession(workspaceId, sessionId, 120, 30)
@@ -61,7 +67,7 @@ export function ConversationsSection({ workspaceId }: { workspaceId: string }): 
                   <div className="truncate font-mono">
                     {s.firstUserMessage ?? '(no user messages)'}
                   </div>
-                  <div className="truncate text-[10px] text-muted-foreground/60">
+                  <div className="truncate text-[10px] tabular-nums text-muted-foreground/60">
                     {new Date(s.updatedAt).toLocaleString()} · {s.messageCount} msg
                   </div>
                 </div>
@@ -73,10 +79,12 @@ export function ConversationsSection({ workspaceId }: { workspaceId: string }): 
             <Button
               size="icon-xs"
               variant="ghost"
-              disabled={resuming !== null}
+              disabled={resuming !== null || atCap}
               onClick={() => void onResume(s.id)}
               className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-              aria-label="Resume conversation"
+              aria-label={
+                atCap ? `At ${MAX_WINDOWS_PER_WORKSPACE}-terminal cap` : 'Resume conversation'
+              }
             >
               <Play />
             </Button>

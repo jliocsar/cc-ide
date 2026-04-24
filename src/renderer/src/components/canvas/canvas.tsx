@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { Button } from '@/components/ui/button'
 import { useAgentEvents } from '@/hooks/use-agent-events'
 import { useCanvasControls } from '@/hooks/use-canvas-controls'
 import { setCanvasHost } from '@/lib/canvas-host'
-import { useCanvas } from '@/state/canvas'
+import { MAX_WINDOWS_PER_WORKSPACE, useCanvas } from '@/state/canvas'
 import { useMaximizedWindow } from '@/state/maximized-window'
 import { useSpawnModal } from '@/state/spawn-modal'
 import { useWorkspaces } from '@/state/workspaces'
@@ -33,11 +33,6 @@ export function Canvas(): JSX.Element {
   )
   const setMaximizedWindow = useMaximizedWindow((s) => s.set)
   const paged = maximizedWindowId !== null
-
-  const pagedWindows = useMemo(() => {
-    if (!paged) return windows
-    return [...windows].sort((a, b) => a.x - b.x || a.y - b.y)
-  }, [paged, windows])
 
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
   const { panMod, onViewportPointerDown } = useCanvasControls({ hostRef, activeWorkspaceId })
@@ -210,7 +205,8 @@ export function Canvas(): JSX.Element {
   )
 
   const hasWindows = windows.length > 0
-  const canSpawn = Boolean(activeWorkspaceId)
+  const atCap = windows.length >= MAX_WINDOWS_PER_WORKSPACE
+  const canSpawn = Boolean(activeWorkspaceId) && !atCap
 
   return (
     <div
@@ -219,39 +215,30 @@ export function Canvas(): JSX.Element {
       onContextMenu={onContextMenu}
       className="relative overflow-hidden bg-background"
       data-pan-mod={panMod || undefined}
+      data-paged={paged ? 'true' : undefined}
       style={{ touchAction: 'none' }}
     >
-      {!paged && (
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: 'radial-gradient(circle, oklch(1 0 0) 1px, transparent 1px)',
-            backgroundSize: `${24 * camera.zoom}px ${24 * camera.zoom}px`,
-            backgroundPosition: `${camera.x}px ${camera.y}px`,
-          }}
-        />
-      )}
+      <div
+        className="cc-dot-grid pointer-events-none absolute inset-0 opacity-[0.06]"
+        style={{
+          backgroundImage: 'radial-gradient(circle, oklch(1 0 0) 1px, transparent 1px)',
+          backgroundSize: `${24 * camera.zoom}px ${24 * camera.zoom}px`,
+          backgroundPosition: `${camera.x}px ${camera.y}px`,
+        }}
+      />
 
-      {/* One stable container — swap class/style only, so XtermWindow
-          instances (and their xterm Terminals) are preserved across
-          paged <-> free transitions. */}
+      {/* One stable container — paged↔free is a CSS toggle (data-paged on
+          the canvas root), so neither this scroller nor the windows below
+          re-render on the flip. xterm Terminals stay live across modes. */}
       <div
         ref={scrollerRef}
-        className={
-          paged
-            ? 'scrollbar-none absolute inset-0 flex overflow-x-auto overflow-y-hidden [scroll-snap-type:x_mandatory]'
-            : 'absolute left-0 top-0 origin-top-left'
-        }
-        style={
-          paged
-            ? undefined
-            : {
-                transform: `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.zoom})`,
-              }
-        }
+        className="cc-scroller scrollbar-none absolute left-0 top-0 origin-top-left"
+        style={{
+          transform: `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.zoom})`,
+        }}
       >
         {!paged && <EdgeLayer />}
-        {(paged ? pagedWindows : windows).map((w) => {
+        {windows.map((w) => {
           const kind = w.kind ?? 'claude'
           if (kind === 'subagent') return <SubagentWindow key={w.id} w={w} />
           if (kind === 'teammate') return <TeammateWindow key={w.id} w={w} />

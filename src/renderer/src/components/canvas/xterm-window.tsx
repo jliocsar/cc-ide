@@ -23,13 +23,6 @@ import { WindowFrame } from './window-frame'
 function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
   const removeWindow = useCanvas((s) => s.removeWindow)
   const zoomAt = useCanvas((s) => s.zoomAt)
-  const workspaceId = useWorkspaces((s) => s.activeId)
-  const maximizedWindowId = useMaximizedWindow((s) =>
-    workspaceId ? (s.byWorkspace[workspaceId] ?? null) : null,
-  )
-  const setMaximized = useMaximizedWindow((s) => s.set)
-  const paged = maximizedWindowId !== null
-  const isMaximized = maximizedWindowId === w.id
   const session = useSessions((s) =>
     w.sessionId ? s.sessions.find((x) => x.ptyId === w.sessionId) : undefined,
   )
@@ -41,16 +34,19 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
   const shortName = w.tmuxWindow.split(':').slice(1).join(':') || w.tmuxWindow
   const terminalHostRef = useRef<HTMLDivElement>(null)
 
-  const pagedRef = useRef(paged)
-  pagedRef.current = paged
+  // Read paged/maximized state on demand so this component does NOT
+  // re-render when the user maximizes/restores. Canvas owns the
+  // [data-paged] attr; CSS handles the layout flip.
   useEffect(() => {
     const host = terminalHostRef.current
     if (!host) return
     const onWheel = (ev: WheelEvent) => {
       if (!(ev.ctrlKey || ev.metaKey)) return
+      const wsId = useWorkspaces.getState().activeId
+      const paged = wsId ? useMaximizedWindow.getState().byWorkspace[wsId] != null : false
       // In paged mode, the canvas-level handler routes Ctrl+wheel into
       // the horizontal snap scroller. Yield to it.
-      if (pagedRef.current) return
+      if (paged) return
       ev.preventDefault()
       ev.stopPropagation()
       const vp = clientToCanvasViewport(ev.clientX, ev.clientY)
@@ -139,9 +135,11 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
   }, [busy, session, removeWindow, w.id, w.tmuxWindow])
 
   const toggleMaximize = useCallback(() => {
-    if (!workspaceId) return
-    setMaximized(workspaceId, isMaximized ? null : w.id)
-  }, [workspaceId, isMaximized, setMaximized, w.id])
+    const wsId = useWorkspaces.getState().activeId
+    if (!wsId) return
+    const cur = useMaximizedWindow.getState().byWorkspace[wsId] ?? null
+    useMaximizedWindow.getState().set(wsId, cur === w.id ? null : w.id)
+  }, [w.id])
 
   const onTerminalDragOver = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -177,8 +175,6 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
         width={w.width}
         height={w.height}
         zIndex={w.zIndex}
-        paged={paged}
-        maximized={isMaximized}
         onMaximize={toggleMaximize}
         onClose={requestClose}
         badge={
@@ -188,7 +184,7 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
                 dormant
               </span>
             ) : session?.exited ? (
-              <span className="rounded-full bg-destructive/20 px-2 py-0.5 text-[10px] font-medium text-destructive">
+              <span className="rounded-full bg-destructive/20 px-2 py-0.5 text-[10px] font-medium tabular-nums text-destructive">
                 exit {session.exitCode ?? '—'}
               </span>
             ) : (
