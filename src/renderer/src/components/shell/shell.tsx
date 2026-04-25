@@ -8,14 +8,16 @@ import { VerticalResizer } from '@/components/vertical-resizer'
 import { useCanvasPersistence } from '@/hooks/use-canvas-persistence'
 import { useDropsPersistence } from '@/hooks/use-drops-persistence'
 import { useTabsPersistence } from '@/hooks/use-tabs-persistence'
+import { getCanvasViewportCenter } from '@/lib/canvas-host'
 import { invoke, onEvent } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
-import { useCanvas } from '@/state/canvas'
+import { MAX_WINDOWS_PER_WORKSPACE, useCanvas } from '@/state/canvas'
 import { useMaximizedWindow } from '@/state/maximized-window'
 import { usePalette } from '@/state/palette'
 import { usePlanTabUi } from '@/state/plan-tab-ui'
 import { useSessions } from '@/state/sessions'
 import { useSidebarData } from '@/state/sidebar-data'
+import { useSpawnModal } from '@/state/spawn-modal'
 import { useTabs } from '@/state/tabs'
 import { useUi } from '@/state/ui'
 import { useWorkspaces } from '@/state/workspaces'
@@ -103,6 +105,18 @@ export function Shell(): JSX.Element {
         const delta = ev.shiftKey ? -1 : 1
         const next = tabs[(idx + delta + tabs.length) % tabs.length]
         if (next) setActive(next.id)
+      } else if (ev.shiftKey && ev.code === 'KeyN') {
+        // Ctrl/Cmd+Shift+N: open the spawn modal at canvas center.
+        // Board-only — there's no canvas anywhere else.
+        if (useTabs.getState().activeId !== 'board') return
+        const ws = useWorkspaces.getState().activeId
+        if (!ws) return
+        const { isOpen, open } = useSpawnModal.getState()
+        if (isOpen) return
+        const winCount = useCanvas.getState().windows.length
+        if (winCount >= MAX_WINDOWS_PER_WORKSPACE) return
+        ev.preventDefault()
+        open(getCanvasViewportCenter())
       } else if (ev.shiftKey && (ev.key === 'f' || ev.key === 'F')) {
         // Ctrl/Cmd+Shift+F: toggle maximize for the focused terminal.
         // Only fires on the Board tab where the canvas is visible.

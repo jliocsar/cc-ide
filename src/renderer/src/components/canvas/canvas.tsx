@@ -171,11 +171,11 @@ export function Canvas(): JSX.Element {
     const onKey = (ev: KeyboardEvent): void => {
       if (!(ev.ctrlKey || ev.metaKey)) return
       if (!ev.shiftKey || ev.altKey) return
-      if (ev.key === 'ArrowRight') {
+      if (ev.key === 'ArrowRight' || ev.code === 'KeyL') {
         ev.preventDefault()
         ev.stopPropagation()
         stepPage(1)
-      } else if (ev.key === 'ArrowLeft') {
+      } else if (ev.key === 'ArrowLeft' || ev.code === 'KeyH') {
         ev.preventDefault()
         ev.stopPropagation()
         stepPage(-1)
