@@ -2,8 +2,10 @@ import { validateFolderName, validateMarkdownFilename } from '@shared/markdown-n
 import {
   ChevronDown,
   ChevronRight,
+  Copy,
   FileText,
   Folder,
+  FolderOpen,
   FolderPlus,
   Pencil,
   Plus,
@@ -23,6 +25,13 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -36,7 +45,9 @@ import { setDropPayload } from '@/lib/drop-payload'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { type PromptDir, type PromptNode, usePromptsTree } from '@/state/prompts-tree'
+import { useSettings } from '@/state/settings'
 import { useTabs } from '@/state/tabs'
+import { useWorkspaces } from '@/state/workspaces'
 
 const MOVE_MIME = 'application/x-cc-ide-prompt-move'
 const SPRING_EXPAND_MS = 600
@@ -68,7 +79,32 @@ function listChildren(parentRel: string): PromptNode[] {
 }
 
 function isDescendantMove(fromRel: string, toParentRel: string): boolean {
-  return toParentRel === fromRel || toParentRel.startsWith(fromRel + '/')
+  return toParentRel === fromRel || toParentRel.startsWith(`${fromRel}/`)
+}
+
+function parentRelOf(rel: string): string {
+  const i = rel.lastIndexOf('/')
+  return i < 0 ? '' : rel.slice(0, i)
+}
+
+function promptAbsPath(workspaceId: string, relPath: string): string | null {
+  const ws = useWorkspaces.getState().workspaces.find((w) => w.id === workspaceId)
+  if (!ws) return null
+  const dataRoot = useSettings.getState().settings.workspace?.dataRoot ?? '.cc-ide'
+  return `${ws.path}/${dataRoot}/prompts/${relPath}`
+}
+
+async function revealPrompt(workspaceId: string, relPath: string): Promise<void> {
+  const abs = promptAbsPath(workspaceId, relPath)
+  if (!abs) return
+  await invoke('shell:showItemInFolder', { absolutePath: abs })
+}
+
+async function copyPromptPath(workspaceId: string, relPath: string): Promise<void> {
+  const abs = promptAbsPath(workspaceId, relPath)
+  if (!abs) return
+  await invoke('clipboard:write', { text: abs })
+  toast.success('Copied path')
 }
 
 export function PromptsSection({
@@ -274,6 +310,7 @@ function PromptRow({
         cancelRename={() => setRenaming(false)}
         onDelete={onDelete}
         openPrompt={openPrompt}
+        onCreate={onCreate}
       />
     )
   }
@@ -319,78 +356,123 @@ function PromptRow({
 
   return (
     <>
-      <div
-        draggable={!renaming}
-        onDragStart={onDragStart}
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        onDrop={onDrop}
-        className={cn(
-          'group flex items-center gap-1.5 py-0.5 pr-3 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-          dragOver && 'bg-accent/60 ring-1 ring-inset ring-primary/50',
-        )}
-        style={indent}
-      >
-        <button
-          type="button"
-          onClick={() => toggle(node.relPath)}
-          className="flex items-center gap-1.5"
-        >
-          {expanded ? (
-            <ChevronDown className="size-3 shrink-0" />
-          ) : (
-            <ChevronRight className="size-3 shrink-0" />
-          )}
-          <Folder className="size-3 shrink-0" />
-        </button>
-        {renaming ? (
-          <InlineRenameInput
-            className="flex-1"
-            value={node.name}
-            validate={validateFolderName}
-            onCommit={commitRename}
-            onCancel={() => setRenaming(false)}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => toggle(node.relPath)}
-            className="min-w-0 flex-1 truncate text-left font-mono"
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            draggable={!renaming}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            className={cn(
+              'group flex items-center gap-1.5 py-0.5 pr-3 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+              dragOver && 'bg-accent/60 ring-1 ring-inset ring-primary/50',
+            )}
+            style={indent}
           >
-            {node.name}
-          </button>
-        )}
-        <RowActions
-          onRename={() => setRenaming(true)}
-          onDelete={onDelete}
-          extras={
-            <>
-              <Button
-                size="icon-xs"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onCreate({ mode: 'file', parent: node.relPath })
-                }}
-                aria-label="New prompt in folder"
+            <button
+              type="button"
+              onClick={() => toggle(node.relPath)}
+              className="flex items-center gap-1.5"
+            >
+              {expanded ? (
+                <ChevronDown className="size-3 shrink-0" />
+              ) : (
+                <ChevronRight className="size-3 shrink-0" />
+              )}
+              <Folder className="size-3 shrink-0" />
+            </button>
+            {renaming ? (
+              <InlineRenameInput
+                className="flex-1"
+                value={node.name}
+                validate={validateFolderName}
+                onCommit={commitRename}
+                onCancel={() => setRenaming(false)}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => toggle(node.relPath)}
+                className="min-w-0 flex-1 truncate text-left font-mono"
               >
-                <Plus />
-              </Button>
-              <Button
-                size="icon-xs"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onCreate({ mode: 'folder', parent: node.relPath })
-                }}
-                aria-label="New folder in folder"
-              >
-                <FolderPlus />
-              </Button>
-            </>
-          }
-        />
-      </div>
+                {node.name}
+              </button>
+            )}
+            <RowActions
+              onRename={() => setRenaming(true)}
+              onDelete={onDelete}
+              extras={
+                <>
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onCreate({ mode: 'file', parent: node.relPath })
+                    }}
+                    aria-label="New prompt in folder"
+                  >
+                    <Plus />
+                  </Button>
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onCreate({ mode: 'folder', parent: node.relPath })
+                    }}
+                    aria-label="New folder in folder"
+                  >
+                    <FolderPlus />
+                  </Button>
+                </>
+              }
+            />
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onSelect={() => onCreate({ mode: 'file', parent: node.relPath })}>
+            <Plus />
+            New prompt
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => onCreate({ mode: 'folder', parent: node.relPath })}>
+            <FolderPlus />
+            New folder
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => setRenaming(true)}>
+            <Pencil />
+            Rename
+          </ContextMenuItem>
+          <ContextMenuItem
+            variant="destructive"
+            onSelect={() => {
+              if (
+                !confirm(
+                  `Delete folder "${node.relPath}" and all its contents? This cannot be undone.`,
+                )
+              )
+                return
+              void invoke('prompts:delete', { workspaceId, relPath: node.relPath }).then(() =>
+                refresh(),
+              )
+            }}
+          >
+            <Trash2 />
+            Delete
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => void revealPrompt(workspaceId, node.relPath)}>
+            <FolderOpen />
+            Reveal in Finder
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => void copyPromptPath(workspaceId, node.relPath)}>
+            <Copy />
+            Copy path
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       {expanded
         ? (node as PromptDir).children.map((child) => (
             <PromptRow
@@ -417,6 +499,7 @@ function FileRow({
   cancelRename,
   onDelete,
   openPrompt,
+  onCreate,
 }: {
   node: PromptNode & { kind: 'file' }
   workspaceId: string
@@ -427,38 +510,75 @@ function FileRow({
   cancelRename: () => void
   onDelete: (e: React.MouseEvent) => void
   openPrompt: (workspaceId: string, relPath: string) => void
+  onCreate: (req: CreateRequest) => void
 }): JSX.Element {
+  const parent = parentRelOf(node.relPath)
   return (
-    <div
-      draggable={!renaming}
-      onDragStart={(e) => {
-        setDropPayload(e.dataTransfer, { kind: 'prompt', workspaceId, relPath: node.relPath })
-        e.dataTransfer.setData(MOVE_MIME, node.relPath)
-        e.dataTransfer.effectAllowed = 'copyMove'
-      }}
-      className="group flex items-center gap-1.5 py-0.5 pr-3 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-      style={indent}
-    >
-      <FileText className="size-3 shrink-0" />
-      {renaming ? (
-        <InlineRenameInput
-          className="flex-1"
-          value={node.name}
-          validate={validateMarkdownFilename}
-          onCommit={commitRename}
-          onCancel={cancelRename}
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => openPrompt(workspaceId, node.relPath)}
-          className="min-w-0 flex-1 truncate text-left font-mono"
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          draggable={!renaming}
+          onDragStart={(e) => {
+            setDropPayload(e.dataTransfer, { kind: 'prompt', workspaceId, relPath: node.relPath })
+            e.dataTransfer.setData(MOVE_MIME, node.relPath)
+            e.dataTransfer.effectAllowed = 'copyMove'
+          }}
+          className="group flex items-center gap-1.5 py-0.5 pr-3 text-[12px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+          style={indent}
         >
-          {node.name}
-        </button>
-      )}
-      <RowActions onRename={onRename} onDelete={onDelete} />
-    </div>
+          <FileText className="size-3 shrink-0" />
+          {renaming ? (
+            <InlineRenameInput
+              className="flex-1"
+              value={node.name}
+              validate={validateMarkdownFilename}
+              onCommit={commitRename}
+              onCancel={cancelRename}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => openPrompt(workspaceId, node.relPath)}
+              className="min-w-0 flex-1 truncate text-left font-mono"
+            >
+              {node.name}
+            </button>
+          )}
+          <RowActions onRename={onRename} onDelete={onDelete} />
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onSelect={() => onCreate({ mode: 'file', parent })}>
+          <Plus />
+          New prompt
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => onCreate({ mode: 'folder', parent })}>
+          <FolderPlus />
+          New folder
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={onRename}>
+          <Pencil />
+          Rename
+        </ContextMenuItem>
+        <ContextMenuItem
+          variant="destructive"
+          onSelect={() => onDelete({ stopPropagation: () => {} } as unknown as React.MouseEvent)}
+        >
+          <Trash2 />
+          Delete
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => void revealPrompt(workspaceId, node.relPath)}>
+          <FolderOpen />
+          Reveal in Finder
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => void copyPromptPath(workspaceId, node.relPath)}>
+          <Copy />
+          Copy path
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 

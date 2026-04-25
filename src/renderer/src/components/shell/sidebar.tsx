@@ -1,9 +1,12 @@
 import {
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Circle,
+  Copy,
   FolderGit2,
+  FolderOpen,
   FolderPlus,
   GitCompare,
   ListChecks,
@@ -15,17 +18,21 @@ import {
   Trash2,
   TreePine,
 } from 'lucide-react'
+import { Accordion as AccordionPrimitive } from 'radix-ui'
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
+import { toast } from 'sonner'
+import { Accordion, AccordionContent, AccordionItem } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { onEvent } from '@/lib/ipc'
+import { invoke, onEvent } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { MAX_WINDOWS_PER_WORKSPACE, useCanvas } from '@/state/canvas'
 import { selectDropsFor, useDrops } from '@/state/drops'
@@ -150,11 +157,11 @@ export function Sidebar(): JSX.Element {
       <ScrollArea className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!w-full [&>[data-slot=scroll-area-viewport]>div]:!min-w-0">
         <Accordion type="multiple" defaultValue={[]} className="w-full pb-4">
           <AccordionItem value="workspaces" className="border-b-0">
-            <SectionHeader
+            <SidebarSectionHeader
               icon={FolderGit2}
               label="Workspaces"
               count={loaded ? workspaces.length : undefined}
-              actions={
+              primaryAction={
                 <Button
                   size="icon-xs"
                   variant="ghost"
@@ -181,57 +188,102 @@ export function Sidebar(): JSX.Element {
                     const active = w.id === activeId
                     const liveCount = liveCountByWorkspace.get(w.id) ?? 0
                     return (
-                      <div
-                        key={w.id}
-                        className={cn(
-                          'group flex items-center gap-2 px-3 py-1 text-[11px] transition-colors',
-                          active
-                            ? 'bg-accent text-accent-foreground'
-                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                        )}
-                      >
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+                      <ContextMenu key={w.id}>
+                        <ContextMenuTrigger asChild>
+                          <div
+                            className={cn(
+                              'group flex items-center gap-2 px-3 py-1 text-[11px] transition-colors',
+                              active
+                                ? 'bg-accent text-accent-foreground'
+                                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                            )}
+                          >
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => setActive(w.id)}
+                                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                                >
+                                  {active ? (
+                                    <CheckCircle2 className="size-3 shrink-0" />
+                                  ) : (
+                                    <Circle className="size-3 shrink-0" />
+                                  )}
+                                  <span className="truncate font-mono">{w.name}</span>
+                                  {liveCount > 0 ? (
+                                    <span
+                                      className="shrink-0 rounded-sm bg-muted px-1 py-px font-mono text-[9px] leading-none tabular-nums text-muted-foreground"
+                                      title={`${liveCount} live session${liveCount === 1 ? '' : 's'}`}
+                                    >
+                                      {liveCount}
+                                    </span>
+                                  ) : null}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="right">{w.path}</TooltipContent>
+                            </Tooltip>
                             <button
                               type="button"
-                              onClick={() => setActive(w.id)}
-                              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                              onClick={() => {
+                                if (
+                                  confirm(
+                                    `Remove "${w.name}" from cc-ide?\nFiles on disk are NOT deleted.`,
+                                  )
+                                ) {
+                                  void remove(w.id)
+                                }
+                              }}
+                              className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100"
+                              aria-label="Remove workspace"
                             >
-                              {active ? (
-                                <CheckCircle2 className="size-3 shrink-0" />
-                              ) : (
-                                <Circle className="size-3 shrink-0" />
-                              )}
-                              <span className="truncate font-mono">{w.name}</span>
-                              {liveCount > 0 ? (
-                                <span
-                                  className="shrink-0 rounded-sm bg-muted px-1 py-px font-mono text-[9px] leading-none tabular-nums text-muted-foreground"
-                                  title={`${liveCount} live session${liveCount === 1 ? '' : 's'}`}
-                                >
-                                  {liveCount}
-                                </span>
-                              ) : null}
+                              <Trash2 className="size-3" />
                             </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">{w.path}</TooltipContent>
-                        </Tooltip>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (
-                              confirm(
-                                `Remove "${w.name}" from cc-ide?\nFiles on disk are NOT deleted.`,
+                          </div>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          {!active ? (
+                            <ContextMenuItem onSelect={() => setActive(w.id)}>
+                              <CheckCircle2 />
+                              Set active
+                            </ContextMenuItem>
+                          ) : null}
+                          <ContextMenuItem
+                            onSelect={() => {
+                              void invoke('shell:showItemInFolder', { absolutePath: w.path })
+                            }}
+                          >
+                            <FolderOpen />
+                            Reveal in Finder
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onSelect={() => {
+                              void invoke('clipboard:write', { text: w.path }).then(() =>
+                                toast.success('Copied path'),
                               )
-                            ) {
-                              void remove(w.id)
-                            }
-                          }}
-                          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100"
-                          aria-label="Remove workspace"
-                        >
-                          <Trash2 className="size-3" />
-                        </button>
-                      </div>
+                            }}
+                          >
+                            <Copy />
+                            Copy path
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem
+                            variant="destructive"
+                            onSelect={() => {
+                              if (
+                                confirm(
+                                  `Remove "${w.name}" from cc-ide?\nFiles on disk are NOT deleted.`,
+                                )
+                              ) {
+                                void remove(w.id)
+                              }
+                            }}
+                          >
+                            <Trash2 />
+                            Remove
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     )
                   })
                 )}
@@ -247,7 +299,7 @@ export function Sidebar(): JSX.Element {
               <PlansAccordion workspaceId={activeId} />
               <PromptsAccordion workspaceId={activeId} />
               <AccordionItem value="diffs" className="border-b-0">
-                <SectionHeader icon={GitCompare} label="Diffs" />
+                <SidebarSectionHeader icon={GitCompare} label="Diffs" />
                 <AccordionContent className="pb-0">
                   <DiffsSection worktrees={worktrees} />
                 </AccordionContent>
@@ -268,10 +320,10 @@ function SessionsAccordion({ workspaceId }: { workspaceId: string }): JSX.Elemen
 
   return (
     <AccordionItem value="sessions" className="border-b-0">
-      <SectionHeader
+      <SidebarSectionHeader
         icon={Terminal}
         label="Sessions"
-        actions={
+        primaryAction={
           <Button
             size="icon-xs"
             variant="ghost"
@@ -303,35 +355,34 @@ function ConversationsAccordion({ workspaceId }: { workspaceId: string }): JSX.E
 
   return (
     <AccordionItem value="conversations" className="border-b-0">
-      <SectionHeader
+      <SidebarSectionHeader
         icon={MessagesSquare}
         label="Conversations"
         count={status === 'loading' ? '…' : conversations.length}
-        actions={
+        primaryAction={
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            disabled={modalOpen || atCap}
+            onClick={(e) => {
+              e.stopPropagation()
+              openSpawnModal()
+            }}
+            aria-label={atCap ? `At ${MAX_WINDOWS_PER_WORKSPACE}-terminal cap` : 'New session'}
+          >
+            <Plus />
+          </Button>
+        }
+        menu={
           <>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation()
-                void refresh(workspaceId)
-              }}
-              aria-label="Refresh conversations"
-            >
-              <RefreshCw className={cn(status === 'loading' && 'animate-spin')} />
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              disabled={modalOpen || atCap}
-              onClick={(e) => {
-                e.stopPropagation()
-                openSpawnModal()
-              }}
-              aria-label={atCap ? `At ${MAX_WINDOWS_PER_WORKSPACE}-terminal cap` : 'New session'}
-            >
+            <ContextMenuItem onSelect={() => void refresh(workspaceId)}>
+              <RefreshCw />
+              Refresh
+            </ContextMenuItem>
+            <ContextMenuItem disabled={modalOpen || atCap} onSelect={() => openSpawnModal()}>
               <Plus />
-            </Button>
+              New session
+            </ContextMenuItem>
           </>
         }
       />
@@ -350,34 +401,33 @@ function WorktreesAccordion({ workspaceId }: { workspaceId: string }): JSX.Eleme
 
   return (
     <AccordionItem value="worktrees" className="border-b-0">
-      <SectionHeader
+      <SidebarSectionHeader
         icon={TreePine}
         label="Worktrees"
         count={status === 'loading' ? '…' : worktrees.length}
-        actions={
+        primaryAction={
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation()
+              setCreateOpen(true)
+            }}
+            aria-label="New worktree"
+          >
+            <Plus />
+          </Button>
+        }
+        menu={
           <>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation()
-                void refresh(workspaceId)
-              }}
-              aria-label="Refresh worktrees"
-            >
-              <RefreshCw className={cn(status === 'loading' && 'animate-spin')} />
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation()
-                setCreateOpen(true)
-              }}
-              aria-label="New worktree"
-            >
+            <ContextMenuItem onSelect={() => void refresh(workspaceId)}>
+              <RefreshCw />
+              Refresh
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => setCreateOpen(true)}>
               <Plus />
-            </Button>
+              New worktree
+            </ContextMenuItem>
           </>
         }
       />
@@ -394,7 +444,6 @@ function WorktreesAccordion({ workspaceId }: { workspaceId: string }): JSX.Eleme
 }
 
 function PlansAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
-  const status = usePlansTree((s) => s.status)
   const refresh = usePlansTree((s) => s.refresh)
   const [createOpen, setCreateOpen] = useState<null | { mode: 'file' | 'folder'; parent: string }>(
     null,
@@ -402,44 +451,36 @@ function PlansAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
 
   return (
     <AccordionItem value="plans" className="border-b-0">
-      <SectionHeader
+      <SidebarSectionHeader
         icon={ListChecks}
         label="Plans"
-        actions={
+        primaryAction={
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation()
+              setCreateOpen({ mode: 'file', parent: '' })
+            }}
+            aria-label="New plan"
+          >
+            <Plus />
+          </Button>
+        }
+        menu={
           <>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation()
-                void refresh()
-              }}
-              aria-label="Refresh plans"
-            >
-              <RefreshCw className={cn(status === 'loading' && 'animate-spin')} />
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation()
-                setCreateOpen({ mode: 'folder', parent: '' })
-              }}
-              aria-label="New folder"
-            >
+            <ContextMenuItem onSelect={() => void refresh()}>
+              <RefreshCw />
+              Refresh
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => setCreateOpen({ mode: 'folder', parent: '' })}>
               <FolderPlus />
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation()
-                setCreateOpen({ mode: 'file', parent: '' })
-              }}
-              aria-label="New plan"
-            >
+              New folder
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => setCreateOpen({ mode: 'file', parent: '' })}>
               <Plus />
-            </Button>
+              New plan
+            </ContextMenuItem>
           </>
         }
       />
@@ -457,7 +498,6 @@ function PlansAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
 }
 
 function PromptsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
-  const status = usePromptsTree((s) => s.status)
   const refresh = usePromptsTree((s) => s.refresh)
   const [createOpen, setCreateOpen] = useState<null | { mode: 'file' | 'folder'; parent: string }>(
     null,
@@ -465,44 +505,36 @@ function PromptsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element
 
   return (
     <AccordionItem value="prompts" className="border-b-0">
-      <SectionHeader
+      <SidebarSectionHeader
         icon={MessageSquareText}
         label="Prompts"
-        actions={
+        primaryAction={
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation()
+              setCreateOpen({ mode: 'file', parent: '' })
+            }}
+            aria-label="New prompt"
+          >
+            <Plus />
+          </Button>
+        }
+        menu={
           <>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation()
-                void refresh()
-              }}
-              aria-label="Refresh prompts"
-            >
-              <RefreshCw className={cn(status === 'loading' && 'animate-spin')} />
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation()
-                setCreateOpen({ mode: 'folder', parent: '' })
-              }}
-              aria-label="New folder"
-            >
+            <ContextMenuItem onSelect={() => void refresh()}>
+              <RefreshCw />
+              Refresh
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => setCreateOpen({ mode: 'folder', parent: '' })}>
               <FolderPlus />
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation()
-                setCreateOpen({ mode: 'file', parent: '' })
-              }}
-              aria-label="New prompt"
-            >
+              New folder
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => setCreateOpen({ mode: 'file', parent: '' })}>
               <Plus />
-            </Button>
+              New prompt
+            </ContextMenuItem>
           </>
         }
       />
@@ -521,10 +553,26 @@ function PromptsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element
 
 function DropsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element | null {
   const entries = useDrops(selectDropsFor(workspaceId))
+  const clear = useDrops((s) => s.clear)
   if (entries.length === 0) return null
   return (
     <AccordionItem value="drops" className="border-b-0">
-      <SectionHeader icon={MessageSquareText} label="Drops" count={entries.length} />
+      <SidebarSectionHeader
+        icon={MessageSquareText}
+        label="Drops"
+        count={entries.length}
+        menu={
+          <ContextMenuItem
+            variant="destructive"
+            onSelect={() => {
+              if (confirm(`Clear all ${entries.length} drop(s)?`)) clear(workspaceId)
+            }}
+          >
+            <Trash2 />
+            Clear all
+          </ContextMenuItem>
+        }
+      />
       <AccordionContent className="pb-0">
         <DropsSection workspaceId={workspaceId} />
       </AccordionContent>
@@ -532,19 +580,24 @@ function DropsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element |
   )
 }
 
-function SectionHeader({
+function SidebarSectionHeader({
   icon: Icon,
   label,
   count,
-  actions,
+  primaryAction,
+  menu,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   count?: number | string
-  actions?: React.ReactNode
+  primaryAction?: React.ReactNode
+  menu?: React.ReactNode
 }): JSX.Element {
-  return (
-    <AccordionTrigger className="group flex h-8 w-full min-w-0 items-center justify-start gap-1.5 overflow-hidden rounded-none bg-muted/40 px-2 py-0 geist-features select-none text-[11px] font-medium uppercase [letter-spacing:1px] [line-height:14.5px] text-foreground/40 [font-family:var(--font-mono)] hover:bg-muted/60 hover:no-underline data-[state=open]:bg-muted/50">
+  const trigger = (
+    <AccordionPrimitive.Trigger
+      data-slot="accordion-trigger"
+      className="group flex h-8 w-full min-w-0 items-center justify-start gap-1.5 overflow-hidden rounded-none bg-muted/40 px-2 py-0 geist-features select-none text-[11px] font-medium uppercase [letter-spacing:1px] [line-height:14.5px] text-foreground/40 [font-family:var(--font-mono)] outline-none hover:bg-muted/60 hover:no-underline data-[state=open]:bg-muted/50"
+    >
       <Icon className="size-3.5 shrink-0" />
       <span className="min-w-0 truncate">{label}</span>
       {count !== undefined ? (
@@ -553,15 +606,29 @@ function SectionHeader({
         </span>
       ) : null}
       <span className="flex-1" />
-      {actions ? (
-        <div
-          className="flex items-center gap-0.5"
+      {primaryAction ? (
+        <span
+          className="flex items-center"
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          {actions}
-        </div>
+          {primaryAction}
+        </span>
       ) : null}
-    </AccordionTrigger>
+      <ChevronDown className="pointer-events-none size-3 shrink-0 text-foreground/40 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+    </AccordionPrimitive.Trigger>
+  )
+
+  return (
+    <AccordionPrimitive.Header className="flex">
+      {menu ? (
+        <ContextMenu>
+          <ContextMenuTrigger asChild>{trigger}</ContextMenuTrigger>
+          <ContextMenuContent>{menu}</ContextMenuContent>
+        </ContextMenu>
+      ) : (
+        trigger
+      )}
+    </AccordionPrimitive.Header>
   )
 }

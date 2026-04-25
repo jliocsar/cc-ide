@@ -525,6 +525,10 @@ export const ipcContract = {
     request: z.object({ absolutePath: z.string() }),
     response: z.object({ ok: z.literal(true) }),
   },
+  'shell:showItemInFolder': {
+    request: z.object({ absolutePath: z.string() }),
+    response: z.object({ ok: z.literal(true) }),
+  },
   'graph:subscribe': {
     request: z.object({ workspaceId: z.string() }),
     response: z.object({ ok: z.literal(true) }),

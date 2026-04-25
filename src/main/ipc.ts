@@ -520,6 +520,10 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     if (err) throw new Error(err)
     return { ok: true }
   },
+  'shell:showItemInFolder': async ({ absolutePath }) => {
+    shell.showItemInFolder(absolutePath)
+    return { ok: true }
+  },
   'graph:subscribe': async ({ workspaceId }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
     await depgraph.subscribe(workspaceId, ws.path)

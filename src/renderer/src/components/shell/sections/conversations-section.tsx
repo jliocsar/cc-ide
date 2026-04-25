@@ -1,9 +1,16 @@
-import { MessageSquare, Play } from 'lucide-react'
+import { Copy, MessageSquare, Play } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { getCanvasViewportCenter } from '@/lib/canvas-host'
+import { invoke } from '@/lib/ipc'
 import { MAX_WINDOWS_PER_WORKSPACE, useCanvas, worldFromViewport } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
 import { useSidebarData } from '@/state/sidebar-data'
@@ -56,39 +63,59 @@ export function ConversationsSection({ workspaceId }: { workspaceId: string }): 
       ) : null}
       <div className="flex flex-col">
         {conversations.map((s) => (
-          <div
-            key={s.id}
-            className="group flex min-w-0 items-start gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-          >
-            <MessageSquare className="mt-0.5 size-3 shrink-0" />
-            <Tooltip delayDuration={800}>
-              <TooltipTrigger asChild>
-                <div className="min-w-0 flex-1 overflow-hidden">
-                  <div className="truncate font-mono">
-                    {s.firstUserMessage ?? '(no user messages)'}
-                  </div>
-                  <div className="truncate text-[10px] tabular-nums text-muted-foreground/60">
-                    {new Date(s.updatedAt).toLocaleString()} · {s.messageCount} msg
-                  </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="max-w-sm">
-                {s.firstUserMessage ?? s.id}
-              </TooltipContent>
-            </Tooltip>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              disabled={resuming !== null || atCap}
-              onClick={() => void onResume(s.id)}
-              className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-              aria-label={
-                atCap ? `At ${MAX_WINDOWS_PER_WORKSPACE}-terminal cap` : 'Resume conversation'
-              }
-            >
-              <Play />
-            </Button>
-          </div>
+          <ContextMenu key={s.id}>
+            <ContextMenuTrigger asChild>
+              <div className="group flex min-w-0 items-start gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground">
+                <MessageSquare className="mt-0.5 size-3 shrink-0" />
+                <Tooltip delayDuration={800}>
+                  <TooltipTrigger asChild>
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <div className="truncate font-mono">
+                        {s.firstUserMessage ?? '(no user messages)'}
+                      </div>
+                      <div className="truncate text-[10px] tabular-nums text-muted-foreground/60">
+                        {new Date(s.updatedAt).toLocaleString()} · {s.messageCount} msg
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-sm">
+                    {s.firstUserMessage ?? s.id}
+                  </TooltipContent>
+                </Tooltip>
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  disabled={resuming !== null || atCap}
+                  onClick={() => void onResume(s.id)}
+                  className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  aria-label={
+                    atCap ? `At ${MAX_WINDOWS_PER_WORKSPACE}-terminal cap` : 'Resume conversation'
+                  }
+                >
+                  <Play />
+                </Button>
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem
+                disabled={resuming !== null || atCap}
+                onSelect={() => void onResume(s.id)}
+              >
+                <Play />
+                Resume in new session
+              </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={() => {
+                  void invoke('clipboard:write', { text: s.id }).then(() =>
+                    toast.success('Copied session id'),
+                  )
+                }}
+              >
+                <Copy />
+                Copy session id
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         ))}
         {status === 'ready' && conversations.length === 0 ? (
           <div className="px-3 py-1 font-mono text-[11px] text-muted-foreground">

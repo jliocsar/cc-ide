@@ -4,22 +4,20 @@ import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ClaudeCodeIcon } from '@/components/icons/claude-code-icon'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { InlineRenameInput } from '@/components/ui/inline-rename-input'
 import { getCanvasViewportCenter } from '@/lib/canvas-host'
 import { invoke } from '@/lib/ipc'
 import { useCanvas } from '@/state/canvas'
 import { useSessions } from '@/state/sessions'
 
-type MenuState = { tmuxWindow: string; ptyId: string; x: number; y: number } | null
-
 export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.Element {
   const sessions = useSessions((s) => s.sessions)
-  const [menu, setMenu] = useState<MenuState>(null)
   const [editingTmuxWindow, setEditingTmuxWindow] = useState<string | null>(null)
 
   const liveSessions = useMemo(
@@ -46,42 +44,8 @@ export function SessionsSection({ workspaceId }: { workspaceId: string }): JSX.E
           editing={editingTmuxWindow === s.tmuxWindow}
           onStartEdit={() => setEditingTmuxWindow(s.tmuxWindow)}
           onStopEdit={() => setEditingTmuxWindow(null)}
-          onContextMenu={(x, y) => setMenu({ tmuxWindow: s.tmuxWindow, ptyId: s.ptyId, x, y })}
         />
       ))}
-
-      <DropdownMenu
-        open={menu !== null}
-        onOpenChange={(v) => {
-          if (!v) setMenu(null)
-        }}
-      >
-        <DropdownMenuTrigger asChild>
-          <span
-            aria-hidden
-            style={{
-              position: 'fixed',
-              left: menu?.x ?? 0,
-              top: menu?.y ?? 0,
-              width: 0,
-              height: 0,
-              pointerEvents: 'none',
-            }}
-          />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" sideOffset={0}>
-          <DropdownMenuItem
-            onClick={() => {
-              if (!menu) return
-              setEditingTmuxWindow(menu.tmuxWindow)
-              setMenu(null)
-            }}
-          >
-            <Pencil />
-            Rename
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   )
 }
@@ -92,7 +56,6 @@ type RowProps = {
   editing: boolean
   onStartEdit: () => void
   onStopEdit: () => void
-  onContextMenu: (x: number, y: number) => void
 }
 
 function SessionRow({
@@ -101,7 +64,6 @@ function SessionRow({
   editing,
   onStartEdit,
   onStopEdit,
-  onContextMenu,
 }: RowProps): JSX.Element {
   const panToWindow = useCanvas((s) => s.panToWindow)
   const focusWindow = useCanvas((s) => s.focusWindow)
@@ -118,8 +80,7 @@ function SessionRow({
     focusWindow(match.id)
   }
 
-  async function onKill(e: React.MouseEvent) {
-    e.stopPropagation()
+  async function killSession() {
     try {
       await invoke('session:killTmuxWindow', { tmuxWindow })
       await invoke('pty:close', { ptyId })
@@ -128,6 +89,11 @@ function SessionRow({
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err))
     }
+  }
+
+  function onKillClick(e: React.MouseEvent) {
+    e.stopPropagation()
+    void killSession()
   }
 
   if (editing) {
@@ -153,41 +119,58 @@ function SessionRow({
   }
 
   return (
-    <button
-      type="button"
-      tabIndex={0}
-      onClick={onActivate}
-      onContextMenu={(e) => {
-        e.preventDefault()
-        onContextMenu(e.clientX, e.clientY)
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'F2') {
-          e.preventDefault()
-          onStartEdit()
-        }
-      }}
-      className="group flex min-w-0 items-center gap-2 px-3 py-1 text-left text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground focus-visible:bg-accent/50 focus-visible:text-foreground focus-visible:outline-none"
-    >
-      <ClaudeCodeIcon className="-ml-0.5 size-3.5 shrink-0" />
-      <div className="min-w-0 flex-1 overflow-hidden">
-        <div className="flex items-center gap-1.5">
-          <span className="truncate font-mono">{shortName}</span>
-          <span className="shrink-0 rounded-sm border border-green-500/30 bg-green-500/15 px-1 py-px font-mono text-[9px] uppercase leading-none tracking-wider text-green-500">
-            live
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <button
+          type="button"
+          tabIndex={0}
+          onClick={onActivate}
+          onKeyDown={(e) => {
+            if (e.key === 'F2') {
+              e.preventDefault()
+              onStartEdit()
+            }
+          }}
+          className="group flex min-w-0 items-center gap-2 px-3 py-1 text-left text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground focus-visible:bg-accent/50 focus-visible:text-foreground focus-visible:outline-none"
+        >
+          <ClaudeCodeIcon className="-ml-0.5 size-3.5 shrink-0" />
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate font-mono">{shortName}</span>
+              <span className="shrink-0 rounded-sm border border-green-500/30 bg-green-500/15 px-1 py-px font-mono text-[9px] uppercase leading-none tracking-wider text-green-500">
+                live
+              </span>
+            </div>
+            <div className="truncate text-[10px] text-muted-foreground/60">{ptyId}</div>
+          </div>
+          <span
+            role="button"
+            tabIndex={-1}
+            onClick={onKillClick}
+            aria-label="Kill session"
+            className="shrink-0 self-center rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+          >
+            <X className="size-3" />
           </span>
-        </div>
-        <div className="truncate text-[10px] text-muted-foreground/60">{ptyId}</div>
-      </div>
-      <span
-        role="button"
-        tabIndex={-1}
-        onClick={onKill}
-        aria-label="Kill session"
-        className="shrink-0 self-center rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
-      >
-        <X className="size-3" />
-      </span>
-    </button>
+        </button>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onSelect={onStartEdit}>
+          <Pencil />
+          Rename
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          variant="destructive"
+          onSelect={() => {
+            if (!confirm(`Kill session "${shortName}"? This terminates the tmux window.`)) return
+            void killSession()
+          }}
+        >
+          <X />
+          Kill session
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

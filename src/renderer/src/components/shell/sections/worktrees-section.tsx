@@ -1,7 +1,15 @@
 import type { WorktreeDTO } from '@shared/ipc'
-import { AlertTriangle, GitBranch, Trash2 } from 'lucide-react'
+import { AlertTriangle, Copy, FolderOpen, GitBranch, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import {
   Dialog,
   DialogContent,
@@ -86,35 +94,98 @@ function WorktreeRow({
       : 'Checking…'
 
   return (
-    <div className="group flex min-w-0 items-center gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground">
-      <GitBranch className="size-3 shrink-0" />
-      <div className="min-w-0 flex-1 overflow-hidden">
-        <div className="truncate font-mono">{worktree.branch ?? '(detached)'}</div>
-        <Tooltip delayDuration={800}>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div className="group flex min-w-0 items-center gap-2 px-3 py-1 text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground">
+          <GitBranch className="size-3 shrink-0" />
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <div className="truncate font-mono">{worktree.branch ?? '(detached)'}</div>
+            <Tooltip delayDuration={800}>
+              <TooltipTrigger asChild>
+                <div className="truncate text-[10px] text-muted-foreground/60">{displayPath}</div>
+              </TooltipTrigger>
+              <TooltipContent side="right">{worktree.path}</TooltipContent>
+            </Tooltip>
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                disabled={!guard?.ok || deleting}
+                onClick={onDelete}
+                className={cn('shrink-0', !guard?.ok && 'opacity-40')}
+                aria-label="Delete worktree"
+              >
+                {guard?.ok ? <Trash2 /> : <AlertTriangle />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="text-[11px]">
+              {tip}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          onSelect={() => {
+            void invoke('shell:showItemInFolder', { absolutePath: worktree.path })
+          }}
+        >
+          <FolderOpen />
+          Reveal in Finder
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => {
+            void invoke('clipboard:write', { text: worktree.path }).then(() =>
+              toast.success('Copied path'),
+            )
+          }}
+        >
+          <Copy />
+          Copy path
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <Tooltip>
           <TooltipTrigger asChild>
-            <div className="truncate text-[10px] text-muted-foreground/60">{displayPath}</div>
+            <span className="block">
+              <ContextMenuItem
+                variant="destructive"
+                disabled={!guard?.ok || deleting}
+                onSelect={() => {
+                  if (!guard?.ok) return
+                  if (
+                    !confirm(
+                      `Remove worktree at "${worktree.path}"?\nThis runs \`git worktree remove\` and may discard untracked files.`,
+                    )
+                  )
+                    return
+                  void onDelete()
+                }}
+              >
+                <Trash2 />
+                Remove worktree
+              </ContextMenuItem>
+            </span>
           </TooltipTrigger>
-          <TooltipContent side="right">{worktree.path}</TooltipContent>
+          <TooltipContent side="bottom" className="flex items-start gap-1.5 text-[11px]">
+            {guard && !guard.ok ? (
+              <>
+                <AlertTriangle className="mt-0.5 size-3 shrink-0 text-amber-500" />
+                <div className="flex flex-col gap-0.5 text-muted-foreground">
+                  <span className="font-semibold text-foreground">Cannot delete</span>
+                  {guard.reasons.map((r) => (
+                    <span key={r}>{GUARD_LABEL[r] ?? r}</span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <span className="text-muted-foreground">{tip}</span>
+            )}
+          </TooltipContent>
         </Tooltip>
-      </div>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            disabled={!guard?.ok || deleting}
-            onClick={onDelete}
-            className={cn('shrink-0', !guard?.ok && 'opacity-40')}
-            aria-label="Delete worktree"
-          >
-            {guard?.ok ? <Trash2 /> : <AlertTriangle />}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="left" className="text-[11px]">
-          {tip}
-        </TooltipContent>
-      </Tooltip>
-    </div>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
