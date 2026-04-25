@@ -175,16 +175,34 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     await workspaceRegistry.removeWorkspace(id)
     return { ok: true }
   },
-  'session:resumeClaude': async ({ workspaceId, sessionId, cols, rows }) => {
+  'session:resumeClaude': async ({
+    workspaceId,
+    sessionId,
+    cols,
+    rows,
+    customName,
+    worktreePath,
+  }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
     if (!(await tmux.tmuxAvailable())) throw new Error('tmux is not installed or not in PATH')
     const primarySession = tmux.sessionNameForWorkspace(ws.id)
     await tmux.ensureSession(primarySession, ws.path)
-    const windowName = await computeResumeWindowName(ws.path, primarySession, sessionId)
+    let windowName: string
+    if (customName !== undefined) {
+      const validation = validateTmuxWindowName(customName)
+      if (!validation.ok) throw new Error(validation.reason)
+      if (await tmux.hasWindow(`${primarySession}:${customName}`)) {
+        throw new Error(`a window named "${customName}" already exists in this workspace`)
+      }
+      windowName = customName
+    } else {
+      windowName = await computeResumeWindowName(ws.path, primarySession, sessionId)
+    }
+    const cwd = worktreePath ?? ws.path
     const tmuxWindow = await tmux.spawnWindow({
       sessionName: primarySession,
       windowName,
-      cwd: ws.path,
+      cwd,
       // Interactive zsh sources ~/.zshrc (PATH + aliases — `claude` may
       // be aliased to a user wrapper). After claude exits, `exit` tears
       // the shell down unconditionally so the pane can't drop to a
@@ -196,11 +214,15 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     const ptyId = await attachViewerPty({
       primarySession,
       windowTarget: tmuxWindow,
-      cwd: ws.path,
+      cwd,
       cols,
       rows,
     })
-    return { ptyId, tmuxWindow, worktreeBranch: null }
+    let worktreeBranch: string | null = null
+    if (worktreePath && worktreePath !== ws.path) {
+      worktreeBranch = await worktreeManager.currentBranch(worktreePath)
+    }
+    return { ptyId, tmuxWindow, worktreeBranch, cwd }
   },
   'session:spawnClaude': async ({ workspaceId, cols, rows, customName, worktree }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
@@ -282,7 +304,7 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     } else if (worktree?.kind === 'existing') {
       worktreeBranch = await worktreeManager.currentBranch(cwd)
     }
-    return { ptyId, tmuxWindow, worktreeBranch }
+    return { ptyId, tmuxWindow, worktreeBranch, cwd }
   },
 
   'git:listBranches': async ({ workspaceId }) => {

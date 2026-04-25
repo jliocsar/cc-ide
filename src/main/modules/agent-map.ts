@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import type {
+  AgentClaudeSessionStartedEvent,
   AgentSubagentStartEvent,
   AgentSubagentStopEvent,
   AgentTeammateStartEvent,
@@ -111,6 +112,14 @@ export function onSessionStart(p: SessionStartPayload): SessionEntry {
       : existing?.teammate,
   }
   sessionsBySessionId.set(p.session_id, entry)
+
+  if (!entry.teammate && entry.ccIdeWindow) {
+    const ev: AgentClaudeSessionStartedEvent = {
+      ccIdeWindow: entry.ccIdeWindow,
+      sessionId: entry.sessionId,
+    }
+    broadcast('agent:claudeSessionStarted', ev)
+  }
 
   if (entry.teammate) {
     const parent = sessionsBySessionId.get(entry.teammate.parentSessionId)

@@ -34,7 +34,7 @@ export function ConversationsSection({ workspaceId }: { workspaceId: string }): 
     }
     setResuming(sessionId)
     try {
-      const { ptyId, tmuxWindow } = await resumeSession(workspaceId, sessionId, 120, 30)
+      const { ptyId, tmuxWindow, cwd } = await resumeSession(workspaceId, sessionId, 120, 30)
       const { camera, addWindow, windows } = useCanvas.getState()
       const vp = getCanvasViewportCenter()
       const offset = (windows.length % 6) * 24
@@ -48,6 +48,8 @@ export function ConversationsSection({ workspaceId }: { workspaceId: string }): 
         y: world.y - DEFAULT_WIN_H / 2,
         width: DEFAULT_WIN_W,
         height: DEFAULT_WIN_H,
+        cwd,
+        lastClaudeSessionId: sessionId,
       })
     } catch (err) {
       console.error('[resume]', err)

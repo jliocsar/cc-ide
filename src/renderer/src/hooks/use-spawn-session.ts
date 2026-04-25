@@ -41,7 +41,7 @@ export function useSpawnSession(): {
       setError(null)
       try {
         const vp = viewportPos ?? getCanvasViewportCenter()
-        const { ptyId, tmuxWindow } = await spawnSession(
+        const { ptyId, tmuxWindow, cwd } = await spawnSession(
           activeWorkspaceId,
           120,
           30,
@@ -59,6 +59,7 @@ export function useSpawnSession(): {
           y: world.y - DEFAULT_WIN_H / 2,
           width: DEFAULT_WIN_W,
           height: DEFAULT_WIN_H,
+          cwd,
         })
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
