@@ -14,6 +14,7 @@ import {
   MessagesSquare,
   Plus,
   RefreshCw,
+  Settings as SettingsIcon,
   Terminal,
   Trash2,
   TreePine,
@@ -41,6 +42,7 @@ import { usePromptsTree } from '@/state/prompts-tree'
 import { useSessions } from '@/state/sessions'
 import { useSidebarData } from '@/state/sidebar-data'
 import { useSpawnModal } from '@/state/spawn-modal'
+import { useTabs } from '@/state/tabs'
 import { useUi } from '@/state/ui'
 import { useWorkspaces } from '@/state/workspaces'
 import { ConversationsSection } from './sections/conversations-section'
@@ -309,7 +311,38 @@ export function Sidebar(): JSX.Element {
           ) : null}
         </Accordion>
       </ScrollArea>
+      <SidebarFooter hasWorkspace={!!activeId} />
     </aside>
+  )
+}
+
+function SidebarFooter({ hasWorkspace }: { hasWorkspace: boolean }): JSX.Element {
+  const openSettings = useTabs((s) => s.openSettings)
+  const button = (
+    <button
+      type="button"
+      disabled={!hasWorkspace}
+      onClick={() => openSettings()}
+      className={cn(
+        'flex h-10 w-full items-center gap-2 border-t border-border bg-card pl-3 pr-2 text-[11px] font-medium uppercase tracking-wider transition-colors',
+        hasWorkspace
+          ? 'cursor-pointer text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+          : 'cursor-not-allowed text-muted-foreground/40',
+      )}
+      aria-label="Open Settings"
+    >
+      <SettingsIcon className="size-3.5 shrink-0" />
+      <span>Settings</span>
+    </button>
+  )
+  if (hasWorkspace) return button
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="block">{button}</span>
+      </TooltipTrigger>
+      <TooltipContent side="top">Pick a workspace first</TooltipContent>
+    </Tooltip>
   )
 }
 

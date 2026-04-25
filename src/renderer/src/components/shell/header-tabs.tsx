@@ -9,6 +9,7 @@ import {
   Minimize2,
   Minus,
   Network,
+  Settings as SettingsIcon,
   Square,
   X,
 } from 'lucide-react'
@@ -77,6 +78,7 @@ const ICON_BY_KIND: Record<Tab['kind'], React.ComponentType<{ className?: string
   plan: FileText,
   diff: GitCompare,
   prompt: MessageSquare,
+  settings: SettingsIcon,
 }
 
 export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {

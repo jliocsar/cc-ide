@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { CommandPalette } from '@/components/palette/command-palette'
 import { PromptsModal } from '@/components/palette/prompts-modal'
-import { SettingsModal } from '@/components/settings/settings-modal'
 import { PixelGridLoader } from '@/components/ui/pixel-grid-loader'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { VerticalResizer } from '@/components/vertical-resizer'
@@ -174,7 +173,6 @@ export function Shell(): JSX.Element {
       </div>
       <CommandPalette />
       <PromptsModal />
-      <SettingsModal />
       <SpawnModal />
       {sidebarLoading ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background">

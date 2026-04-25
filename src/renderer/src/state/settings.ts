@@ -11,8 +11,6 @@ import { invoke, onEvent } from '@/lib/ipc'
 type State = {
   settings: SettingsDTO
   hydrated: boolean
-  settingsOpen: boolean
-  setSettingsOpen: (v: boolean) => void
   setEditorKeybinds: (k: EditorKeybindsDTO) => Promise<void>
   setEditorFont: (f: EditorFontDTO) => Promise<void>
   setEditorFontSize: (s: number) => Promise<void>
@@ -55,11 +53,9 @@ async function patch(p: Parameters<typeof invoke<'settings:set'>>[1]['patch']) {
   useSettings.setState({ settings })
 }
 
-export const useSettings = create<State>((set) => ({
+export const useSettings = create<State>(() => ({
   settings: defaultSettings,
   hydrated: false,
-  settingsOpen: false,
-  setSettingsOpen: (v) => set({ settingsOpen: v }),
   setEditorKeybinds: (k) => patch({ editor: { keybinds: k } }),
   setEditorFont: (f) => patch({ editor: { font: f } }),
   setEditorFontSize: (s) => patch({ editor: { fontSize: s } }),
