@@ -118,6 +118,26 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
     host.addEventListener('focusin', () => useLastTerminal.getState().setLast(ptyId))
     host.addEventListener('pointerdown', () => useLastTerminal.getState().setLast(ptyId))
 
+    // Block X11 primary-selection paste from middle-click. Chromium fires it
+    // as a normal `paste` event on the textarea xterm uses for input; we flag
+    // a short window after MMB mousedown and swallow the matching paste. We
+    // do NOT stopPropagation on pointerdown — the canvas root needs to see
+    // it so Ctrl+MMB still drives the pan handler.
+    let mmbWindow = 0
+    const onMouseDownCapture = (ev: MouseEvent): void => {
+      if (ev.button !== 1) return
+      ev.preventDefault()
+      mmbWindow = performance.now() + 300
+    }
+    const onPasteCapture = (ev: ClipboardEvent): void => {
+      if (performance.now() >= mmbWindow) return
+      mmbWindow = 0
+      ev.preventDefault()
+      ev.stopPropagation()
+    }
+    host.addEventListener('mousedown', onMouseDownCapture, { capture: true })
+    host.addEventListener('paste', onPasteCapture, { capture: true })
+
     // pty:resize fires SIGWINCH all the way to the app inside tmux. During a
     // window-frame drag the ResizeObserver fires every animation frame, which
     // floods tmux + claude with redraws and leaves the buffer half-rendered.
@@ -160,6 +180,12 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
       inputDisposable.dispose()
       focusDisposable.dispose()
       offData()
+      host.removeEventListener('mousedown', onMouseDownCapture, {
+        capture: true,
+      } as EventListenerOptions)
+      host.removeEventListener('paste', onPasteCapture, {
+        capture: true,
+      } as EventListenerOptions)
       termRef.current = null
       fitRef.current = null
       term.dispose()
