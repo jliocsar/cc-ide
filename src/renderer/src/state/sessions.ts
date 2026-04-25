@@ -26,13 +26,14 @@ type State = {
     rows: number,
     worktree?: SpawnWorktreeOption,
     customName?: string,
-  ) => Promise<{ ptyId: string; tmuxWindow: string }>
+  ) => Promise<{ ptyId: string; tmuxWindow: string; cwd: string }>
   resume: (
     workspaceId: string,
     sessionId: string,
     cols: number,
     rows: number,
-  ) => Promise<{ ptyId: string; tmuxWindow: string }>
+    opts?: { customName?: string; worktreePath?: string },
+  ) => Promise<{ ptyId: string; tmuxWindow: string; cwd: string }>
   registerExisting: (record: Omit<SessionRecord, 'createdAt' | 'exited' | 'exitCode'>) => void
   markExited: (ptyId: string, exitCode: number | null) => void
   setActive: (ptyId: string | null) => void
@@ -43,7 +44,7 @@ export const useSessions = create<State>((set) => ({
   sessions: [],
   activePtyId: null,
   async spawn(workspaceId, cols, rows, worktree, customName) {
-    const { ptyId, tmuxWindow, worktreeBranch } = await invoke('session:spawnClaude', {
+    const { ptyId, tmuxWindow, worktreeBranch, cwd } = await invoke('session:spawnClaude', {
       workspaceId,
       cols,
       rows,
@@ -65,14 +66,16 @@ export const useSessions = create<State>((set) => ({
       ],
       activePtyId: ptyId,
     }))
-    return { ptyId, tmuxWindow }
+    return { ptyId, tmuxWindow, cwd }
   },
-  async resume(workspaceId, sessionId, cols, rows) {
-    const { ptyId, tmuxWindow, worktreeBranch } = await invoke('session:resumeClaude', {
+  async resume(workspaceId, sessionId, cols, rows, opts) {
+    const { ptyId, tmuxWindow, worktreeBranch, cwd } = await invoke('session:resumeClaude', {
       workspaceId,
       sessionId,
       cols,
       rows,
+      customName: opts?.customName,
+      worktreePath: opts?.worktreePath,
     })
     set((s) => ({
       sessions: [
@@ -89,7 +92,7 @@ export const useSessions = create<State>((set) => ({
       ],
       activePtyId: ptyId,
     }))
-    return { ptyId, tmuxWindow }
+    return { ptyId, tmuxWindow, cwd }
   },
   registerExisting({ ptyId, tmuxWindow, workspaceId }) {
     set((s) => ({

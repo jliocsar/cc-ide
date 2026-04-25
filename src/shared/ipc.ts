@@ -266,11 +266,17 @@ export const ipcContract = {
       sessionId: z.string(),
       cols: z.number().int().positive(),
       rows: z.number().int().positive(),
+      // When set, recreate the dormant tmux window with this exact name
+      // and run claude --resume in `worktreePath` (instead of generating
+      // a fresh `claude-resume-N` name in the workspace primary cwd).
+      customName: z.string().optional(),
+      worktreePath: z.string().optional(),
     }),
     response: z.object({
       ptyId: z.string(),
       tmuxWindow: z.string(),
       worktreeBranch: z.string().nullable(),
+      cwd: z.string(),
     }),
   },
   'session:spawnClaude': {
@@ -295,6 +301,7 @@ export const ipcContract = {
       ptyId: z.string(),
       tmuxWindow: z.string(),
       worktreeBranch: z.string().nullable(),
+      cwd: z.string(),
     }),
   },
   'git:listBranches': {
@@ -660,6 +667,15 @@ export const agentSubagentStopEventSchema = z.object({
 })
 export type AgentSubagentStopEvent = z.infer<typeof agentSubagentStopEventSchema>
 
+// Fired when a top-level claude SessionStart correlates a session_id with
+// a CC_IDE_WINDOW. Renderer uses it to stamp `lastClaudeSessionId` on the
+// matching canvas window so dormant cards can later --resume.
+export const agentClaudeSessionStartedEventSchema = z.object({
+  ccIdeWindow: z.string(),
+  sessionId: z.string(),
+})
+export type AgentClaudeSessionStartedEvent = z.infer<typeof agentClaudeSessionStartedEventSchema>
+
 // Parsed subagent transcript line. `tool-use` pairs with a later `tool-result`
 // via toolUseId (the renderer collapses the pair into a single rendered unit).
 export const transcriptEntrySchema = z.discriminatedUnion('kind', [
@@ -736,6 +752,7 @@ export const eventChannels = {
   'agent:teammateStart': agentTeammateStartEventSchema,
   'agent:subagentStart': agentSubagentStartEventSchema,
   'agent:subagentStop': agentSubagentStopEventSchema,
+  'agent:claudeSessionStarted': agentClaudeSessionStartedEventSchema,
   'agent:subagentTranscriptLine': agentSubagentTranscriptLineEventSchema,
   'teammate:data': teammateDataEventSchema,
   'teammate:mirrorExit': teammateMirrorExitEventSchema,

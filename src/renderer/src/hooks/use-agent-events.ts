@@ -1,4 +1,5 @@
 import type {
+  AgentClaudeSessionStartedEvent,
   AgentSubagentStartEvent,
   AgentSubagentStopEvent,
   AgentSubagentTranscriptLineEvent,
@@ -133,17 +134,30 @@ function handleTeammateStart(ev: AgentTeammateStartEvent): void {
   })
 }
 
+function handleClaudeSessionStarted(ev: AgentClaudeSessionStartedEvent): void {
+  const { windows, updateWindow } = useCanvas.getState()
+  const match = windows.find((w) => {
+    const tail = w.tmuxWindow.split(':').slice(1).join(':') || w.tmuxWindow
+    return tail === ev.ccIdeWindow
+  })
+  if (!match) return
+  if (match.lastClaudeSessionId === ev.sessionId) return
+  updateWindow(match.id, { lastClaudeSessionId: ev.sessionId })
+}
+
 export function useAgentEvents(): void {
   useEffect(() => {
     const offStart = onEvent('agent:subagentStart', handleSubagentStart)
     const offStop = onEvent('agent:subagentStop', handleSubagentStop)
     const offLine = onEvent('agent:subagentTranscriptLine', handleTranscriptLine)
     const offTeam = onEvent('agent:teammateStart', handleTeammateStart)
+    const offClaude = onEvent('agent:claudeSessionStarted', handleClaudeSessionStarted)
     return () => {
       offStart()
       offStop()
       offLine()
       offTeam()
+      offClaude()
     }
   }, [])
 }

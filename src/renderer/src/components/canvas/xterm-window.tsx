@@ -1,4 +1,6 @@
+import { Loader2, Play } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { XtermView } from '@/components/terminal/xterm-view'
 import {
   AlertDialog,
@@ -10,6 +12,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { clientToCanvasViewport } from '@/lib/canvas-host'
 import { buildDropString, type DropPayload, readDropPayload } from '@/lib/drop-payload'
 import { invoke } from '@/lib/ipc'
@@ -22,7 +26,9 @@ import { WindowFrame } from './window-frame'
 
 function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
   const removeWindow = useCanvas((s) => s.removeWindow)
+  const updateWindow = useCanvas((s) => s.updateWindow)
   const zoomAt = useCanvas((s) => s.zoomAt)
+  const resumeSession = useSessions((s) => s.resume)
   const session = useSessions((s) =>
     w.sessionId ? s.sessions.find((x) => x.ptyId === w.sessionId) : undefined,
   )
@@ -30,6 +36,7 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
   const alive = session && !session.exited
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [resuming, setResuming] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const shortName = w.tmuxWindow.split(':').slice(1).join(':') || w.tmuxWindow
   const terminalHostRef = useRef<HTMLDivElement>(null)
@@ -164,6 +171,45 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
     [handleDrop],
   )
 
+  const canResume = Boolean(w.lastClaudeSessionId && w.cwd)
+
+  const onResume = useCallback(async () => {
+    if (resuming || !canResume) return
+    const workspaceId = useWorkspaces.getState().activeId
+    if (!workspaceId) return
+    const claudeSessionId = w.lastClaudeSessionId
+    const cwd = w.cwd
+    if (!claudeSessionId || !cwd) return
+    setResuming(true)
+    try {
+      // Insurance: rehydrateLiveSessions runs on workspace activate, but the
+      // user may click before it finishes or after tmux revived externally.
+      const attach = await invoke('session:attachExisting', {
+        workspaceId,
+        tmuxWindow: w.tmuxWindow,
+        cols: 120,
+        rows: 30,
+      })
+      if (attach.exists && attach.ptyId) {
+        useSessions
+          .getState()
+          .registerExisting({ ptyId: attach.ptyId, tmuxWindow: w.tmuxWindow, workspaceId })
+        updateWindow(w.id, { sessionId: attach.ptyId })
+        return
+      }
+      const { ptyId } = await resumeSession(workspaceId, claudeSessionId, 120, 30, {
+        customName: shortName,
+        worktreePath: cwd,
+      })
+      updateWindow(w.id, { sessionId: ptyId })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(`Resume failed: ${msg}`)
+    } finally {
+      setResuming(false)
+    }
+  }, [resuming, canResume, w.id, w.tmuxWindow, w.cwd, w.lastClaudeSessionId, shortName, resumeSession, updateWindow])
+
   return (
     <>
       <WindowFrame
@@ -201,8 +247,29 @@ function XtermWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
         }
       >
         {dormant ? (
-          <div className="flex h-full items-center justify-center font-mono text-[11px] text-muted-foreground">
-            dormant · {w.tmuxWindow}
+          <div className="flex h-full flex-col items-center justify-center gap-3 font-mono text-[11px] text-muted-foreground">
+            <span>dormant · {w.tmuxWindow}</span>
+            {canResume ? (
+              <Button size="sm" onClick={() => void onResume()} disabled={resuming}>
+                {resuming ? <Loader2 className="animate-spin" /> : <Play />}
+                {resuming ? 'Resuming…' : 'Resume'}
+              </Button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button size="sm" disabled>
+                      <Play />
+                      Resume
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  No known Claude session for this window. Close the card and start a fresh
+                  terminal.
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
         ) : (
           <div

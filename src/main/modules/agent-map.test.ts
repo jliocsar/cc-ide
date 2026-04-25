@@ -3,6 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // Mock electron before importing agent-map (agent-map → event-bus → electron).
 vi.mock('electron', () => ({ BrowserWindow: { getAllWindows: () => [] } }))
 
+const broadcastMock = vi.fn()
+vi.mock('../event-bus', () => ({
+  broadcast: (channel: string, payload: unknown) => broadcastMock(channel, payload),
+}))
+
 import {
   __clearForTests,
   extractTeammateInfoFromCmdline,
@@ -15,6 +20,7 @@ import {
 
 beforeEach(() => {
   __clearForTests()
+  broadcastMock.mockClear()
 })
 
 afterEach(() => {
@@ -110,6 +116,32 @@ describe('agent-map', () => {
       const entry = getSessionBySessionId('sess-1')
       expect(entry?.ccIdeWindow).toBe('claude-oreo')
       expect(entry?.cwd).toBe('/new')
+    })
+
+    it('8a. broadcasts agent:claudeSessionStarted for top-level claude with CC_IDE_WINDOW', () => {
+      onSessionStart({ session_id: 'sess-1', cc_ide_window: 'claude-oreo' })
+      const calls = broadcastMock.mock.calls.filter((c) => c[0] === 'agent:claudeSessionStarted')
+      expect(calls).toHaveLength(1)
+      expect(calls[0][1]).toEqual({ ccIdeWindow: 'claude-oreo', sessionId: 'sess-1' })
+    })
+
+    it('8b. does not broadcast claudeSessionStarted for teammate sessions', () => {
+      onSessionStart({ session_id: 'leader', cc_ide_window: 'claude-leader' })
+      broadcastMock.mockClear()
+      onSessionStart({
+        session_id: 'alpha',
+        ppid_cmdline: '/claude --parent-session-id leader --agent-name alpha',
+      })
+      const claudeStartedCalls = broadcastMock.mock.calls.filter(
+        (c) => c[0] === 'agent:claudeSessionStarted',
+      )
+      expect(claudeStartedCalls).toHaveLength(0)
+    })
+
+    it('8c. does not broadcast claudeSessionStarted when cc_ide_window is absent', () => {
+      onSessionStart({ session_id: 'sess-1' })
+      const calls = broadcastMock.mock.calls.filter((c) => c[0] === 'agent:claudeSessionStarted')
+      expect(calls).toHaveLength(0)
     })
   })
 

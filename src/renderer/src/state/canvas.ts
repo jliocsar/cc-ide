@@ -34,6 +34,12 @@ export type CanvasWindow = {
   parentWindowId?: string | null
   exited?: boolean
   agentMeta?: AgentMeta
+  // Persisted so dormant claude windows can resume after IDE restart:
+  // `cwd` is the path the tmux window was spawned in (worktree-aware);
+  // `lastClaudeSessionId` is the most recent Claude session_id correlated
+  // via the SessionStart hook.
+  cwd?: string | null
+  lastClaudeSessionId?: string | null
 }
 
 export type EdgeKind = 'subagent' | 'teammate'
