@@ -20,7 +20,7 @@ import {
   TreePine,
 } from 'lucide-react'
 import { Accordion as AccordionPrimitive } from 'radix-ui'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Accordion, AccordionContent, AccordionItem } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
@@ -109,6 +109,17 @@ export function Sidebar(): JSX.Element {
   const sidebarVisible = useUi((s) => s.sidebarVisible)
   const sidebarWidth = useUi((s) => s.sidebarWidth)
   const toggleSidebar = useUi((s) => s.toggleSidebar)
+  const openSections = useUi((s) => s.openSections)
+  const setOpenSections = useUi((s) => s.setOpenSections)
+  const setSidebarScrollTop = useUi((s) => s.setSidebarScrollTop)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (!sidebarVisible) return
+    const el = scrollerRef.current
+    if (!el) return
+    el.scrollTop = useUi.getState().sidebarScrollTop
+  }, [sidebarVisible])
 
   if (!sidebarVisible) {
     return (
@@ -156,8 +167,17 @@ export function Sidebar(): JSX.Element {
           <TooltipContent side="right">Collapse sidebar · Ctrl+B</TooltipContent>
         </Tooltip>
       </div>
-      <ScrollArea className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!w-full [&>[data-slot=scroll-area-viewport]>div]:!min-w-0">
-        <Accordion type="multiple" defaultValue={[]} className="w-full pb-4">
+      <ScrollArea
+        ref={scrollerRef}
+        onScroll={(e) => setSidebarScrollTop((e.currentTarget as HTMLDivElement).scrollTop)}
+        className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!w-full [&>[data-slot=scroll-area-viewport]>div]:!min-w-0"
+      >
+        <Accordion
+          type="multiple"
+          value={openSections}
+          onValueChange={setOpenSections}
+          className="w-full pb-4"
+        >
           <AccordionItem value="workspaces" className="border-b-0">
             <SidebarSectionHeader
               icon={FolderGit2}

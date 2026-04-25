@@ -8,23 +8,22 @@ import { cn } from "@/lib/utils"
 // styling via the `scrollbar-themed` utility so every scroll surface matches
 // the diff viewer. This is a thin drop-in that keeps the shadcn API while
 // rendering a plain overflow-auto container.
-function ScrollArea({
-  className,
-  children,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      data-slot="scroll-area"
-      className={cn("scrollbar-themed overflow-auto", className)}
-      {...props}
-    >
-      <div data-slot="scroll-area-viewport" className="size-full">
-        {children}
+const ScrollArea = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  function ScrollArea({ className, children, ...props }, ref) {
+    return (
+      <div
+        ref={ref}
+        data-slot="scroll-area"
+        className={cn("scrollbar-themed overflow-auto", className)}
+        {...props}
+      >
+        <div data-slot="scroll-area-viewport" className="size-full">
+          {children}
+        </div>
       </div>
-    </div>
-  )
-}
+    )
+  },
+)
 
 function ScrollBar(_props: { orientation?: "vertical" | "horizontal"; className?: string }) {
   return null
