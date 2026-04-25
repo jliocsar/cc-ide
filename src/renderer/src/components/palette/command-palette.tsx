@@ -1,10 +1,4 @@
-import {
-  ArrowLeft,
-  FolderGit2,
-  MessageSquare,
-  Settings as SettingsIcon,
-  Terminal,
-} from 'lucide-react'
+import { ArrowLeft, FolderGit2, MessageSquare, Terminal } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   Command,
@@ -17,7 +11,6 @@ import {
 } from '@/components/ui/command'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { usePalette } from '@/state/palette'
-import { useSettings } from '@/state/settings'
 import { useWorkspaces } from '@/state/workspaces'
 
 type Page = 'root' | 'switch-workspace'
@@ -26,7 +19,6 @@ export function CommandPalette(): JSX.Element {
   const open = usePalette((s) => s.paletteOpen)
   const setOpen = usePalette((s) => s.setPalette)
   const setPrompts = usePalette((s) => s.setPrompts)
-  const setSettingsOpen = useSettings((s) => s.setSettingsOpen)
   const workspaces = useWorkspaces((s) => s.workspaces)
   const setActive = useWorkspaces((s) => s.setActive)
   const activeId = useWorkspaces((s) => s.activeId)
@@ -68,15 +60,6 @@ export function CommandPalette(): JSX.Element {
                 <CommandItem onSelect={() => setPage('switch-workspace')}>
                   <FolderGit2 className="mr-2 size-4" />
                   Switch Workspace
-                </CommandItem>
-                <CommandItem
-                  onSelect={() => {
-                    close()
-                    setSettingsOpen(true)
-                  }}
-                >
-                  <SettingsIcon className="mr-2 size-4" />
-                  Open Settings
                 </CommandItem>
               </CommandGroup>
             ) : (

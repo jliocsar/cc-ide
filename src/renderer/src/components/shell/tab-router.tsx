@@ -2,6 +2,7 @@ import { BoardView } from '@/components/canvas/board-view'
 import { DiffViewer } from '@/components/viewers/diff-viewer'
 import { PlanViewer } from '@/components/viewers/plan-viewer'
 import { PromptViewer } from '@/components/viewers/prompt-viewer'
+import { SettingsViewer } from '@/components/viewers/settings-viewer'
 import { cn } from '@/lib/utils'
 import { useTabs } from '@/state/tabs'
 
@@ -71,5 +72,7 @@ function ActiveTabView(): JSX.Element | null {
       )
     case 'prompt':
       return <PromptViewer workspaceId={active.meta.workspaceId} relPath={active.meta.relPath} />
+    case 'settings':
+      return <SettingsViewer />
   }
 }

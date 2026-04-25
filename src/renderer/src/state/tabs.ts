@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 
-export type TabKind = 'board' | 'plan' | 'diff' | 'prompt'
+export type TabKind = 'board' | 'plan' | 'diff' | 'prompt' | 'settings'
 
 export type Tab =
   | { id: 'board'; kind: 'board'; title: string; pinned: true }
+  | { id: 'settings'; kind: 'settings'; title: string; pinned: false }
   | {
       id: string
       kind: 'plan'
@@ -54,6 +55,7 @@ type State = {
     stage: 'staged' | 'unstaged',
   ) => void
   openPrompt: (workspaceId: string, relPath: string) => void
+  openSettings: () => void
   closeTab: (id: string) => void
   setActive: (id: string) => void
   reorderTab: (dragId: string, targetId: string) => void
@@ -81,7 +83,13 @@ function normalize(raw: TabsSnapshot | null): TabsSnapshot {
   if (!raw || !Array.isArray(raw.tabs)) return emptyEntry()
   const filtered = raw.tabs.filter((t): t is Tab => {
     if (!t || typeof t !== 'object') return false
-    return t.kind === 'board' || t.kind === 'plan' || t.kind === 'diff' || t.kind === 'prompt'
+    return (
+      t.kind === 'board' ||
+      t.kind === 'plan' ||
+      t.kind === 'diff' ||
+      t.kind === 'prompt' ||
+      t.kind === 'settings'
+    )
   })
   const hasBoard = filtered.some((t) => t.id === 'board')
   const tabs: Tab[] = hasBoard ? filtered : [BOARD, ...filtered]
@@ -148,6 +156,15 @@ export const useTabs = create<State>((set, get) => {
           meta: { workspaceId, relPath },
         }
         return { tabs: [...curr.tabs, tab], activeId: id }
+      })
+    },
+
+    openSettings() {
+      commit((curr) => {
+        if (curr.tabs.some((t) => t.id === 'settings'))
+          return { ...curr, activeId: 'settings' }
+        const tab: Tab = { id: 'settings', kind: 'settings', title: 'Settings', pinned: false }
+        return { tabs: [...curr.tabs, tab], activeId: 'settings' }
       })
     },
 
