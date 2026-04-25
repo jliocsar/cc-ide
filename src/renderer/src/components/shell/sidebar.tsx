@@ -178,7 +178,7 @@ export function Sidebar(): JSX.Element {
           onValueChange={setOpenSections}
           className="w-full pb-4"
         >
-          <AccordionItem value="workspaces" className="border-b-0">
+          <AccordionItem value="workspaces" className="group/item border-b-0">
             <SidebarSectionHeader
               icon={FolderGit2}
               label="Workspaces"
@@ -320,7 +320,7 @@ export function Sidebar(): JSX.Element {
               <WorktreesAccordion workspaceId={activeId} />
               <PlansAccordion workspaceId={activeId} />
               <PromptsAccordion workspaceId={activeId} />
-              <AccordionItem value="diffs" className="border-b-0">
+              <AccordionItem value="diffs" className="group/item border-b-0">
                 <SidebarSectionHeader icon={GitCompare} label="Diffs" />
                 <AccordionContent className="pb-0">
                   <DiffsSection worktrees={worktrees} />
@@ -372,7 +372,7 @@ function SessionsAccordion({ workspaceId }: { workspaceId: string }): JSX.Elemen
   const atCap = useCanvas((s) => s.windows.length >= MAX_WINDOWS_PER_WORKSPACE)
 
   return (
-    <AccordionItem value="sessions" className="border-b-0">
+    <AccordionItem value="sessions" className="group/item border-b-0">
       <SidebarSectionHeader
         icon={Terminal}
         label="Sessions"
@@ -407,7 +407,7 @@ function ConversationsAccordion({ workspaceId }: { workspaceId: string }): JSX.E
   const atCap = useCanvas((s) => s.windows.length >= MAX_WINDOWS_PER_WORKSPACE)
 
   return (
-    <AccordionItem value="conversations" className="border-b-0">
+    <AccordionItem value="conversations" className="group/item border-b-0">
       <SidebarSectionHeader
         icon={MessagesSquare}
         label="Conversations"
@@ -453,7 +453,7 @@ function WorktreesAccordion({ workspaceId }: { workspaceId: string }): JSX.Eleme
   const [createOpen, setCreateOpen] = useState(false)
 
   return (
-    <AccordionItem value="worktrees" className="border-b-0">
+    <AccordionItem value="worktrees" className="group/item border-b-0">
       <SidebarSectionHeader
         icon={TreePine}
         label="Worktrees"
@@ -503,7 +503,7 @@ function PlansAccordion({ workspaceId }: { workspaceId: string }): JSX.Element {
   )
 
   return (
-    <AccordionItem value="plans" className="border-b-0">
+    <AccordionItem value="plans" className="group/item border-b-0">
       <SidebarSectionHeader
         icon={ListChecks}
         label="Plans"
@@ -557,7 +557,7 @@ function PromptsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element
   )
 
   return (
-    <AccordionItem value="prompts" className="border-b-0">
+    <AccordionItem value="prompts" className="group/item border-b-0">
       <SidebarSectionHeader
         icon={MessageSquareText}
         label="Prompts"
@@ -609,7 +609,7 @@ function DropsAccordion({ workspaceId }: { workspaceId: string }): JSX.Element |
   const clear = useDrops((s) => s.clear)
   if (entries.length === 0) return null
   return (
-    <AccordionItem value="drops" className="border-b-0">
+    <AccordionItem value="drops" className="group/item border-b-0">
       <SidebarSectionHeader
         icon={MessageSquareText}
         label="Drops"
@@ -649,7 +649,7 @@ function SidebarSectionHeader({
   const trigger = (
     <AccordionPrimitive.Trigger
       data-slot="accordion-trigger"
-      className="group flex h-8 w-full min-w-0 items-center justify-start gap-1.5 overflow-hidden rounded-none bg-muted/40 px-2 py-0 geist-features select-none text-[11px] font-medium uppercase [letter-spacing:1px] [line-height:14.5px] text-foreground/40 [font-family:var(--font-mono)] outline-none hover:bg-muted/60 hover:no-underline data-[state=open]:bg-muted/50"
+      className="group flex h-8 w-full min-w-0 items-center justify-start gap-1.5 overflow-hidden rounded-none bg-muted/40 px-3 py-0 geist-features select-none text-[11px] font-medium uppercase [letter-spacing:1px] [line-height:14.5px] text-foreground/40 [font-family:var(--font-mono)] outline-none hover:bg-muted/60 hover:no-underline data-[state=open]:bg-muted/50"
     >
       <Icon className="size-3.5 shrink-0" />
       <span className="min-w-0 truncate">{label}</span>
@@ -668,7 +668,9 @@ function SidebarSectionHeader({
           {primaryAction}
         </span>
       ) : null}
-      <ChevronDown className="pointer-events-none size-3 shrink-0 text-foreground/40 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+      <span className="pointer-events-none flex size-6 shrink-0 items-center justify-center">
+        <ChevronDown className="size-3 text-foreground/40 transition-transform duration-200 group-data-[state=open]/item:rotate-180" />
+      </span>
     </AccordionPrimitive.Trigger>
   )
 
