@@ -10,6 +10,7 @@ import {
   findByWindow,
   list,
   remove,
+  renameWindow,
 } from './ephemeral-worktrees'
 
 let tmpRoot: string
@@ -79,6 +80,21 @@ describe('ephemeral-worktrees', () => {
     await fs.mkdir(tmpRoot, { recursive: true })
     await fs.writeFile(join(tmpRoot, 'ws-broken.json'), '{ not: json')
     expect(await list('ws-broken')).toEqual([])
+  })
+
+  it('renameWindow updates only matching entries in the workspace', async () => {
+    await add(entry({ windowName: 'claude-old', worktreePath: '/tmp/a' }))
+    await add(entry({ windowName: 'claude-other', worktreePath: '/tmp/b' }))
+    await renameWindow('ws-1', 'claude-old', 'claude-new')
+    const all = await list('ws-1')
+    const names = all.map((e) => e.windowName).sort()
+    expect(names).toEqual(['claude-new', 'claude-other'])
+  })
+
+  it('renameWindow is a no-op when no entry matches', async () => {
+    await add(entry({ windowName: 'claude-keep' }))
+    await renameWindow('ws-1', 'claude-missing', 'claude-x')
+    expect((await list('ws-1'))[0]!.windowName).toBe('claude-keep')
   })
 
   it('returns empty when the file parses but mismatches the schema', async () => {

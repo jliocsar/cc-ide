@@ -3,6 +3,7 @@ import {
   __getTrackedForTests,
   __tickNowForTests,
   disposeAll,
+  rename,
   setExitHandler,
   type Tracked,
   track,
@@ -105,6 +106,24 @@ describe('session-watcher', () => {
     await __tickNowForTests('ccide-deadbeef')
     expect(calls.map((c) => c.windowName)).toEqual(['claude-mine'])
     expect(__getTrackedForTests().some((t) => t.windowName === 'claude-other')).toBe(true)
+  })
+
+  it('rename re-keys the tracked entry so a renamed window is not seen as exited', async () => {
+    const calls: Tracked[] = []
+    setExitHandler((t) => {
+      calls.push(t)
+    })
+    track(entry())
+    const renamed = rename('ccide-deadbeef', 'claude-oreo', 'claude-cookie')
+    expect(renamed?.windowName).toBe('claude-cookie')
+    vi.spyOn(tmux, 'listWindows').mockResolvedValue(['claude-cookie'])
+    await __tickNowForTests('ccide-deadbeef')
+    expect(calls).toEqual([])
+    expect(__getTrackedForTests().map((t) => t.windowName)).toEqual(['claude-cookie'])
+  })
+
+  it('rename returns null when the entry is not tracked', () => {
+    expect(rename('ccide-deadbeef', 'nope', 'newer')).toBeNull()
   })
 
   it('only fires for windows that disappeared; keeps others', async () => {

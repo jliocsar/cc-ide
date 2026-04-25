@@ -53,6 +53,21 @@ export async function add(entry: EphemeralEntry): Promise<void> {
   await writeRegistry(entry.workspaceId, reg)
 }
 
+export async function renameWindow(
+  workspaceId: string,
+  oldWindowName: string,
+  newWindowName: string,
+): Promise<void> {
+  const reg = await readRegistry(workspaceId)
+  let changed = false
+  reg.entries = reg.entries.map((e) => {
+    if (e.windowName !== oldWindowName) return e
+    changed = true
+    return { ...e, windowName: newWindowName }
+  })
+  if (changed) await writeRegistry(workspaceId, reg)
+}
+
 export async function remove(workspaceId: string, worktreePath: string): Promise<void> {
   const reg = await readRegistry(workspaceId)
   const before = reg.entries.length
