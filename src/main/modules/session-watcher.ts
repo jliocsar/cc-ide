@@ -39,6 +39,20 @@ export function untrack(primarySession: string, windowName: string): void {
   }
 }
 
+export function rename(
+  primarySession: string,
+  oldWindowName: string,
+  newWindowName: string,
+): Tracked | null {
+  const oldKey = key(primarySession, oldWindowName)
+  const entry = tracked.get(oldKey)
+  if (!entry) return null
+  const renamed: Tracked = { ...entry, windowName: newWindowName }
+  tracked.delete(oldKey)
+  tracked.set(key(primarySession, newWindowName), renamed)
+  return renamed
+}
+
 function ensurePoll(primarySession: string): void {
   if (pollingFor.has(primarySession)) return
   const timer = setInterval(() => {

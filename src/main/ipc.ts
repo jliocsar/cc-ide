@@ -344,6 +344,10 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     const hadOld = await tmux.hasWindow(tmuxWindow)
     if (!hadOld) throw new Error('window no longer exists')
     await tmux.renameWindow(sessionName, oldName, newName)
+    const trackedEntry = sessionWatcher.rename(sessionName, oldName, newName)
+    if (trackedEntry) {
+      await ephemeralWorktrees.renameWindow(trackedEntry.workspaceId, oldName, newName)
+    }
     return { tmuxWindow: newTarget }
   },
   'conversations:list': async ({ workspaceId }) => {
