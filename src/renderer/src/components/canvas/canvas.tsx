@@ -98,7 +98,7 @@ export function Canvas(): JSX.Element {
   // native `behavior: 'smooth'` is short and snap-type mandatory
   // collapses it into a jump. macOS-workspaces feel: ~460ms ease.
   useEffect(() => {
-    if (!paged) return
+    if (!paged || !activeWorkspaceId) return
     const scroller = scrollerRef.current
     if (!scroller) return
     let cooldown = 0
@@ -127,19 +127,32 @@ export function Canvas(): JSX.Element {
     const stepPage = (dir: 1 | -1): void => {
       const now = performance.now()
       if (now < cooldown) return
-      const pages = Array.from(scroller.querySelectorAll<HTMLElement>('[data-window-id]'))
+      // querySelectorAll returns DOM order, but flex `order: round(x)` puts
+      // windows on screen by canvas-x. Sorting by offsetLeft makes
+      // pages[i+1] always the visual neighbor — otherwise Ctrl+Right could
+      // skip a page or animate the wrong direction.
+      const pages = Array.from(scroller.querySelectorAll<HTMLElement>('[data-window-id]')).sort(
+        (a, b) => a.offsetLeft - b.offsetLeft,
+      )
       if (pages.length === 0) return
-      const center = scroller.scrollLeft + scroller.clientWidth / 2
-      let currentIdx = 0
-      let bestDist = Infinity
-      pages.forEach((el, i) => {
-        const mid = el.offsetLeft + el.offsetWidth / 2
-        const d = Math.abs(mid - center)
-        if (d < bestDist) {
-          bestDist = d
-          currentIdx = i
-        }
-      })
+      // Anchor on the page the user last landed on (settled or being
+      // animated to). Falling back to center-distance during animation
+      // races the in-flight scroll and lands on the wrong index.
+      const targetId = useMaximizedWindow.getState().byWorkspace[activeWorkspaceId] ?? null
+      let currentIdx = pages.findIndex((el) => el.dataset.windowId === targetId)
+      if (currentIdx < 0) {
+        const center = scroller.scrollLeft + scroller.clientWidth / 2
+        let bestDist = Infinity
+        currentIdx = 0
+        pages.forEach((el, i) => {
+          const mid = el.offsetLeft + el.offsetWidth / 2
+          const d = Math.abs(mid - center)
+          if (d < bestDist) {
+            bestDist = d
+            currentIdx = i
+          }
+        })
+      }
       const nextIdx = Math.max(0, Math.min(pages.length - 1, currentIdx + dir))
       if (nextIdx === currentIdx) return
       const target = pages[nextIdx]
@@ -176,7 +189,7 @@ export function Canvas(): JSX.Element {
       if (raf) cancelAnimationFrame(raf)
       scroller.style.scrollSnapType = ''
     }
-  }, [paged])
+  }, [paged, activeWorkspaceId])
 
   const spawnFromToolbar = useCallback(() => {
     const host = hostRef.current
