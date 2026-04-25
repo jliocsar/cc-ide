@@ -3,13 +3,9 @@ import { Terminal } from '@xterm/xterm'
 import { useEffect, useRef } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import { invoke, onEvent } from '@/lib/ipc'
+import { resolveFontFamily } from '@/lib/system-fonts'
 import { useLastTerminal } from '@/state/last-terminal'
 import { useSettings } from '@/state/settings'
-
-const TERMINAL_FONT_MAP: Record<string, string> = {
-  'geist-mono': "'Geist Mono', ui-monospace, monospace",
-  system: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-}
 
 const THEME = {
   background: '#0a0a0a',
@@ -39,26 +35,29 @@ export function XtermView({ ptyId }: { ptyId: string }): JSX.Element {
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const terminalFont = useSettings((s) => s.settings.terminal.font)
+  const terminalFallbackFont = useSettings((s) => s.settings.terminal.fallbackFont)
   const terminalFontSize = useSettings((s) => s.settings.terminal.fontSize)
+  const terminalLineHeight = useSettings((s) => s.settings.terminal.lineHeight)
 
   useEffect(() => {
     const term = termRef.current
     const fit = fitRef.current
     if (!term || !fit) return
-    term.options.fontFamily = TERMINAL_FONT_MAP[terminalFont] ?? TERMINAL_FONT_MAP.system
+    term.options.fontFamily = resolveFontFamily(terminalFont, terminalFallbackFont, 'mono')
     term.options.fontSize = terminalFontSize
+    term.options.lineHeight = terminalLineHeight
     fit.fit()
     term.refresh(0, term.rows - 1)
-  }, [terminalFont, terminalFontSize])
+  }, [terminalFont, terminalFallbackFont, terminalFontSize, terminalLineHeight])
 
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
 
     const term = new Terminal({
-      fontFamily: TERMINAL_FONT_MAP[terminalFont] ?? TERMINAL_FONT_MAP.system,
+      fontFamily: resolveFontFamily(terminalFont, terminalFallbackFont, 'mono'),
       fontSize: terminalFontSize,
-      lineHeight: 1.2,
+      lineHeight: terminalLineHeight,
       cursorBlink: true,
       theme: THEME,
       allowTransparency: false,

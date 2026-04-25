@@ -13,8 +13,9 @@ import {
   Square,
   X,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import claudeSymbolUrl from '@/assets/claude-symbol.svg'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,12 +37,143 @@ import { type DropPayload, setDropPayload } from '@/lib/drop-payload'
 import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { type BoardMode, resolveBoardMode, useBoardUi } from '@/state/board-ui'
+import type { CanvasWindow } from '@/state/canvas'
 import { useCanvas } from '@/state/canvas'
 import { useMaximizedWindow } from '@/state/maximized-window'
 import { usePlanTabUi } from '@/state/plan-tab-ui'
+import type { SessionRecord } from '@/state/sessions'
 import { useSessions } from '@/state/sessions'
 import { type Tab, useTabs } from '@/state/tabs'
 import { useWorkspaces } from '@/state/workspaces'
+
+// Mirror teammate-window's color → tailwind palette so the maximized
+// header chrome matches the inner chrome's pills.
+const TEAMMATE_DOT_BY_COLOR: Record<string, string> = {
+  black: 'bg-neutral-500',
+  red: 'bg-red-400',
+  green: 'bg-emerald-400',
+  yellow: 'bg-amber-400',
+  blue: 'bg-sky-400',
+  magenta: 'bg-fuchsia-400',
+  cyan: 'bg-cyan-400',
+  white: 'bg-neutral-100',
+}
+const TEAMMATE_PILL_BY_COLOR: Record<string, string> = {
+  black: 'bg-neutral-500/20 text-neutral-300',
+  red: 'bg-red-400/15 text-red-300',
+  green: 'bg-emerald-400/15 text-emerald-300',
+  yellow: 'bg-amber-400/15 text-amber-300',
+  blue: 'bg-sky-400/15 text-sky-300',
+  magenta: 'bg-fuchsia-400/15 text-fuchsia-300',
+  cyan: 'bg-cyan-400/15 text-cyan-300',
+  white: 'bg-neutral-100/20 text-neutral-200',
+}
+
+type MaximizedChrome = {
+  icon: ReactNode
+  title: string
+  suffix: ReactNode | null
+  badge: ReactNode
+}
+
+function buildMaximizedChrome(
+  w: CanvasWindow,
+  session: SessionRecord | undefined,
+): MaximizedChrome {
+  const kind = w.kind ?? 'claude'
+  const shortName = w.tmuxWindow.split(':').slice(1).join(':') || w.tmuxWindow
+
+  if (kind === 'teammate') {
+    const meta = w.agentMeta
+    const agentColor = meta?.agentColor ?? null
+    const teamName = meta?.teamName ?? null
+    const agentName = meta?.agentName ?? null
+    const dotClass = agentColor
+      ? (TEAMMATE_DOT_BY_COLOR[agentColor] ?? 'bg-muted-foreground')
+      : 'bg-muted-foreground'
+    const pillClass = agentColor
+      ? (TEAMMATE_PILL_BY_COLOR[agentColor] ?? 'bg-muted text-muted-foreground')
+      : 'bg-muted text-muted-foreground'
+    return {
+      icon: (
+        <span className={cn('inline-block size-2.5 shrink-0 rounded-full', dotClass)} aria-hidden />
+      ),
+      title: agentName && teamName ? `${agentName}@${teamName}` : w.title,
+      suffix: <span className="font-mono text-[10px] text-muted-foreground/80">(teammate)</span>,
+      badge: (
+        <>
+          {teamName ? (
+            <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', pillClass)}>
+              {teamName}
+            </span>
+          ) : null}
+          {w.exited ? (
+            <span className="rounded-full bg-muted-foreground/20 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              closed
+            </span>
+          ) : null}
+        </>
+      ),
+    }
+  }
+
+  if (kind === 'subagent') {
+    const meta = w.agentMeta
+    return {
+      icon: <img src={claudeSymbolUrl} alt="" className="size-3.5 shrink-0" />,
+      title: meta ? `${meta.agentType ?? 'subagent'}:${meta.agentId.slice(0, 8)}` : w.title,
+      suffix: null,
+      badge: (
+        <>
+          {w.exited ? (
+            <span className="rounded-full bg-muted-foreground/20 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              done
+            </span>
+          ) : (
+            <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-medium text-primary">
+              ● running
+            </span>
+          )}
+          {meta?.teammateName ? (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              via {meta.teammateName}
+            </span>
+          ) : null}
+        </>
+      ),
+    }
+  }
+
+  // Claude (default).
+  const dormant = w.sessionId === null
+  return {
+    icon: <img src={claudeSymbolUrl} alt="" className="size-3.5 shrink-0" />,
+    title: shortName,
+    suffix: null,
+    badge: (
+      <>
+        {dormant ? (
+          <span className="rounded-full bg-muted-foreground/20 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            dormant
+          </span>
+        ) : session?.exited ? (
+          <span className="rounded-full bg-destructive/20 px-2 py-0.5 text-[10px] font-medium tabular-nums text-destructive">
+            exit {session.exitCode ?? '—'}
+          </span>
+        ) : (
+          <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[10px] font-medium text-green-400">
+            ● live
+          </span>
+        )}
+        {session?.worktreeBranch ? (
+          <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-medium text-blue-400">
+            {session.worktreeBranch}
+          </span>
+        ) : null}
+      </>
+    ),
+  }
+}
 
 const TAB_REORDER_MIME = 'application/x-cc-ide-tab-reorder'
 
@@ -108,16 +240,9 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
   )
   const isBoardActive = activeId === 'board'
   const showMaximizedBar = isBoardActive && maximizedWindowId !== null && !!maximizedWindow
-  const maximizedTitle = maximizedWindow
-    ? maximizedWindow.tmuxWindow.split(':').slice(1).join(':') || maximizedWindow.tmuxWindow
-    : ''
-  const maximizedBadge: 'live' | 'exited' | 'dormant' = !maximizedWindow
-    ? 'dormant'
-    : maximizedWindow.sessionId === null
-      ? 'dormant'
-      : maximizedSession?.exited
-        ? 'exited'
-        : 'live'
+  const maximizedChrome = maximizedWindow
+    ? buildMaximizedChrome(maximizedWindow, maximizedSession)
+    : null
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const startSentinelRef = useRef<HTMLDivElement | null>(null)
@@ -165,22 +290,21 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
       className="flex h-10 w-full min-w-0 items-center border-b border-border bg-card"
       style={drag}
     >
-      {showMaximizedBar ? (
-        <div className="flex h-full flex-1 items-center gap-2 px-3 text-xs" style={noDrag}>
-          {/* Key on windowId so the title+badge block remounts and
+      {showMaximizedBar && maximizedChrome ? (
+        <div
+          className="flex h-full flex-1 items-center gap-2 px-3 font-mono text-[11px] text-muted-foreground"
+          style={noDrag}
+        >
+          {/* Key on windowId so the icon+title+badge block remounts and
               crossfades when the user ctrl+scrolls between pages. */}
           <div
             key={maximizedWindowId ?? ''}
             className="flex min-w-0 flex-1 items-center gap-2 animate-[cc-fade-in_200ms_ease-out]"
           >
-            <span className="truncate font-mono text-foreground">{maximizedTitle}</span>
-            {maximizedBadge === 'live' ? (
-              <span className="text-green-500">● live</span>
-            ) : maximizedBadge === 'exited' ? (
-              <span className="text-destructive">exit {maximizedSession?.exitCode ?? '—'}</span>
-            ) : (
-              <span className="text-muted-foreground">dormant</span>
-            )}
+            {maximizedChrome.icon}
+            <span className="truncate">{maximizedChrome.title}</span>
+            {maximizedChrome.suffix}
+            {maximizedChrome.badge}
           </div>
           <Tooltip>
             <TooltipTrigger asChild>

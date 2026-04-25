@@ -14,10 +14,13 @@ export function __setDataPathForTests(path: string): void {
 export const editorKeybindsSchema = z.enum(['vscode', 'vim'])
 export type EditorKeybinds = z.infer<typeof editorKeybindsSchema>
 
-export const terminalFontSchema = z.enum(['geist-mono', 'system'])
-export const editorFontSchema = z.enum(['geist', 'geist-mono', 'space-grotesk', 'system'])
-export const diffFontSchema = z.enum(['geist-mono', 'system'])
+// Font is a free-form family name. Built-in keys (geist, geist-mono,
+// space-grotesk) and the legacy 'system' sentinel get special handling at
+// resolve time; anything else is treated as a system family from
+// queryLocalFonts().
+export const fontFamilySchema = z.string().min(1).max(200)
 export const fontSizeSchema = z.number().int().min(8).max(32)
+export const lineHeightSchema = z.number().min(0.8).max(3)
 
 export const DEFAULT_DATA_ROOT = '.cc-ide'
 
@@ -37,19 +40,21 @@ export const settingsSchema = z.object({
   editor: z
     .object({
       keybinds: editorKeybindsSchema.default('vscode'),
-      font: editorFontSchema.default('geist'),
+      font: fontFamilySchema.default('geist'),
       fontSize: fontSizeSchema.default(12),
     })
     .default({ keybinds: 'vscode', font: 'geist', fontSize: 12 }),
   terminal: z
     .object({
-      font: terminalFontSchema.default('system'),
+      font: fontFamilySchema.default('system'),
+      fallbackFont: fontFamilySchema.nullable().default(null),
       fontSize: fontSizeSchema.default(13),
+      lineHeight: lineHeightSchema.default(1.2),
     })
-    .default({ font: 'system', fontSize: 13 }),
+    .default({ font: 'system', fallbackFont: null, fontSize: 13, lineHeight: 1.2 }),
   diff: z
     .object({
-      font: diffFontSchema.default('geist-mono'),
+      font: fontFamilySchema.default('geist-mono'),
       fontSize: fontSizeSchema.default(12),
       wrap: z.boolean().default(true),
       stickyGutter: z.boolean().default(true),
@@ -70,7 +75,7 @@ const settingsFileSchema = z.object({
 
 export const defaultSettings: Settings = {
   editor: { keybinds: 'vscode', font: 'geist', fontSize: 12 },
-  terminal: { font: 'system', fontSize: 13 },
+  terminal: { font: 'system', fallbackFont: null, fontSize: 13, lineHeight: 1.2 },
   diff: { font: 'geist-mono', fontSize: 12, wrap: true, stickyGutter: true },
   workspace: { dataRoot: DEFAULT_DATA_ROOT },
 }

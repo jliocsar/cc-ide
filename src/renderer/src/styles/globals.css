@@ -187,16 +187,11 @@
   z-index: auto !important;
 }
 
-/* Keep the titlebar visible in paged mode so {icon} {title} {pills} stay
- * on screen. Drag is disabled (handler bails on data-paged) — drop the
- * grab cursor so it doesn't lie about that. The resize handle and dot
- * grid have no role in paged layout, so hide them. */
+/* HeaderTabs swaps the tab strip for the maximized chrome — icon, title,
+ * pills, restore button — so the per-window chrome would be a duplicate.
+ * Hide it in paged mode. */
 [data-paged="true"] .cc-window-chrome {
-  cursor: default !important;
-}
-
-[data-paged="true"] .cc-window-chrome:active {
-  cursor: default !important;
+  display: none !important;
 }
 
 [data-paged="true"] .cc-resize-handle {

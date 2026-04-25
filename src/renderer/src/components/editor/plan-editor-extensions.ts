@@ -24,15 +24,17 @@ import {
 import { tags as t } from '@lezer/highlight'
 import { vim } from '@replit/codemirror-vim'
 
-export const EDITOR_FONT_MAP: Record<string, string> = {
-  geist: 'var(--font-sans)',
-  'geist-mono': 'var(--font-mono)',
-  'space-grotesk': 'var(--font-condensed)',
-  system: 'ui-sans-serif, system-ui, -apple-system, sans-serif',
-}
+import { isBuiltinFont, resolveFontFamily } from '@/lib/system-fonts'
 
 export function buildFontExtension(font: string, fontSize: number): Extension {
-  const family = EDITOR_FONT_MAP[font] ?? 'var(--font-sans)'
+  // Editor fonts can be sans (Geist, Space Grotesk) or mono (Geist Mono, system
+  // family). 'mono' picks a monospace generic in the fallback chain — wrong for
+  // sans built-ins, so route them through 'sans'.
+  const isSans = font === 'geist' || font === 'space-grotesk'
+  const family =
+    isBuiltinFont(font) || font === 'system'
+      ? resolveFontFamily(font, null, isSans ? 'sans' : 'mono')
+      : resolveFontFamily(font, null, 'mono')
   return EditorView.theme({
     '&': { fontSize: `${fontSize}px`, fontFamily: family },
     '.cm-scroller': { fontFamily: 'inherit' },
@@ -156,7 +158,21 @@ export const planEditorTheme = EditorView.theme(
       color: 'var(--foreground)',
       height: '100%',
     },
-    '.cm-scroller': { fontFamily: 'inherit', lineHeight: '1.6' },
+    '.cm-scroller': {
+      fontFamily: 'inherit',
+      lineHeight: '1.6',
+      scrollbarWidth: 'thin',
+      scrollbarColor: 'oklch(1 0 0 / 18%) transparent',
+    },
+    '.cm-scroller::-webkit-scrollbar': { width: '8px', height: '8px' },
+    '.cm-scroller::-webkit-scrollbar-track': { background: 'transparent' },
+    '.cm-scroller::-webkit-scrollbar-button': { width: '8px', height: '8px' },
+    '.cm-scroller::-webkit-scrollbar-thumb': {
+      background: 'oklch(1 0 0 / 18%)',
+      borderRadius: '3px',
+    },
+    '.cm-scroller::-webkit-scrollbar-thumb:hover': { background: 'oklch(1 0 0 / 30%)' },
+    '.cm-scroller::-webkit-scrollbar-corner': { background: 'transparent' },
     '.cm-content': { padding: '6px 0', caretColor: 'var(--foreground)' },
     '.cm-gutters': {
       backgroundColor: 'transparent',

@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, session, shell } from 'electron'
 import { registerIpcHandlers } from './ipc'
 import { ensureClaudeHooksInstalled } from './modules/claude-hooks-installer'
 import * as depgraph from './modules/depgraph'
@@ -63,6 +63,16 @@ function createWindow(): void {
 
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('dev.cc-ide')
+
+  // Auto-grant `local-fonts` so the renderer's queryLocalFonts() resolves
+  // without a permission prompt. The Settings font picker depends on it.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    if (permission === 'local-fonts') return callback(true)
+    callback(false)
+  })
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => {
+    return permission === 'local-fonts'
+  })
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

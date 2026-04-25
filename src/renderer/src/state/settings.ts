@@ -15,7 +15,9 @@ type State = {
   setEditorFont: (f: EditorFontDTO) => Promise<void>
   setEditorFontSize: (s: number) => Promise<void>
   setTerminalFont: (f: TerminalFontDTO) => Promise<void>
+  setTerminalFallbackFont: (f: string | null) => Promise<void>
   setTerminalFontSize: (s: number) => Promise<void>
+  setTerminalLineHeight: (h: number) => Promise<void>
   setDiffFont: (f: DiffFontDTO) => Promise<void>
   setDiffFontSize: (s: number) => Promise<void>
   setDiffWrap: (w: boolean) => Promise<void>
@@ -27,7 +29,7 @@ export const DEFAULT_DATA_ROOT = '.cc-ide'
 
 const defaultSettings: SettingsDTO = {
   editor: { keybinds: 'vscode', font: 'geist', fontSize: 12 },
-  terminal: { font: 'system', fontSize: 13 },
+  terminal: { font: 'system', fallbackFont: null, fontSize: 13, lineHeight: 1.2 },
   diff: { font: 'geist-mono', fontSize: 12, wrap: true, stickyGutter: true },
   workspace: { dataRoot: DEFAULT_DATA_ROOT },
 }
@@ -60,7 +62,9 @@ export const useSettings = create<State>(() => ({
   setEditorFont: (f) => patch({ editor: { font: f } }),
   setEditorFontSize: (s) => patch({ editor: { fontSize: s } }),
   setTerminalFont: (f) => patch({ terminal: { font: f } }),
+  setTerminalFallbackFont: (f) => patch({ terminal: { fallbackFont: f } }),
   setTerminalFontSize: (s) => patch({ terminal: { fontSize: s } }),
+  setTerminalLineHeight: (h) => patch({ terminal: { lineHeight: h } }),
   setDiffFont: (f) => patch({ diff: { font: f } }),
   setDiffFontSize: (s) => patch({ diff: { fontSize: s } }),
   setDiffWrap: (w) => patch({ diff: { wrap: w } }),

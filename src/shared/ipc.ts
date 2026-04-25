@@ -99,24 +99,27 @@ export const sortModeSchema = z.enum(['favorites-first', 'title'])
 
 export const editorKeybindsSchema = z.enum(['vscode', 'vim'])
 export type EditorKeybindsDTO = z.infer<typeof editorKeybindsSchema>
-export const terminalFontSchema = z.enum(['geist-mono', 'system'])
-export type TerminalFontDTO = z.infer<typeof terminalFontSchema>
-export const editorFontSchema = z.enum(['geist', 'geist-mono', 'space-grotesk', 'system'])
-export type EditorFontDTO = z.infer<typeof editorFontSchema>
-export const diffFontSchema = z.enum(['geist-mono', 'system'])
-export type DiffFontDTO = z.infer<typeof diffFontSchema>
+// Font values are either a built-in key (geist, geist-mono, space-grotesk),
+// the legacy 'system' sentinel (generic monospace fallback chain), or an
+// arbitrary system font family name reported by queryLocalFonts().
+export const fontFamilySchema = z.string().min(1).max(200)
+export type TerminalFontDTO = z.infer<typeof fontFamilySchema>
+export type EditorFontDTO = z.infer<typeof fontFamilySchema>
+export type DiffFontDTO = z.infer<typeof fontFamilySchema>
 export const settingsSchema = z.object({
   editor: z.object({
     keybinds: editorKeybindsSchema,
-    font: editorFontSchema,
+    font: fontFamilySchema,
     fontSize: z.number(),
   }),
   terminal: z.object({
-    font: terminalFontSchema,
+    font: fontFamilySchema,
+    fallbackFont: fontFamilySchema.nullable(),
     fontSize: z.number(),
+    lineHeight: z.number(),
   }),
   diff: z.object({
-    font: diffFontSchema,
+    font: fontFamilySchema,
     fontSize: z.number(),
     wrap: z.boolean(),
     stickyGutter: z.boolean(),
@@ -130,19 +133,21 @@ export const settingsPatchSchema = z.object({
   editor: z
     .object({
       keybinds: editorKeybindsSchema.optional(),
-      font: editorFontSchema.optional(),
+      font: fontFamilySchema.optional(),
       fontSize: z.number().optional(),
     })
     .optional(),
   terminal: z
     .object({
-      font: terminalFontSchema.optional(),
+      font: fontFamilySchema.optional(),
+      fallbackFont: fontFamilySchema.nullable().optional(),
       fontSize: z.number().optional(),
+      lineHeight: z.number().optional(),
     })
     .optional(),
   diff: z
     .object({
-      font: diffFontSchema.optional(),
+      font: fontFamilySchema.optional(),
       fontSize: z.number().optional(),
       wrap: z.boolean().optional(),
       stickyGutter: z.boolean().optional(),

@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { VerticalResizer } from '@/components/vertical-resizer'
 import { invoke } from '@/lib/ipc'
 import { guessLang, tokenizeLines } from '@/lib/shiki'
+import { resolveFontFamily } from '@/lib/system-fonts'
 import { cn } from '@/lib/utils'
 import {
   diffTabId,
@@ -18,11 +19,6 @@ import {
 } from '@/state/review-comments'
 import { useSettings } from '@/state/settings'
 import { useUi } from '@/state/ui'
-
-const DIFF_FONT_MAP: Record<string, string> = {
-  'geist-mono': "'Geist Mono', ui-monospace, monospace",
-  system: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-}
 
 type HunkTokens = {
   oldTokens: ThemedToken[][]
@@ -300,7 +296,7 @@ function DiffHunks({
   }, [syncScroll])
 
   const fontStyle: React.CSSProperties = {
-    fontFamily: DIFF_FONT_MAP[diffFont] ?? DIFF_FONT_MAP['geist-mono'],
+    fontFamily: resolveFontFamily(diffFont, null, 'mono'),
     fontSize: `${diffFontSize}px`,
   }
 
