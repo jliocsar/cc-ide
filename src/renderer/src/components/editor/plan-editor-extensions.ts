@@ -13,6 +13,7 @@ import {
 import {
   Decoration,
   type DecorationSet,
+  drawSelection,
   EditorView,
   GutterMarker,
   gutterLineClass,
@@ -228,21 +229,6 @@ export const planEditorTheme = EditorView.theme(
       backgroundColor: 'color-mix(in oklab, var(--primary) 10%, transparent)',
       borderLeftColor: 'var(--primary)',
     },
-    '.cm-review-mode': { cursor: 'pointer' },
-    '&:has(.cm-content.cm-review-mode) .cm-gutters': { cursor: 'pointer' },
-    // In Review mode: no visible caret, no active-line highlight, no
-    // text-selection tint. The editor is a read-only surface for line clicks.
-    '.cm-content.cm-review-mode': { caretColor: 'transparent' },
-    '.cm-content.cm-review-mode ::selection': { backgroundColor: 'transparent' },
-    // CM6 renders the caret as a separate `.cm-cursor` div (inside
-    // `.cm-cursorLayer`). `caretColor: transparent` only affects the native
-    // text caret; we also need to hide the div-based cursor and the entire
-    // cursor layer while in Review.
-    '&:has(.cm-content.cm-review-mode) .cm-cursorLayer': { display: 'none' },
-    '&:has(.cm-content.cm-review-mode) .cm-cursor, &:has(.cm-content.cm-review-mode) .cm-dropCursor':
-      {
-        display: 'none',
-      },
   },
   { dark: true },
 )
@@ -323,6 +309,7 @@ export type ReviewHandlers = {
   onStart: (lineNo: number) => void
   onExtend: (lineNo: number) => void
   onToggle: (lineNo: number) => boolean
+  shouldIntercept?: () => boolean
 }
 
 function lineFromY(view: EditorView, y: number): number | null {
@@ -351,6 +338,7 @@ export function reviewPointerExtension(handlers: ReviewHandlers): Extension {
         this.onDown = (e) => {
           if (e.button !== 0) return
           if (!(e.metaKey || e.ctrlKey)) return
+          if (handlers.shouldIntercept && !handlers.shouldIntercept()) return
           const lineNo = lineFromY(view, e.clientY)
           if (lineNo === null) return
           if (handlers.onToggle(lineNo)) {
@@ -388,7 +376,7 @@ export function reviewPointerExtension(handlers: ReviewHandlers): Extension {
     },
   )
 
-  return [plugin, EditorView.contentAttributes.of({ class: 'cm-review-mode' })]
+  return [plugin]
 }
 
 export function buildPlanExtensions(opts: {
@@ -404,6 +392,7 @@ export function buildPlanExtensions(opts: {
     history(),
     lineNumbers(),
     indentOnInput(),
+    drawSelection(),
     markdown({ base: markdownLanguage }),
     syntaxHighlighting(monochromeHighlight),
     calloutsExtension,

@@ -1,6 +1,17 @@
-import { ChevronLeft, ChevronRight, Eye, MessageSquarePlus, Pencil, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { MarkdownFileEditor } from '@/components/editor/markdown-file-editor'
+import {
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  MessageSquarePlus,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  MarkdownFileEditor,
+  type MarkdownFileEditorHandle,
+} from '@/components/editor/markdown-file-editor'
+import { MarkdownPreview } from '@/components/preview/markdown-preview'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
@@ -28,9 +39,11 @@ export function PlanViewer({
   const tabId = planTabId(workspaceId, relPath)
   const [content, setContent] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const mode = usePlanTabUi((s) => s.byTab[tabId]?.mode ?? 'review')
+  const [previewSnapshot, setPreviewSnapshot] = useState<string>('')
+  const editorHandleRef = useRef<MarkdownFileEditorHandle | null>(null)
+  const mode = usePlanTabUi((s) => s.byTab[tabId]?.mode ?? 'edit')
   const setMode = usePlanTabUi((s) => s.setMode)
-  const toggleMode = usePlanTabUi((s) => s.toggleMode)
+  const cycleMode = usePlanTabUi((s) => s.cycleMode)
   const sidebarCollapsed = usePlanTabUi((s) => s.byTab[tabId]?.sidebarCollapsed ?? false)
   const reviewPanelWidth = useUi((s) => s.reviewPanelWidth)
   const setReviewPanelWidth = useUi((s) => s.setReviewPanelWidth)
@@ -53,18 +66,37 @@ export function PlanViewer({
     }
   }, [workspaceId, relPath])
 
+  function snapshotForPreview(): void {
+    const buf = editorHandleRef.current?.getBuffer() ?? content ?? ''
+    setPreviewSnapshot(buf)
+  }
+
+  function handleSetMode(m: PlanMode): void {
+    if (m === 'preview') snapshotForPreview()
+    setMode(tabId, m)
+  }
+
+  function handleCycle(): void {
+    const curr = usePlanTabUi.getState().byTab[tabId]?.mode ?? 'edit'
+    if (curr === 'edit') snapshotForPreview()
+    cycleMode(tabId)
+  }
+
+  const handleCycleRef = useRef(handleCycle)
+  handleCycleRef.current = handleCycle
+
   useEffect(() => {
     function onKey(ev: KeyboardEvent): void {
       const mod = ev.ctrlKey || ev.metaKey
       if (!mod || !ev.shiftKey) return
       if (ev.key === 'm' || ev.key === 'M') {
         ev.preventDefault()
-        toggleMode(tabId)
+        handleCycleRef.current()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [tabId, toggleMode])
+  }, [])
 
   if (error) {
     return (
@@ -94,14 +126,23 @@ export function PlanViewer({
       }}
     >
       <div className="h-full min-h-0 overflow-hidden border-r border-border">
-        <MarkdownFileEditor
-          tabId={tabId}
-          initialContent={content}
-          reviewCapable
-          onSave={async (next) => {
-            await invokeIpc('plans:write', { workspaceId, relPath, content: next })
-          }}
-        />
+        {mode === 'preview' ? (
+          <MarkdownPreview
+            workspaceId={workspaceId}
+            relPath={relPath}
+            content={previewSnapshot || content}
+          />
+        ) : (
+          <MarkdownFileEditor
+            ref={editorHandleRef}
+            tabId={tabId}
+            initialContent={content}
+            reviewCapable
+            onSave={async (next) => {
+              await invokeIpc('plans:write', { workspaceId, relPath, content: next })
+            }}
+          />
+        )}
       </div>
       {sidebarCollapsed ? (
         <div />
@@ -123,7 +164,7 @@ export function PlanViewer({
             <CommentsPanel
               tabId={tabId}
               mode={mode}
-              onSetMode={(m) => setMode(tabId, m)}
+              onSetMode={handleSetMode}
               onCollapse={() => setSidebarCollapsed(tabId, true)}
             />
           </div>
@@ -182,16 +223,16 @@ function CommentsPanel({
           </button>
           <button
             type="button"
-            onClick={() => onSetMode('review')}
+            onClick={() => onSetMode('preview')}
             className={cn(
               'flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-medium transition-colors',
-              mode === 'review'
+              mode === 'preview'
                 ? 'bg-secondary text-foreground'
                 : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
             )}
           >
-            <Eye className="size-3" />
-            Review
+            <BookOpen className="size-3" />
+            Preview
           </button>
         </div>
         <span className="ml-auto font-mono text-[10px] opacity-60">Ctrl+Shift+M</span>

@@ -26,6 +26,16 @@
   --radius: 0.625rem;
 }
 
+/* Markdown preview alert tokens — semantic signals (note/tip/warning/etc).
+ * oklch with low chroma to fit the monochrome palette. */
+:root {
+  --md-alert-note: oklch(0.62 0.13 245);
+  --md-alert-tip: oklch(0.66 0.14 145);
+  --md-alert-important: oklch(0.6 0.18 295);
+  --md-alert-warning: oklch(0.72 0.14 75);
+  --md-alert-caution: oklch(0.62 0.2 25);
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

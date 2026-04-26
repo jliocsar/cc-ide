@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 
-export type PlanMode = 'edit' | 'review'
+export type PlanMode = 'edit' | 'preview'
+
+const MODE_CYCLE: PlanMode[] = ['edit', 'preview']
 
 type Entry = {
   mode: PlanMode
@@ -10,7 +12,7 @@ type Entry = {
 }
 
 const defaultEntry: Entry = {
-  mode: 'review',
+  mode: 'edit',
   sidebarCollapsed: false,
   autoExpandedOnce: false,
   dirty: false,
@@ -22,7 +24,7 @@ type State = {
   vimModeByTab: Record<string, string | null>
   entry: (tabId: string) => Entry
   setMode: (tabId: string, mode: PlanMode) => void
-  toggleMode: (tabId: string) => void
+  cycleMode: (tabId: string) => void
   setSidebarCollapsed: (tabId: string, v: boolean) => void
   markAutoExpanded: (tabId: string) => void
   setDirty: (tabId: string, v: boolean) => void
@@ -45,13 +47,15 @@ export const usePlanTabUi = create<State>((set, get) => ({
         [tabId]: { ...(s.byTab[tabId] ?? defaultEntry), mode },
       },
     })),
-  toggleMode: (tabId) =>
+  cycleMode: (tabId) =>
     set((s) => {
       const curr = s.byTab[tabId] ?? defaultEntry
+      const idx = MODE_CYCLE.indexOf(curr.mode)
+      const next = MODE_CYCLE[(idx + 1) % MODE_CYCLE.length] ?? 'edit'
       return {
         byTab: {
           ...s.byTab,
-          [tabId]: { ...curr, mode: curr.mode === 'edit' ? 'review' : 'edit' },
+          [tabId]: { ...curr, mode: next },
         },
       }
     }),

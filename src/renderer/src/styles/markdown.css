@@ -1,0 +1,343 @@
+.markdown-body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--foreground);
+  word-wrap: break-word;
+  padding: 24px 32px 96px;
+}
+
+.markdown-body :where(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  margin-top: 1.6em;
+  margin-bottom: 0.6em;
+  line-height: 1.25;
+  color: var(--foreground);
+}
+.markdown-body h1 {
+  font-size: 1.8em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+.markdown-body h2 {
+  font-size: 1.4em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.25em;
+}
+.markdown-body h3 {
+  font-size: 1.2em;
+}
+.markdown-body h4 {
+  font-size: 1.05em;
+}
+.markdown-body h5 {
+  font-size: 1em;
+}
+.markdown-body h6 {
+  font-size: 0.9em;
+  color: var(--muted-foreground);
+}
+
+.markdown-body p {
+  margin: 0.6em 0;
+}
+.markdown-body a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.markdown-body a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.markdown-body :where(ul, ol) {
+  margin: 0.6em 0;
+  padding-left: 1.6em;
+}
+.markdown-body ul {
+  list-style: disc outside;
+}
+.markdown-body ol {
+  list-style: decimal outside;
+}
+.markdown-body ul ul {
+  list-style: circle outside;
+}
+.markdown-body ul ul ul {
+  list-style: square outside;
+}
+.markdown-body li {
+  margin: 0.2em 0;
+}
+.markdown-body li > p {
+  margin: 0.2em 0;
+}
+.markdown-body li::marker {
+  color: var(--muted-foreground);
+}
+
+.markdown-body blockquote {
+  margin: 0.8em 0;
+  padding: 0 1em;
+  border-left: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.markdown-body hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+
+.markdown-body strong {
+  font-weight: 600;
+}
+.markdown-body em {
+  font-style: italic;
+}
+
+.markdown-body :where(code, kbd, samp) {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.markdown-body :not(pre) > code {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.markdown-body .md-code {
+  position: relative;
+  margin: 0.8em 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--card);
+}
+.markdown-body .md-code::before {
+  content: attr(data-lang);
+  position: absolute;
+  bottom: 4px;
+  right: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-foreground);
+  opacity: 0.6;
+  pointer-events: none;
+  letter-spacing: 0.04em;
+}
+.markdown-body .md-code-copy {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.markdown-body .md-code:hover .md-code-copy {
+  opacity: 1;
+}
+.markdown-body .md-code-copy:hover {
+  color: var(--foreground);
+}
+.markdown-body .md-code pre {
+  margin: 0;
+  padding: 12px 14px 22px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.5;
+  background: transparent !important;
+}
+
+.markdown-body .md-table-wrap {
+  overflow-x: auto;
+  margin: 0.8em 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.markdown-body th,
+.markdown-body td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.markdown-body th {
+  background: var(--muted);
+  font-weight: 600;
+}
+.markdown-body tr:last-child td {
+  border-bottom: 0;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.markdown-body input[type="checkbox"] {
+  margin-right: 6px;
+  accent-color: var(--foreground);
+}
+.markdown-body .task-list-item {
+  list-style: none;
+}
+.markdown-body .contains-task-list {
+  padding-left: 0.4em;
+}
+
+.markdown-body .markdown-alert {
+  margin: 1em 0;
+  padding: 0.5em 0.9em 0.5em 0.9em;
+  border-left: 2px solid var(--md-alert-note);
+  border-radius: 0 4px 4px 0;
+  background: color-mix(in srgb, var(--md-alert-note) 14%, var(--background));
+}
+.markdown-body .markdown-alert > p {
+  margin: 0.2em 0;
+}
+.markdown-body .markdown-alert-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  margin-bottom: 0.35em;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-alert-note);
+}
+.markdown-body .markdown-alert svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+.markdown-body .markdown-alert svg,
+.markdown-body .markdown-alert svg * {
+  fill: currentColor !important;
+  color: inherit;
+}
+.markdown-body .markdown-alert-tip {
+  border-color: var(--md-alert-tip);
+  background: color-mix(in srgb, var(--md-alert-tip) 14%, var(--background));
+}
+.markdown-body .markdown-alert-tip .markdown-alert-title {
+  color: var(--md-alert-tip);
+}
+.markdown-body .markdown-alert-important {
+  border-color: var(--md-alert-important);
+  background: color-mix(in srgb, var(--md-alert-important) 14%, var(--background));
+}
+.markdown-body .markdown-alert-important .markdown-alert-title {
+  color: var(--md-alert-important);
+}
+.markdown-body .markdown-alert-warning {
+  border-color: var(--md-alert-warning);
+  background: color-mix(in srgb, var(--md-alert-warning) 14%, var(--background));
+}
+.markdown-body .markdown-alert-warning .markdown-alert-title {
+  color: var(--md-alert-warning);
+}
+.markdown-body .markdown-alert-caution {
+  border-color: var(--md-alert-caution);
+  background: color-mix(in srgb, var(--md-alert-caution) 14%, var(--background));
+}
+.markdown-body .markdown-alert-caution .markdown-alert-title {
+  color: var(--md-alert-caution);
+}
+
+.markdown-body .mermaid-host {
+  position: relative;
+  margin: 0.8em 0;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  overflow: hidden;
+  min-height: 120px;
+}
+.markdown-body .mermaid-host svg {
+  display: block;
+  max-width: 100%;
+}
+.markdown-body .mermaid-source {
+  display: none;
+}
+.markdown-body .mermaid-host:not([data-rendered])::before {
+  content: "rendering diagram…";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  animation: cc-fade-in 0.2s ease-out;
+}
+.markdown-body .mermaid-host[data-state="error"] {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 6%, transparent);
+}
+.markdown-body .mermaid-host[data-state="error"] .mermaid-source {
+  display: block;
+  white-space: pre-wrap;
+}
+
+.markdown-body .mermaid-controls {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.markdown-body .mermaid-host:hover .mermaid-controls {
+  opacity: 1;
+}
+.markdown-body .mermaid-controls button {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.markdown-body .mermaid-controls button:hover {
+  color: var(--foreground);
+}
+
+::highlight(md-search-match) {
+  background-color: color-mix(in srgb, var(--md-alert-warning) 40%, transparent);
+  color: var(--foreground);
+}
+::highlight(md-search-current) {
+  background-color: var(--md-alert-warning);
+  color: var(--background);
+}
