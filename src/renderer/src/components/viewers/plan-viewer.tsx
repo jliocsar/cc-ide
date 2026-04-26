@@ -1,25 +1,19 @@
-import {
-  BookOpen,
-  ChevronLeft,
-  ChevronRight,
-  MessageSquarePlus,
-  Pencil,
-  Trash2,
-} from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { BookOpen, ChevronLeft, ChevronRight, MessageSquarePlus, Pencil } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   MarkdownFileEditor,
   type MarkdownFileEditorHandle,
 } from '@/components/editor/markdown-file-editor'
 import { MarkdownPreview } from '@/components/preview/markdown-preview'
+import { CommentSidebarEntry } from '@/components/review/comment-surfaces'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { VerticalResizer } from '@/components/vertical-resizer'
 import { friendlyFsError } from '@/lib/fs-errors'
 import { invoke, invoke as invokeIpc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
+import { useCommentPulse } from '@/state/comment-pulse'
 import { type PlanMode, usePlanTabUi } from '@/state/plan-tab-ui'
 import {
   EMPTY_RANGES,
@@ -98,6 +92,22 @@ export function PlanViewer({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  const requestJump = useCallback(
+    (rangeId: string, lastLine: number) => {
+      // Auto-switch to Edit when navigating from sidebar in Preview mode (Q7).
+      const currentMode = usePlanTabUi.getState().byTab[tabId]?.mode ?? 'edit'
+      if (currentMode === 'preview') {
+        setMode(tabId, 'edit')
+      }
+      // Defer to next frame so the editor has remounted before scrolling.
+      requestAnimationFrame(() => {
+        editorHandleRef.current?.scrollToLine(lastLine)
+        useCommentPulse.getState().pulse(tabId, rangeId)
+      })
+    },
+    [tabId, setMode],
+  )
+
   if (error) {
     return (
       <div className="flex h-full items-center justify-center bg-background font-mono text-xs text-destructive">
@@ -166,6 +176,7 @@ export function PlanViewer({
               mode={mode}
               onSetMode={handleSetMode}
               onCollapse={() => setSidebarCollapsed(tabId, true)}
+              onJump={requestJump}
             />
           </div>
         )}
@@ -179,17 +190,18 @@ function CommentsPanel({
   mode,
   onSetMode,
   onCollapse,
+  onJump,
 }: {
   tabId: string
   mode: PlanMode
   onSetMode: (m: PlanMode) => void
   onCollapse: () => void
+  onJump: (rangeId: string, lastLine: number) => void
 }): JSX.Element {
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
-  const setComment = useReviewComments((s) => s.setComment)
-  const removeRange = useReviewComments((s) => s.removeRange)
 
   const sorted = useMemo(() => [...ranges].sort((a, b) => a.start - b.start), [ranges])
+  const commentCount = ranges.filter((r) => r.comment.trim().length > 0).length
 
   return (
     <div className="flex h-full flex-col bg-card">
@@ -235,6 +247,14 @@ function CommentsPanel({
             Preview
           </button>
         </div>
+        {commentCount > 0 ? (
+          <span
+            title={`${commentCount} comment${commentCount === 1 ? '' : 's'}`}
+            className="rounded-full border border-blue-500/40 bg-blue-500/15 px-1.5 py-0.5 font-mono text-[10px] text-blue-300"
+          >
+            {commentCount}
+          </span>
+        ) : null}
         <span className="ml-auto font-mono text-[10px] opacity-60">Ctrl+Shift+M</span>
       </div>
       <div className="flex h-7 shrink-0 items-center gap-2 border-b border-border px-3 text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -245,7 +265,7 @@ function CommentsPanel({
         </span>
       </div>
       <ScrollArea className="flex-1">
-        <div className="flex flex-col gap-3 p-3">
+        <div className="flex flex-col gap-2 p-3">
           {sorted.length === 0 ? (
             <div className="font-mono text-[11px] text-muted-foreground">
               ctrl/cmd-click a line to start a comment.
@@ -256,32 +276,12 @@ function CommentsPanel({
             </div>
           ) : (
             sorted.map((r) => (
-              <div
+              <CommentSidebarEntry
                 key={r.id}
-                className="flex flex-col gap-1.5 rounded-md border border-border bg-background p-2"
-              >
-                <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
-                  <span>
-                    @@ {r.start}
-                    {r.len > 1 ? `,${r.len}` : ',1'} @@
-                  </span>
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    onClick={() => removeRange(tabId, r.id)}
-                    aria-label="Cancel"
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-                <Textarea
-                  value={r.comment}
-                  onChange={(e) => setComment(tabId, r.id, e.target.value)}
-                  placeholder="What should change here?"
-                  rows={3}
-                  className="resize-none font-mono text-[12px]"
-                />
-              </div>
+                tabId={tabId}
+                range={r}
+                onJump={() => onJump(r.id, r.start + r.len - 1)}
+              />
             ))
           )}
         </div>
@@ -311,9 +311,13 @@ function CommentsRail({ tabId, onExpand }: { tabId: string; onExpand: () => void
       {rangeCount > 0 ? (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="flex min-w-5 items-center justify-center rounded-full bg-primary/20 px-1.5 font-mono text-[10px] text-foreground">
+            <button
+              type="button"
+              onClick={onExpand}
+              className="flex min-w-5 items-center justify-center rounded-full bg-blue-500/20 px-1.5 font-mono text-[10px] text-foreground hover:bg-blue-500/30"
+            >
               {rangeCount}
-            </span>
+            </button>
           </TooltipTrigger>
           <TooltipContent>{`${rangeCount} range${rangeCount === 1 ? '' : 's'}`}</TooltipContent>
         </Tooltip>

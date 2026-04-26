@@ -15,6 +15,7 @@ import {
   type PlanCompartments,
   type RangeDraftLite,
   reviewPointerExtension,
+  setBubbleRangesEffect,
   setRangesEffect,
 } from './plan-editor-extensions'
 
@@ -27,6 +28,7 @@ type Props = {
 
 export type MarkdownFileEditorHandle = {
   getBuffer: () => string
+  scrollToLine: (lineNo: number) => void
 }
 
 type ActiveSaveTarget = {
@@ -66,6 +68,25 @@ function shouldInterceptCtrlClick(tabId: string): boolean {
   return vimMode === 'NORMAL'
 }
 
+function handleAttemptToggle(tabId: string, lineNo: number): boolean {
+  const store = useReviewComments.getState()
+  const result = store.attemptToggle(tabId, lineNo)
+  if (result.ok === 'noop') return false
+  if (!result.ok && 'blockedRangeId' in result) {
+    const blockedId = result.blockedRangeId
+    toast.message('Range has a comment', {
+      description: 'Remove it first to edit the selection.',
+      action: {
+        label: 'Remove comment',
+        onClick: () => useReviewComments.getState().removeRange(tabId, blockedId),
+      },
+      duration: 6000,
+    })
+    return true
+  }
+  return true
+}
+
 export const MarkdownFileEditor = forwardRef<MarkdownFileEditorHandle, Props>(
   function MarkdownFileEditor({ tabId, initialContent, onSave, reviewCapable = false }, ref) {
     const hostRef = useRef<HTMLDivElement | null>(null)
@@ -74,6 +95,16 @@ export const MarkdownFileEditor = forwardRef<MarkdownFileEditorHandle, Props>(
       ref,
       () => ({
         getBuffer: () => viewRef.current?.state.doc.toString() ?? initialContent,
+        scrollToLine: (lineNo: number) => {
+          const view = viewRef.current
+          if (!view) return
+          const doc = view.state.doc
+          if (lineNo < 1 || lineNo > doc.lines) return
+          const pos = doc.line(lineNo).from
+          view.dispatch({
+            effects: EditorView.scrollIntoView(pos, { y: 'center' }),
+          })
+        },
       }),
       [initialContent],
     )
@@ -137,6 +168,8 @@ export const MarkdownFileEditor = forwardRef<MarkdownFileEditorHandle, Props>(
             keybinds: initialKeybinds,
             readOnly: false,
             reviewPointer,
+            reviewCapable,
+            tabId,
             font: useSettings.getState().settings.editor.font,
             fontSize: useSettings.getState().settings.editor.fontSize,
           }),
@@ -175,7 +208,17 @@ export const MarkdownFileEditor = forwardRef<MarkdownFileEditorHandle, Props>(
               u.changes,
               u.state.doc,
             )
+            // Detect ranges dropped because their lines were deleted.
+            const droppedIds = new Set(
+              (current as RangeDraft[])
+                .filter((r) => !mapped.some((m) => m.id === r.id))
+                .map((r) => r.id),
+            )
+            const dropped = (current as RangeDraft[]).filter((r) => droppedIds.has(r.id))
             store.replaceAll(tabId, mapped)
+            if (dropped.length > 0) {
+              showLineDeletionToast(tabId, dropped)
+            }
           }),
         ],
       })
@@ -186,13 +229,23 @@ export const MarkdownFileEditor = forwardRef<MarkdownFileEditorHandle, Props>(
       let unsub: (() => void) | null = null
       if (reviewCapable) {
         const initialRanges = useReviewComments.getState().byTab[tabId] ?? EMPTY_RANGES
-        view.dispatch({ effects: setRangesEffect.of(rangesToLite(initialRanges as RangeDraft[])) })
+        view.dispatch({
+          effects: [
+            setRangesEffect.of(rangesToLite(initialRanges as RangeDraft[])),
+            setBubbleRangesEffect.of(initialRanges as RangeDraft[]),
+          ],
+        })
 
         unsub = useReviewComments.subscribe((s, prev) => {
           const next = s.byTab[tabId] ?? EMPTY_RANGES
           const old = prev.byTab[tabId] ?? EMPTY_RANGES
           if (next === old) return
-          view.dispatch({ effects: setRangesEffect.of(rangesToLite(next as RangeDraft[])) })
+          view.dispatch({
+            effects: [
+              setRangesEffect.of(rangesToLite(next as RangeDraft[])),
+              setBubbleRangesEffect.of(next as RangeDraft[]),
+            ],
+          })
         })
       }
 
@@ -225,7 +278,22 @@ export const MarkdownFileEditor = forwardRef<MarkdownFileEditorHandle, Props>(
     }, [editorFont, editorFontSize])
 
     function handleReviewStart(lineNo: number): void {
-      useReviewComments.getState().startSingle(tabId, lineNo)
+      const store = useReviewComments.getState()
+      const result = store.attemptStart(tabId, lineNo)
+      if (!result.ok) {
+        const blockedId = result.blockedRangeId
+        const blocked = store.byTab[tabId]?.find((r) => r.id === blockedId)
+        if (blocked && blocked.comment.trim().length > 0) {
+          toast.message('Line is in a commented range', {
+            description: 'Remove the comment first to edit the selection.',
+            action: {
+              label: 'Remove comment',
+              onClick: () => useReviewComments.getState().removeRange(tabId, blockedId),
+            },
+            duration: 6000,
+          })
+        }
+      }
     }
 
     function handleReviewExtend(lineNo: number): void {
@@ -233,12 +301,33 @@ export const MarkdownFileEditor = forwardRef<MarkdownFileEditorHandle, Props>(
     }
 
     function handleReviewToggle(lineNo: number): boolean {
-      const store = useReviewComments.getState()
-      if (!store.isLineInAnyRange(tabId, lineNo)) return false
-      store.toggleLine(tabId, lineNo)
-      return true
+      return handleAttemptToggle(tabId, lineNo)
     }
 
     return <div ref={hostRef} className="h-full w-full overflow-hidden" />
   },
 )
+
+function showLineDeletionToast(tabId: string, dropped: RangeDraft[]): void {
+  const label =
+    dropped.length === 1
+      ? 'Comment removed (line deleted)'
+      : `${dropped.length} comments removed (lines deleted)`
+  const undoLabel = dropped.length === 1 ? 'Undo' : 'Undo all'
+  toast.message(label, {
+    description:
+      dropped.length === 1
+        ? 'Click undo to restore it as a single-line comment near where it lived.'
+        : 'Click undo to restore them as single-line comments near where they lived.',
+    action: {
+      label: undoLabel,
+      onClick: () => {
+        const store = useReviewComments.getState()
+        for (const draft of dropped) {
+          store.restoreRange(tabId, draft)
+        }
+      },
+    },
+    duration: 60_000,
+  })
+}

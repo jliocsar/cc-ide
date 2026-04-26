@@ -21,11 +21,16 @@ import {
   lineNumbers,
   ViewPlugin,
   type ViewUpdate,
+  WidgetType,
 } from '@codemirror/view'
 import { tags as t } from '@lezer/highlight'
 import { vim } from '@replit/codemirror-vim'
+import { createElement } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
 
+import { CommentBubbleById } from '@/components/review/comment-surfaces'
 import { isBuiltinFont, resolveFontFamily } from '@/lib/system-fonts'
+import type { RangeDraft } from '@/state/review-comments'
 
 export function buildFontExtension(font: string, fontSize: number): Extension {
   // Editor fonts can be sans (Geist, Space Grotesk) or mono (Geist Mono, system
@@ -219,15 +224,19 @@ export const planEditorTheme = EditorView.theme(
       backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 18%, transparent)',
     },
     '.cm-plan-range-commented': {
-      backgroundColor: 'color-mix(in oklab, var(--primary) 10%, transparent)',
+      backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 6%, transparent)',
     },
     '.cm-lineNumbers .cm-gutterElement.cm-plan-range-gutter': {
       backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 18%, transparent)',
       borderLeftColor: 'oklch(0.6 0.2 250)',
     },
     '.cm-lineNumbers .cm-gutterElement.cm-plan-range-commented-gutter': {
-      backgroundColor: 'color-mix(in oklab, var(--primary) 10%, transparent)',
-      borderLeftColor: 'var(--primary)',
+      backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 6%, transparent)',
+      borderLeftColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 60%, transparent)',
+    },
+    '.cm-comment-widget': {
+      display: 'block',
+      padding: '0',
     },
   },
   { dark: true },
@@ -304,6 +313,109 @@ export const rangeDecorationField = StateField.define<RangeDraftLite[]>({
     }),
   ],
 })
+
+/**
+ * Bubble widget machinery — full RangeDraft list flows through a separate
+ * effect so comment-text edits don't churn the line decoration field.
+ */
+export const setBubbleRangesEffect = StateEffect.define<RangeDraft[]>()
+
+class CommentBubbleWidget extends WidgetType {
+  root: Root | null = null
+  constructor(
+    public readonly tabId: string,
+    public readonly rangeId: string,
+  ) {
+    super()
+  }
+  override eq(other: WidgetType): boolean {
+    return (
+      other instanceof CommentBubbleWidget &&
+      other.tabId === this.tabId &&
+      other.rangeId === this.rangeId
+    )
+  }
+  override toDOM(): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'cm-comment-widget'
+    el.dataset.rangeId = this.rangeId
+    this.root = createRoot(el)
+    this.root.render(createElement(CommentBubbleById, { tabId: this.tabId, rangeId: this.rangeId }))
+    return el
+  }
+  override destroy(_dom: HTMLElement): void {
+    const root = this.root
+    this.root = null
+    if (root) {
+      // Defer unmount: React forbids unmounting during render commits.
+      window.setTimeout(() => root.unmount(), 0)
+    }
+  }
+  override ignoreEvent(_e: Event): boolean {
+    return true
+  }
+  override get estimatedHeight(): number {
+    return 80
+  }
+}
+
+export const bubbleDecorationField = StateField.define<RangeDraft[]>({
+  create: () => [],
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setBubbleRangesEffect)) return e.value
+    }
+    return value
+  },
+  provide: (f) =>
+    EditorView.decorations.compute([f], (state) => {
+      const ranges = state.field(f)
+      const doc = state.doc
+      const builder: { from: number; deco: Decoration }[] = []
+      for (const r of ranges) {
+        const lastLineNo = r.start + r.len - 1
+        if (lastLineNo < 1 || lastLineNo > doc.lines) continue
+        // Mounting CommentBubbleById; it subscribes to the store so it
+        // re-renders on comment-text edits without churning this field.
+        const meta = makeBubbleMeta(state, r.id)
+        if (!meta.tabId) continue
+        const line = doc.line(lastLineNo)
+        builder.push({
+          from: line.to,
+          deco: Decoration.widget({
+            widget: new CommentBubbleWidget(meta.tabId, r.id),
+            side: 1,
+            block: true,
+          }),
+        })
+      }
+      builder.sort((a, b) => a.from - b.from)
+      return Decoration.set(
+        builder.map((b) => b.deco.range(b.from)),
+        true,
+      )
+    }),
+})
+
+// The widget needs a tabId to subscribe. We tunnel it through a StateEffect
+// so different editors using the same field share no cross-editor wiring.
+const setBubbleTabIdEffect = StateEffect.define<string>()
+
+const bubbleTabIdField = StateField.define<string>({
+  create: () => '',
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setBubbleTabIdEffect)) return e.value
+    }
+    return value
+  },
+})
+
+function makeBubbleMeta(state: EditorState, _rangeId: string): { tabId: string } {
+  return { tabId: state.field(bubbleTabIdField, false) ?? '' }
+}
+
+export const setBubbleTabId = setBubbleTabIdEffect
 
 export type ReviewHandlers = {
   onStart: (lineNo: number) => void
@@ -384,10 +496,15 @@ export function buildPlanExtensions(opts: {
   keybinds: EditorKeybinds
   readOnly: boolean
   reviewPointer: Extension
+  reviewCapable?: boolean
+  tabId?: string
   font: string
   fontSize: number
 }): Extension[] {
   const c = opts.compartments
+  const reviewExts: Extension[] = opts.reviewCapable
+    ? [bubbleTabIdField.init(() => opts.tabId ?? ''), bubbleDecorationField]
+    : []
   return [
     history(),
     lineNumbers(),
@@ -397,6 +514,7 @@ export function buildPlanExtensions(opts: {
     syntaxHighlighting(monochromeHighlight),
     calloutsExtension,
     rangeDecorationField,
+    ...reviewExts,
     c.reviewPointer.of(opts.reviewPointer),
     planEditorTheme,
     c.font.of(buildFontExtension(opts.font, opts.fontSize)),

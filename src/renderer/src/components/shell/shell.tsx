@@ -15,6 +15,7 @@ import { MAX_WINDOWS_PER_WORKSPACE, useCanvas } from '@/state/canvas'
 import { useMaximizedWindow } from '@/state/maximized-window'
 import { usePalette } from '@/state/palette'
 import { usePlanTabUi } from '@/state/plan-tab-ui'
+import { useReviewComments } from '@/state/review-comments'
 import { useSessions } from '@/state/sessions'
 import { useSidebarData } from '@/state/sidebar-data'
 import { useSpawnModal } from '@/state/spawn-modal'
@@ -88,7 +89,8 @@ export function Shell(): JSX.Element {
       } else if (ev.key === 'w' || ev.key === 'W') {
         ev.preventDefault()
         const isDirty = usePlanTabUi.getState().byTab[activeId]?.dirty ?? false
-        if (isDirty) {
+        const hasComments = useReviewComments.getState().commentedCount(activeId) > 0
+        if (isDirty || hasComments) {
           usePlanTabUi.getState().setPendingCloseId(activeId)
         } else {
           closeTab(activeId)

@@ -1,16 +1,18 @@
 import type { DiffHunkDTO, DiffHunkLineDTO, FileDiffDTO } from '@shared/ipc'
-import { ChevronLeft, ChevronRight, Link2, Link2Off, MessageSquarePlus, Trash2 } from 'lucide-react'
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Link2, Link2Off, MessageSquarePlus } from 'lucide-react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ThemedToken } from 'shiki'
+import { toast } from 'sonner'
+import { CommentBubble, CommentSidebarEntry } from '@/components/review/comment-surfaces'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { VerticalResizer } from '@/components/vertical-resizer'
 import { invoke } from '@/lib/ipc'
 import { guessLang, tokenizeLines } from '@/lib/shiki'
 import { resolveFontFamily } from '@/lib/system-fonts'
 import { cn } from '@/lib/utils'
+import { useCommentPulse } from '@/state/comment-pulse'
 import {
   diffTabId,
   EMPTY_RANGES,
@@ -75,6 +77,7 @@ export function DiffViewer({
   const setReviewPanelWidth = useUi((s) => s.setReviewPanelWidth)
   const resetReviewPanelWidth = useUi((s) => s.resetReviewPanelWidth)
   const [resizing, setResizing] = useState(false)
+  const diffSideRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -90,6 +93,19 @@ export function DiffViewer({
       cancelled = true
     }
   }, [worktreePath, path, stage])
+
+  const requestJump = useCallback(
+    (rangeId: string, lastLine: number) => {
+      const root = diffSideRef.current
+      if (!root) return
+      const el = root.querySelector<HTMLElement>(`[data-diff-line-no="${lastLine}"]`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+      useCommentPulse.getState().pulse(tabId, rangeId)
+    },
+    [tabId],
+  )
 
   if (error) {
     return (
@@ -147,7 +163,7 @@ export function DiffViewer({
           : `minmax(0,1fr) 1px ${reviewPanelWidth}px`,
       }}
     >
-      <div className="h-full min-h-0 overflow-hidden">
+      <div ref={diffSideRef} className="h-full min-h-0 overflow-hidden">
         <DiffHunks tabId={tabId} hunks={diff.hunks} path={path} />
       </div>
       {commentsCollapsed ? (
@@ -171,6 +187,7 @@ export function DiffViewer({
               tabId={tabId}
               workspaceId={workspaceId}
               onCollapse={() => setCommentsCollapsed(true)}
+              onJump={requestJump}
             />
           </div>
         )}
@@ -232,7 +249,8 @@ function DiffHunks({
 }): JSX.Element {
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
   const startSingle = useReviewComments((s) => s.startSingle)
-  const toggleLine = useReviewComments((s) => s.toggleLine)
+  const attemptToggle = useReviewComments((s) => s.attemptToggle)
+  const removeRange = useReviewComments((s) => s.removeRange)
   const extendLast = useReviewComments((s) => s.extendLast)
   const hunkTokens = useHunkTokens(hunks, path)
   const draggingRef = useRef(false)
@@ -300,14 +318,33 @@ function DiffHunks({
     fontSize: `${diffFontSize}px`,
   }
 
+  const focusedRangeId = useCommentPulse((s) => s.focusedByTab[tabId] ?? null)
+
   function isInRange(lineNo: number): boolean {
     return ranges.some((r) => lineNo >= r.start && lineNo <= r.start + r.len - 1)
   }
 
-  function isCommented(lineNo: number): boolean {
-    return ranges.some(
-      (r) => lineNo >= r.start && lineNo <= r.start + r.len - 1 && r.comment.trim().length > 0,
-    )
+  // Q14b: a line is "active" (strong blue) only while its range is being
+  // edited or still empty. Once committed (non-empty + blurred), the line
+  // returns to intrinsic bg and the bubble alone carries the signal.
+  function isActive(lineNo: number): boolean {
+    return ranges.some((r) => {
+      if (lineNo < r.start || lineNo > r.start + r.len - 1) return false
+      const empty = r.comment.trim().length === 0
+      return empty || r.id === focusedRangeId
+    })
+  }
+
+  // Map: new-line-no → range whose end is that line (for inline bubble placement)
+  const bubbleByEndLine = useMemo(() => {
+    const m = new Map<number, RangeDraft>()
+    for (const r of ranges) m.set(r.start + r.len - 1, r)
+    return m
+  }, [ranges])
+
+  function handleRemoveCommented(rangeId: string): void {
+    removeRange(tabId, rangeId)
+    toast.dismiss()
   }
 
   useEffect(() => {
@@ -336,11 +373,22 @@ function DiffHunks({
   function onNewSidePointerDown(ev: React.PointerEvent): void {
     if (ev.button !== 0) return
     if (!(ev.metaKey || ev.ctrlKey)) return
+    // Inline bubble swallows its own clicks via stopPropagation; this guard
+    // also keeps Ctrl-click from hijacking selection inside the textarea.
+    if ((ev.target as HTMLElement).closest('[data-comment-bubble]')) return
     const row = (ev.target as HTMLElement).closest<HTMLElement>('[data-diff-line-no]')
     if (!row) return
     const lineNo = Number(row.dataset.diffLineNo)
     if (isInRange(lineNo)) {
-      toggleLine(tabId, lineNo)
+      const result = attemptToggle(tabId, lineNo)
+      if (!result.ok && 'blockedRangeId' in result) {
+        const blockedId = result.blockedRangeId
+        toast.message('Range has a comment', {
+          description: 'Remove it first to edit the selection.',
+          action: { label: 'Remove comment', onClick: () => handleRemoveCommented(blockedId) },
+          duration: 6000,
+        })
+      }
     } else {
       startSingle(tabId, lineNo)
       draggingRef.current = true
@@ -409,18 +457,22 @@ function DiffHunks({
                 const ht = hunkTokens[i]
                 const idx = ht ? (ht.newLineIdx[j] ?? -1) : -1
                 const tokens = ht && idx >= 0 ? (ht.newTokens[idx] ?? null) : null
+                const lineNo = line.newLineNo
+                const bubble = lineNo != null ? bubbleByEndLine.get(lineNo) : undefined
                 return (
-                  <DiffHalfLine
-                    key={`n-${j}`}
-                    side="new"
-                    line={line}
-                    tokens={tokens}
-                    wrap={diffWrap}
-                    stickyGutter={diffStickyGutter}
-                    selectable={line.newLineNo !== null}
-                    selected={line.newLineNo !== null && isInRange(line.newLineNo)}
-                    commented={line.newLineNo !== null && isCommented(line.newLineNo)}
-                  />
+                  <div key={`n-${j}`}>
+                    <DiffHalfLine
+                      side="new"
+                      line={line}
+                      tokens={tokens}
+                      wrap={diffWrap}
+                      stickyGutter={diffStickyGutter}
+                      selectable={line.newLineNo !== null}
+                      selected={line.newLineNo !== null && isActive(line.newLineNo)}
+                      inRange={line.newLineNo !== null && isInRange(line.newLineNo)}
+                    />
+                    {bubble ? <CommentBubble tabId={tabId} range={bubble} /> : null}
+                  </div>
                 )
               })}
             </div>
@@ -453,7 +505,7 @@ const DiffHalfLine = memo(function DiffHalfLine({
   stickyGutter,
   selectable,
   selected,
-  commented,
+  inRange,
 }: {
   side: 'old' | 'new'
   line: DiffHunkLineDTO
@@ -462,7 +514,7 @@ const DiffHalfLine = memo(function DiffHalfLine({
   stickyGutter: boolean
   selectable?: boolean
   selected?: boolean
-  commented?: boolean
+  inRange?: boolean
 }): JSX.Element {
   const num = side === 'old' ? line.oldLineNo : line.newLineNo
   const display =
@@ -480,15 +532,13 @@ const DiffHalfLine = memo(function DiffHalfLine({
   const sigil = line.kind === 'add' ? '+' : line.kind === 'remove' ? '-' : ' '
 
   const gutterBg = stickyGutter
-    ? commented
-      ? 'color-mix(in srgb, var(--primary) 10%, var(--background))'
-      : selected
-        ? 'color-mix(in srgb, #3b82f6 15%, var(--background))'
-        : line.kind === 'add' && side === 'new'
-          ? 'color-mix(in srgb, #22c55e 10%, var(--background))'
-          : line.kind === 'remove' && side === 'old'
-            ? 'color-mix(in srgb, #ef4444 10%, var(--background))'
-            : 'var(--background)'
+    ? selected
+      ? 'color-mix(in srgb, #3b82f6 15%, var(--background))'
+      : line.kind === 'add' && side === 'new'
+        ? 'color-mix(in srgb, #22c55e 10%, var(--background))'
+        : line.kind === 'remove' && side === 'old'
+          ? 'color-mix(in srgb, #ef4444 10%, var(--background))'
+          : 'var(--background)'
     : undefined
 
   return (
@@ -499,10 +549,10 @@ const DiffHalfLine = memo(function DiffHalfLine({
         'group flex items-start gap-2 border-l-2 px-2 leading-[1.6]',
         bg,
         selectable && 'cursor-pointer hover:shadow-[inset_0_0_0_9999px_rgba(255,255,255,0.08)]',
-        commented
-          ? 'border-l-primary bg-primary/10'
-          : selected
-            ? 'border-l-blue-500 bg-blue-500/15'
+        selected
+          ? 'border-l-blue-500 bg-blue-500/15'
+          : inRange
+            ? 'border-l-blue-500/40'
             : 'border-l-transparent',
       )}
     >
@@ -558,15 +608,14 @@ function CommentsPanel({
   tabId,
   workspaceId: _,
   onCollapse,
+  onJump,
 }: {
   tabId: string
   workspaceId: string
   onCollapse: () => void
+  onJump: (rangeId: string, lastLine: number) => void
 }): JSX.Element {
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
-  const setComment = useReviewComments((s) => s.setComment)
-  const removeRange = useReviewComments((s) => s.removeRange)
-
   const sorted = useMemo(() => [...ranges].sort((a, b) => a.start - b.start), [ranges])
 
   return (
@@ -592,7 +641,7 @@ function CommentsPanel({
         </span>
       </div>
       <ScrollArea className="flex-1">
-        <div className="flex flex-col gap-3 p-3">
+        <div className="flex flex-col gap-2 p-3">
           {sorted.length === 0 ? (
             <div className="font-mono text-[11px] text-muted-foreground">
               ctrl/cmd-click a line on the right (new) side to comment.
@@ -600,32 +649,13 @@ function CommentsPanel({
               ctrl/cmd-click and drag to select multiple lines.
             </div>
           ) : (
-            sorted.map((r: RangeDraft) => (
-              <div
+            sorted.map((r) => (
+              <CommentSidebarEntry
                 key={r.id}
-                className="flex flex-col gap-1.5 rounded-md border border-border bg-background p-2"
-              >
-                <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
-                  <span>
-                    @@ {r.start},{r.len} @@
-                  </span>
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    onClick={() => removeRange(tabId, r.id)}
-                    aria-label="Cancel"
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-                <Textarea
-                  value={r.comment}
-                  onChange={(e) => setComment(tabId, r.id, e.target.value)}
-                  placeholder="What should change here?"
-                  rows={3}
-                  className="resize-none font-mono text-[12px]"
-                />
-              </div>
+                tabId={tabId}
+                range={r}
+                onJump={() => onJump(r.id, r.start + r.len - 1)}
+              />
             ))
           )}
         </div>
@@ -655,9 +685,13 @@ function CommentsRail({ tabId, onExpand }: { tabId: string; onExpand: () => void
       {rangeCount > 0 ? (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="flex min-w-5 items-center justify-center rounded-full bg-primary/20 px-1.5 font-mono text-[10px] text-foreground">
+            <button
+              type="button"
+              onClick={onExpand}
+              className="flex min-w-5 items-center justify-center rounded-full bg-blue-500/20 px-1.5 font-mono text-[10px] text-foreground hover:bg-blue-500/30"
+            >
               {rangeCount}
-            </span>
+            </button>
           </TooltipTrigger>
           <TooltipContent>{`${rangeCount} range${rangeCount === 1 ? '' : 's'}`}</TooltipContent>
         </Tooltip>

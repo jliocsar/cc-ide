@@ -41,6 +41,7 @@ import type { CanvasWindow } from '@/state/canvas'
 import { useCanvas } from '@/state/canvas'
 import { useMaximizedWindow } from '@/state/maximized-window'
 import { usePlanTabUi } from '@/state/plan-tab-ui'
+import { useReviewComments } from '@/state/review-comments'
 import type { SessionRecord } from '@/state/sessions'
 import { useSessions } from '@/state/sessions'
 import { type Tab, useTabs } from '@/state/tabs'
@@ -271,7 +272,8 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
 
   function requestClose(id: string): void {
     const isDirty = dirtyMap[id]?.dirty ?? false
-    if (isDirty) {
+    const hasComments = useReviewComments.getState().commentedCount(id) > 0
+    if (isDirty || hasComments) {
       setPendingCloseId(id)
       return
     }
@@ -469,33 +471,60 @@ export function HeaderTabs({ maximized }: { maximized: boolean }): JSX.Element {
           <X className="size-3.5" />
         </button>
       </div>
-      <AlertDialog
-        open={pendingCloseId !== null}
-        onOpenChange={(v) => {
-          if (!v) setPendingCloseId(null)
+      <CloseConfirmDialog
+        pendingCloseId={pendingCloseId}
+        dirtyMap={dirtyMap}
+        onCancel={() => setPendingCloseId(null)}
+        onConfirm={() => {
+          if (pendingCloseId) closeTab(pendingCloseId)
+          setPendingCloseId(null)
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This plan tab has unsaved edits. Closing it will discard them.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep editing</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (pendingCloseId) closeTab(pendingCloseId)
-                setPendingCloseId(null)
-              }}
-            >
-              Discard & close
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      />
     </div>
+  )
+}
+
+function CloseConfirmDialog({
+  pendingCloseId,
+  dirtyMap,
+  onCancel,
+  onConfirm,
+}: {
+  pendingCloseId: string | null
+  dirtyMap: Record<string, { dirty: boolean }>
+  onCancel: () => void
+  onConfirm: () => void
+}): JSX.Element {
+  const commentCount = useReviewComments((s) =>
+    pendingCloseId ? s.commentedCount(pendingCloseId) : 0,
+  )
+  const isDirty = pendingCloseId ? (dirtyMap[pendingCloseId]?.dirty ?? false) : false
+  const hasComments = commentCount > 0
+  const title = isDirty ? 'Discard unsaved changes?' : 'Discard review comments?'
+  const description = isDirty
+    ? hasComments
+      ? `This tab has unsaved edits${commentCount > 0 ? ` and ${commentCount} comment${commentCount === 1 ? '' : 's'}` : ''}. Closing it will discard them.`
+      : 'This tab has unsaved edits. Closing it will discard them.'
+    : `This tab has ${commentCount} unsaved comment${commentCount === 1 ? '' : 's'}. Closing it will discard ${commentCount === 1 ? 'it' : 'them'}.`
+
+  return (
+    <AlertDialog
+      open={pendingCloseId !== null}
+      onOpenChange={(v) => {
+        if (!v) onCancel()
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep open</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Discard & close</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
