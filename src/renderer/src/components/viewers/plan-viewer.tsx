@@ -1,4 +1,5 @@
 import { BookOpen, ChevronLeft, ChevronRight, MessageSquarePlus, Pencil } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   MarkdownFileEditor,
@@ -12,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { VerticalResizer } from '@/components/vertical-resizer'
 import { friendlyFsError } from '@/lib/fs-errors'
 import { invoke, invoke as invokeIpc } from '@/lib/ipc'
+import { microFade, springLayout } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { useCommentPulse } from '@/state/comment-pulse'
 import { type PlanMode, usePlanTabUi } from '@/state/plan-tab-ui'
@@ -204,8 +206,8 @@ function CommentsPanel({
   const commentCount = ranges.filter((r) => r.comment.trim().length > 0).length
 
   return (
-    <div className="flex h-full flex-col bg-card">
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2 pr-3 text-[11px] text-muted-foreground">
+    <div className="flex h-full flex-col bg-card shadow-[inset_1px_0_0_var(--border)]">
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-2 pr-3 text-[12px] text-muted-foreground">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -219,15 +221,15 @@ function CommentsPanel({
           </TooltipTrigger>
           <TooltipContent>Collapse</TooltipContent>
         </Tooltip>
-        <div className="flex items-center rounded-md border border-border bg-background p-[2px]">
+        <div className="flex items-center rounded-md border border-border/60 bg-background/40 p-[2px]">
           <button
             type="button"
             onClick={() => onSetMode('edit')}
             className={cn(
-              'flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-medium transition-colors',
+              'flex min-h-6 items-center gap-1.5 rounded-[5px] px-2 py-0.5 text-[11px] font-medium transition-[background-color,color,transform] active:scale-[0.96]',
               mode === 'edit'
                 ? 'bg-secondary text-foreground'
-                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Pencil className="size-3" />
@@ -237,53 +239,63 @@ function CommentsPanel({
             type="button"
             onClick={() => onSetMode('preview')}
             className={cn(
-              'flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-medium transition-colors',
+              'flex min-h-6 items-center gap-1.5 rounded-[5px] px-2 py-0.5 text-[11px] font-medium transition-[background-color,color,transform] active:scale-[0.96]',
               mode === 'preview'
                 ? 'bg-secondary text-foreground'
-                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <BookOpen className="size-3" />
             Preview
           </button>
         </div>
-        {commentCount > 0 ? (
-          <span
+        {ranges.length > 0 ? (
+          <motion.span
+            layout
             title={`${commentCount} comment${commentCount === 1 ? '' : 's'}`}
-            className="rounded-full border border-blue-500/40 bg-blue-500/15 px-1.5 py-0.5 font-mono text-[10px] text-blue-300"
+            className="ml-auto text-[11px] tabular-nums text-muted-foreground/80"
           >
-            {commentCount}
-          </span>
+            {ranges.length}
+          </motion.span>
         ) : null}
-        <span className="ml-auto font-mono text-[10px] opacity-60">Ctrl+Shift+M</span>
       </div>
-      <div className="flex h-7 shrink-0 items-center gap-2 border-b border-border px-3 text-[11px] uppercase tracking-wider text-muted-foreground">
-        <MessageSquarePlus className="size-3.5" />
-        <span>Review comments</span>
-        <span className="ml-auto font-mono lowercase">
-          {ranges.length} range{ranges.length === 1 ? '' : 's'}
-        </span>
+      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-border px-3 text-[12px] text-muted-foreground">
+        <MessageSquarePlus className="size-3.5 text-muted-foreground/80" />
+        <span className="font-medium text-foreground">Review</span>
       </div>
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-2 p-3">
-          {sorted.length === 0 ? (
-            <div className="font-mono text-[11px] text-muted-foreground">
-              ctrl/cmd-click a line to start a comment.
-              <br />
-              ctrl/cmd-click and drag to select multiple lines.
-              <br />
-              drag the tab into a terminal to send.
-            </div>
-          ) : (
-            sorted.map((r) => (
-              <CommentSidebarEntry
-                key={r.id}
-                tabId={tabId}
-                range={r}
-                onJump={() => onJump(r.id, r.start + r.len - 1)}
-              />
-            ))
-          )}
+          <AnimatePresence initial={false} mode="popLayout">
+            {sorted.length === 0 ? (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -2, transition: microFade }}
+                transition={springLayout}
+                className="px-1 pt-2 text-[12px] leading-relaxed text-pretty text-muted-foreground/75"
+              >
+                Ctrl/Cmd-click lines in Edit mode to mark review ranges.
+              </motion.div>
+            ) : (
+              sorted.map((r, index) => (
+                <motion.div
+                  key={r.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2, transition: microFade }}
+                  transition={{ ...springLayout, delay: Math.min(index * 0.035, 0.14) }}
+                >
+                  <CommentSidebarEntry
+                    tabId={tabId}
+                    range={r}
+                    onJump={() => onJump(r.id, r.start + r.len - 1)}
+                  />
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
         </div>
       </ScrollArea>
     </div>
@@ -311,13 +323,15 @@ function CommentsRail({ tabId, onExpand }: { tabId: string; onExpand: () => void
       {rangeCount > 0 ? (
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <motion.button
+              layout
+              whileTap={{ scale: 0.96 }}
               type="button"
               onClick={onExpand}
-              className="flex min-w-5 items-center justify-center rounded-full bg-blue-500/20 px-1.5 font-mono text-[10px] text-foreground hover:bg-blue-500/30"
+              className="flex min-w-5 items-center justify-center rounded-md border border-border/60 bg-card px-1.5 font-mono text-[10px] tabular-nums text-foreground transition-[background-color,border-color,transform] hover:border-blue-400/45 hover:bg-card/80"
             >
               {rangeCount}
-            </button>
+            </motion.button>
           </TooltipTrigger>
           <TooltipContent>{`${rangeCount} range${rangeCount === 1 ? '' : 's'}`}</TooltipContent>
         </Tooltip>

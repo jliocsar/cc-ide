@@ -111,8 +111,8 @@ function buildCalloutDecorations(view: EditorView): DecorationSet {
       const line = view.state.doc.lineAt(pos)
       const match = CALLOUT_RE.exec(line.text)
       if (match) {
-        const kind = match[1]!.toUpperCase()
-        const cls = calloutKinds[kind] ?? ''
+        const kind = match[1]?.toUpperCase()
+        const cls = kind ? (calloutKinds[kind] ?? '') : ''
         if (cls) {
           entries.push({
             from: line.from,
@@ -219,20 +219,23 @@ export const planEditorTheme = EditorView.theme(
     '.cm-lineNumbers .cm-gutterElement': {
       padding: '0 14px 0 4px',
       borderLeft: '2px solid transparent',
+      fontVariantNumeric: 'tabular-nums',
+      transition: 'background-color 150ms ease, border-color 150ms ease',
     },
     '.cm-plan-range': {
-      backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 18%, transparent)',
+      backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 9%, transparent)',
+      transition: 'background-color 150ms ease',
     },
     '.cm-plan-range-commented': {
-      backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 6%, transparent)',
+      backgroundColor: 'transparent',
     },
     '.cm-lineNumbers .cm-gutterElement.cm-plan-range-gutter': {
-      backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 18%, transparent)',
-      borderLeftColor: 'oklch(0.6 0.2 250)',
+      backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 9%, transparent)',
+      borderLeftColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 75%, transparent)',
     },
     '.cm-lineNumbers .cm-gutterElement.cm-plan-range-commented-gutter': {
-      backgroundColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 6%, transparent)',
-      borderLeftColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 60%, transparent)',
+      backgroundColor: 'transparent',
+      borderLeftColor: 'color-mix(in oklab, oklch(0.6 0.2 250) 40%, transparent)',
     },
     '.cm-comment-widget': {
       display: 'block',

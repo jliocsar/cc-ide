@@ -1,4 +1,5 @@
 import { Trash2, X } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import {
   AlertDialog,
@@ -11,9 +12,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { microFade, springLayout } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { useCommentPulse } from '@/state/comment-pulse'
 import { EMPTY_RANGES, type RangeDraft, useReviewComments } from '@/state/review-comments'
+
+function rangeLabel(range: RangeDraft): string {
+  return range.len > 1 ? `L${range.start}–${range.start + range.len - 1}` : `L${range.start}`
+}
 
 type BubbleProps = {
   tabId: string
@@ -22,7 +28,7 @@ type BubbleProps = {
 
 /**
  * Inline comment bubble — anchored under the last line of a range.
- * Always-blue surface so the comment reads as meta on top of the content.
+ * Sits as a quiet card on top of the content with a thin accent rule.
  */
 export function CommentBubble({ tabId, range }: BubbleProps): JSX.Element {
   const pulse = useCommentPulse((s) => s.byTab[tabId] === range.id)
@@ -50,7 +56,7 @@ export function CommentBubble({ tabId, range }: BubbleProps): JSX.Element {
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${el.scrollHeight}px`
-  }, [range.comment])
+  })
 
   function handleBlur(): void {
     useCommentPulse.getState().setFocused(tabId, null)
@@ -86,28 +92,38 @@ export function CommentBubble({ tabId, range }: BubbleProps): JSX.Element {
     requestAnimationFrame(() => textareaRef.current?.focus())
   }
 
+  const hasComment = range.comment.trim().length > 0
+
   return (
-    <div
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 4, scale: 0.99 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -2, transition: microFade }}
+      transition={springLayout}
       data-comment-bubble=""
       data-range-id={range.id}
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       className={cn(
-        'group/bubble relative my-1 ml-12 mr-4 rounded-md border-l-2 border-l-blue-500/60 bg-blue-500/10 p-2',
-        pulse && 'ring-1 ring-blue-500/60 transition-shadow duration-300',
+        'group/bubble relative my-1.5 ml-12 mr-4 overflow-hidden rounded-xl border bg-card/70 p-2.5 pl-3',
+        'transition-[background-color,border-color,box-shadow] duration-200',
+        pulse
+          ? 'border-blue-400/45 shadow-[0_0_0_3px_rgba(59,130,246,0.12)]'
+          : 'border-border/60 shadow-[0_1px_2px_rgba(0,0,0,0.18)] hover:border-border',
+        'before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:w-[2px] before:rounded-r-full before:bg-blue-400/55',
       )}
     >
-      <div className="mb-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-blue-300/80">
-        <span>
-          comment · L{range.start}
-          {range.len > 1 ? `–${range.start + range.len - 1}` : ''}
+      <div className="mb-1.5 flex min-h-5 items-center justify-between gap-2">
+        <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+          {rangeLabel(range)}
         </span>
-        {range.comment.trim().length > 0 ? (
+        {hasComment ? (
           <button
             type="button"
             onClick={() => setConfirmOpen(true)}
             aria-label="Remove comment"
-            className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent/40 hover:text-foreground group-hover/bubble:opacity-100"
+            className="relative -mr-1 flex size-6 items-center justify-center rounded-md text-muted-foreground/70 opacity-0 blur-[3px] transition-[background-color,color,filter,opacity] duration-150 after:absolute after:-inset-2 hover:bg-accent/55 hover:text-foreground group-hover/bubble:opacity-100 group-hover/bubble:blur-0"
           >
             <X className="size-3" />
           </button>
@@ -123,13 +139,13 @@ export function CommentBubble({ tabId, range }: BubbleProps): JSX.Element {
           onKeyDown={handleKey}
           placeholder="What should change here?"
           rows={2}
-          className="max-h-64 min-h-[3rem] w-full resize-none border border-blue-500/30 bg-background/40 font-mono text-[12px] focus-visible:ring-1 focus-visible:ring-blue-500/40"
+          className="max-h-64 min-h-[2.75rem] w-full resize-none rounded-md border border-border/50 bg-background/40 px-2.5 py-1.5 text-[13px] leading-[1.55] shadow-none transition-[background-color,border-color] placeholder:text-muted-foreground/55 focus-visible:border-blue-400/55 focus-visible:bg-background/60 focus-visible:ring-0"
         />
       ) : (
         <button
           type="button"
           onClick={startEditing}
-          className="block w-full cursor-text whitespace-pre-wrap break-words text-left font-mono text-[12px] leading-[1.5] text-foreground"
+          className="block min-h-7 w-full cursor-text whitespace-pre-wrap break-words text-pretty rounded-md px-1.5 py-1 text-left text-[13px] leading-[1.55] text-foreground transition-[background-color] hover:bg-background/30 focus-visible:bg-background/40 focus-visible:outline-none"
         >
           {range.comment}
         </button>
@@ -157,7 +173,7 @@ export function CommentBubble({ tabId, range }: BubbleProps): JSX.Element {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </motion.div>
   )
 }
 
@@ -193,6 +209,7 @@ export function CommentSidebarEntry({ tabId, range, onJump }: SidebarEntryProps)
   const removeRange = useReviewComments((s) => s.removeRange)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const text = range.comment.trim()
+  const isEmpty = text.length === 0
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>): void {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -203,38 +220,52 @@ export function CommentSidebarEntry({ tabId, range, onJump }: SidebarEntryProps)
 
   return (
     <>
-      <div
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 6, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -2, transition: microFade }}
+        transition={springLayout}
+        whileTap={{ scale: 0.985 }}
         role="button"
         tabIndex={0}
         onClick={onJump}
         onKeyDown={handleKeyDown}
-        className="group relative flex w-full cursor-pointer flex-col gap-1 rounded-md border-l-2 border-l-blue-500/60 bg-blue-500/10 p-2 text-left hover:bg-blue-500/15 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/40"
+        className={cn(
+          'group relative flex w-full cursor-pointer flex-col gap-1.5 overflow-hidden rounded-xl border bg-card/70 p-2.5 pl-3 text-left',
+          'transition-[background-color,border-color] duration-150 hover:bg-card hover:border-border',
+          'focus-visible:outline-none focus-visible:border-blue-400/55',
+          'before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:w-[2px] before:rounded-r-full',
+          isEmpty
+            ? 'border-border/50 before:bg-amber-300/55'
+            : 'border-border/60 before:bg-blue-400/55',
+        )}
       >
-        <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-blue-300/80">
-          <span>
-            L{range.start}
-            {range.len > 1 ? `–${range.start + range.len - 1}` : ''}
+        <div className="flex min-h-5 items-center justify-between gap-2">
+          <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+            {rangeLabel(range)}
           </span>
           <button
             type="button"
             aria-label="Remove comment"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation()
               setConfirmOpen(true)
             }}
-            className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent/40 hover:text-foreground group-hover:opacity-100"
+            className="relative -mr-1 flex size-6 items-center justify-center rounded-md text-muted-foreground/70 opacity-0 blur-[3px] transition-[background-color,color,filter,opacity] duration-150 after:absolute after:-inset-2 hover:bg-accent/55 hover:text-foreground group-hover:opacity-100 group-hover:blur-0 focus-visible:opacity-100 focus-visible:blur-0"
           >
             <Trash2 className="size-3" />
           </button>
         </div>
-        {text ? (
-          <div className="whitespace-pre-wrap break-words font-mono text-[12px] leading-[1.5] text-foreground">
+        {!isEmpty ? (
+          <div className="whitespace-pre-wrap break-words text-pretty text-[13px] leading-[1.55] text-foreground">
             {text}
           </div>
         ) : (
-          <div className="font-mono text-[11px] italic text-muted-foreground">empty…</div>
+          <div className="text-[12px] italic text-muted-foreground/80">Draft — no comment yet</div>
         )}
-      </div>
+      </motion.div>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>

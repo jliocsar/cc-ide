@@ -1,5 +1,6 @@
 import type { DiffHunkDTO, DiffHunkLineDTO, FileDiffDTO } from '@shared/ipc'
 import { ChevronLeft, ChevronRight, Link2, Link2Off, MessageSquarePlus } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ThemedToken } from 'shiki'
 import { toast } from 'sonner'
@@ -9,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { VerticalResizer } from '@/components/vertical-resizer'
 import { invoke } from '@/lib/ipc'
+import { microFade, springLayout } from '@/lib/motion'
 import { guessLang, tokenizeLines } from '@/lib/shiki'
 import { resolveFontFamily } from '@/lib/system-fonts'
 import { cn } from '@/lib/utils'
@@ -56,6 +58,14 @@ function buildSideTexts(hunk: DiffHunkDTO): {
     }
   }
   return { oldText: oldLines.join('\n'), newText: newLines.join('\n'), oldLineIdx, newLineIdx }
+}
+
+function hunkKey(hunk: DiffHunkDTO): string {
+  return `${hunk.oldStart}:${hunk.oldLines}:${hunk.newStart}:${hunk.newLines}:${hunk.header}`
+}
+
+function diffLineKey(side: 'old' | 'new', line: DiffHunkLineDTO): string {
+  return `${side}:${line.kind}:${line.oldLineNo ?? 'x'}:${line.newLineNo ?? 'x'}:${line.content}`
 }
 
 export function DiffViewer({
@@ -307,7 +317,7 @@ function DiffHunks({
     if (!newEl || !oldEl || !syncScroll) return
     oldEl.scrollTop = newEl.scrollTop
     function onScroll(): void {
-      oldEl!.scrollTop = newEl!.scrollTop
+      oldEl.scrollTop = newEl.scrollTop
     }
     newEl.addEventListener('scroll', onScroll, { passive: true })
     return () => newEl.removeEventListener('scroll', onScroll)
@@ -367,8 +377,7 @@ function DiffHunks({
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabId])
+  }, [tabId, extendLast])
 
   function onNewSidePointerDown(ev: React.PointerEvent): void {
     if (ev.button !== 0) return
@@ -409,7 +418,7 @@ function DiffHunks({
       >
         <div className={cn(diffWrap ? 'w-full' : 'w-max min-w-full')}>
           {hunks.map((hunk, i) => (
-            <div key={i} className="border-b border-border last:border-b-0">
+            <div key={`old-${hunkKey(hunk)}`} className="border-b border-border last:border-b-0">
               <div className="sticky top-0 z-20 bg-card px-3 py-1 text-[11px] text-muted-foreground">
                 <span className="sticky left-3 inline-block">{hunk.header}</span>
               </div>
@@ -419,7 +428,7 @@ function DiffHunks({
                 const tokens = ht && idx >= 0 ? (ht.oldTokens[idx] ?? null) : null
                 return (
                   <DiffHalfLine
-                    key={`o-${j}`}
+                    key={diffLineKey('old', line)}
                     side="old"
                     line={line}
                     tokens={tokens}
@@ -434,10 +443,12 @@ function DiffHunks({
       </div>
 
       {/* Resizer */}
-      <div
+      <button
+        type="button"
+        aria-label="Resize diff panes"
         onPointerDown={onResizerPointerDown}
         onDoubleClick={() => setOldPaneWidthPct(50)}
-        className="relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize bg-transparent hover:bg-accent/40"
+        className="relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize appearance-none bg-transparent p-0 transition-[background-color] hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/40"
       />
 
       {/* New pane */}
@@ -449,7 +460,7 @@ function DiffHunks({
       >
         <div className={cn(diffWrap ? 'w-full' : 'w-max min-w-full')}>
           {hunks.map((hunk, i) => (
-            <div key={i} className="border-b border-border last:border-b-0">
+            <div key={`new-${hunkKey(hunk)}`} className="border-b border-border last:border-b-0">
               <div className="sticky top-0 z-20 bg-card px-3 py-1 text-[11px] text-muted-foreground">
                 <span className="sticky left-3 inline-block">{hunk.header}</span>
               </div>
@@ -460,7 +471,7 @@ function DiffHunks({
                 const lineNo = line.newLineNo
                 const bubble = lineNo != null ? bubbleByEndLine.get(lineNo) : undefined
                 return (
-                  <div key={`n-${j}`}>
+                  <div key={diffLineKey('new', line)}>
                     <DiffHalfLine
                       side="new"
                       line={line}
@@ -546,13 +557,13 @@ const DiffHalfLine = memo(function DiffHalfLine({
       data-diff-row={side === 'new' ? '' : undefined}
       data-diff-line-no={side === 'new' && num !== null ? num : undefined}
       className={cn(
-        'group flex items-start gap-2 border-l-2 px-2 leading-[1.6]',
+        'group flex items-start gap-2 border-l-2 px-2 leading-[1.6] transition-[background-color,border-color,box-shadow] duration-150',
         bg,
         selectable && 'cursor-pointer hover:shadow-[inset_0_0_0_9999px_rgba(255,255,255,0.08)]',
         selected
-          ? 'border-l-blue-500 bg-blue-500/15'
+          ? 'border-l-blue-400/80 bg-blue-500/[0.08]'
           : inRange
-            ? 'border-l-blue-500/40'
+            ? 'border-l-blue-400/35'
             : 'border-l-transparent',
       )}
     >
@@ -569,14 +580,16 @@ const DiffHalfLine = memo(function DiffHalfLine({
             backgroundColor: gutterBg,
           }}
         >
-          <span className="w-8 select-none text-right text-muted-foreground">{num ?? ''}</span>
+          <span className="w-8 select-none text-right tabular-nums text-muted-foreground">
+            {num ?? ''}
+          </span>
           <span className="w-3 select-none text-muted-foreground">
             {display === null ? '' : sigil}
           </span>
         </div>
       ) : (
         <>
-          <span className="w-8 shrink-0 select-none text-right text-muted-foreground">
+          <span className="w-8 shrink-0 select-none text-right tabular-nums text-muted-foreground">
             {num ?? ''}
           </span>
           <span className="w-3 shrink-0 select-none text-muted-foreground">
@@ -593,16 +606,28 @@ const DiffHalfLine = memo(function DiffHalfLine({
         {display === null
           ? ' '
           : tokens && tokens.length > 0
-            ? tokens.map((t, k) => (
-                <span key={k} style={t.color ? { color: t.color } : undefined}>
-                  {t.content}
-                </span>
-              ))
+            ? renderTokens(tokens)
             : display || ' '}
       </span>
     </div>
   )
 })
+
+function renderTokens(tokens: ThemedToken[]): JSX.Element[] {
+  let offset = 0
+  return tokens.map((t) => {
+    const start = offset
+    offset += t.content.length
+    return (
+      <span
+        key={`${start}:${t.color ?? ''}:${t.content}`}
+        style={t.color ? { color: t.color } : undefined}
+      >
+        {t.content}
+      </span>
+    )
+  })
+}
 
 function CommentsPanel({
   tabId,
@@ -617,10 +642,11 @@ function CommentsPanel({
 }): JSX.Element {
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
   const sorted = useMemo(() => [...ranges].sort((a, b) => a.start - b.start), [ranges])
+  const commentCount = ranges.filter((r) => r.comment.trim().length > 0).length
 
   return (
-    <div className="flex h-full flex-col bg-card">
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border pl-2 pr-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+    <div className="flex h-full flex-col bg-card shadow-[inset_1px_0_0_var(--border)]">
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border pl-2 pr-3 text-[12px] text-muted-foreground">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -634,30 +660,51 @@ function CommentsPanel({
           </TooltipTrigger>
           <TooltipContent>Collapse</TooltipContent>
         </Tooltip>
-        <MessageSquarePlus className="size-3.5" />
-        <span>Diff comments</span>
-        <span className="ml-auto font-mono lowercase">
-          {ranges.length} range{ranges.length === 1 ? '' : 's'}
-        </span>
+        <MessageSquarePlus className="size-3.5 text-muted-foreground/80" />
+        <span className="font-medium text-foreground">Comments</span>
+        {ranges.length > 0 ? (
+          <motion.span
+            layout
+            title={`${commentCount} written comment${commentCount === 1 ? '' : 's'}`}
+            className="ml-auto text-[11px] tabular-nums text-muted-foreground/80"
+          >
+            {ranges.length}
+          </motion.span>
+        ) : null}
       </div>
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-2 p-3">
-          {sorted.length === 0 ? (
-            <div className="font-mono text-[11px] text-muted-foreground">
-              ctrl/cmd-click a line on the right (new) side to comment.
-              <br />
-              ctrl/cmd-click and drag to select multiple lines.
-            </div>
-          ) : (
-            sorted.map((r) => (
-              <CommentSidebarEntry
-                key={r.id}
-                tabId={tabId}
-                range={r}
-                onJump={() => onJump(r.id, r.start + r.len - 1)}
-              />
-            ))
-          )}
+          <AnimatePresence initial={false} mode="popLayout">
+            {sorted.length === 0 ? (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -2, transition: microFade }}
+                transition={springLayout}
+                className="px-1 pt-2 text-[12px] leading-relaxed text-pretty text-muted-foreground/75"
+              >
+                Ctrl/Cmd-click lines on the right side to mark review ranges.
+              </motion.div>
+            ) : (
+              sorted.map((r, index) => (
+                <motion.div
+                  key={r.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2, transition: microFade }}
+                  transition={{ ...springLayout, delay: Math.min(index * 0.035, 0.14) }}
+                >
+                  <CommentSidebarEntry
+                    tabId={tabId}
+                    range={r}
+                    onJump={() => onJump(r.id, r.start + r.len - 1)}
+                  />
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
         </div>
       </ScrollArea>
     </div>
@@ -685,13 +732,15 @@ function CommentsRail({ tabId, onExpand }: { tabId: string; onExpand: () => void
       {rangeCount > 0 ? (
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <motion.button
+              layout
+              whileTap={{ scale: 0.96 }}
               type="button"
               onClick={onExpand}
-              className="flex min-w-5 items-center justify-center rounded-full bg-blue-500/20 px-1.5 font-mono text-[10px] text-foreground hover:bg-blue-500/30"
+              className="flex min-w-5 items-center justify-center rounded-md border border-border/60 bg-card px-1.5 font-mono text-[10px] tabular-nums text-foreground transition-[background-color,border-color,transform] hover:border-blue-400/45 hover:bg-card/80"
             >
               {rangeCount}
-            </button>
+            </motion.button>
           </TooltipTrigger>
           <TooltipContent>{`${rangeCount} range${rangeCount === 1 ? '' : 's'}`}</TooltipContent>
         </Tooltip>
