@@ -24,6 +24,7 @@ import * as ptyManager from './modules/pty-manager'
 import * as sessionDiscovery from './modules/session-discovery'
 import * as sessionWatcher from './modules/session-watcher'
 import * as settingsStore from './modules/settings-store'
+import { writeSpawnScript } from './modules/spawn-script'
 import * as tabsStore from './modules/tabs-store'
 import * as teammateMirror from './modules/teammate-mirror'
 import * as tmux from './modules/tmux-adapter'
@@ -203,13 +204,13 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
       sessionName: primarySession,
       windowName,
       cwd,
-      // Interactive zsh sources ~/.zshrc (PATH + aliases — `claude` may
+      // Interactive shell sources rcfile (PATH + aliases — `claude` may
       // be aliased to a user wrapper). After claude exits, `exit` tears
       // the shell down unconditionally so the pane can't drop to a
       // prompt, regardless of IGNOREEOF, plugin hooks, or similar.
       // CC_IDE_WINDOW is the side-channel used by our Claude hooks to
       // correlate session_id → canvas window (see references/agent-teams.md).
-      command: `zsh -ic 'CC_IDE_WINDOW=${windowName} claude --resume ${sessionId}; exit'`,
+      command: `${process.env.SHELL || '/bin/zsh'} -ic 'CC_IDE_WINDOW=${windowName} claude --resume ${sessionId}; exit'`,
     })
     const ptyId = await attachViewerPty({
       primarySession,
@@ -224,7 +225,16 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     }
     return { ptyId, tmuxWindow, worktreeBranch, cwd }
   },
-  'session:spawnClaude': async ({ workspaceId, cols, rows, customName, worktree }) => {
+  'session:spawnClaude': async ({
+    workspaceId,
+    cols,
+    rows,
+    customName,
+    worktree,
+    bypassPermissions,
+    initialPromptBase64,
+    envVars,
+  }) => {
     const ws = await getWorkspaceOrThrow(workspaceId)
     const hasTmux = await tmux.tmuxAvailable()
     if (!hasTmux) throw new Error('tmux is not installed or not in PATH')
@@ -261,13 +271,24 @@ const handlers: { [C in IpcChannel]: Handler<C> } = {
     }
 
     const windowName = customName ?? (await generateClaudeWindowName(primarySession))
+    const scriptPath = await writeSpawnScript({
+      windowName,
+      bypassPermissions,
+      initialPromptBase64,
+      envVars,
+    })
+    const userShell = process.env.SHELL || '/bin/zsh'
     const tmuxWindow = await tmux.spawnWindow({
       sessionName: primarySession,
       windowName,
       cwd,
-      // see the resume flow above for why this is `zsh -ic 'claude; exit'`.
-      // CC_IDE_WINDOW side-channel for Claude-hook correlation.
-      command: `zsh -ic 'CC_IDE_WINDOW=${windowName} claude; exit'`,
+      // Source the generated script inside the user's interactive shell so
+      // rcfile-loaded vars/aliases are in scope. `exec claude` inside the
+      // script replaces the shell with claude, so when claude exits the
+      // pane goes away (matches the `; exit` behavior of the prior inline form).
+      // CC_IDE_WINDOW side-channel for Claude-hook correlation lives in the
+      // script too.
+      command: `${userShell} -ic 'source ${scriptPath}'`,
     })
 
     if (ephemeral) {

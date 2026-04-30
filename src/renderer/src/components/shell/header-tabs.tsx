@@ -154,16 +154,46 @@ function buildMaximizedChrome(
     badge: (
       <>
         {dormant ? (
-          <span className="rounded-full bg-muted-foreground/20 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+          <span
+            className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground/70"
+            title="dormant"
+          >
+            <svg viewBox="0 0 12 12" className="size-3 text-muted-foreground/60" aria-hidden>
+              <path
+                d="M2 3 L6 3 L2 8 L6 8"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M6 6 L9 6 L6 9 L9 9"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+              />
+            </svg>
             dormant
           </span>
         ) : session?.exited ? (
-          <span className="rounded-full bg-destructive/20 px-2 py-0.5 text-[10px] font-medium tabular-nums text-destructive">
+          <span
+            className="inline-flex items-center gap-1 font-mono text-[10px] tabular-nums text-red-500/80"
+            title="exited"
+          >
+            <svg viewBox="0 0 12 12" className="size-3" aria-hidden>
+              <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1" />
+              <path d="M4 4 L8 8 M8 4 L4 8" stroke="currentColor" strokeWidth="1.2" />
+            </svg>
             exit {session.exitCode ?? '—'}
           </span>
         ) : (
-          <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[10px] font-medium text-green-400">
-            ● live
+          <span className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground/70">
+            <span
+              className="size-1.5 rounded-full bg-green-500"
+              style={{ animation: 'cc-pill-glow 1.8s ease-out infinite' }}
+            />
+            live
           </span>
         )}
         {session?.worktreeBranch ? (

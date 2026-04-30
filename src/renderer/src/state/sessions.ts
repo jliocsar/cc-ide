@@ -17,6 +17,12 @@ export type SpawnWorktreeOption =
   | { kind: 'existing'; path: string }
   | { kind: 'new'; branch: string; base: string }
 
+export type SpawnFlags = {
+  bypassPermissions?: boolean
+  initialPromptBase64?: string
+  envVars?: Record<string, string>
+}
+
 type State = {
   sessions: SessionRecord[]
   activePtyId: string | null
@@ -26,6 +32,7 @@ type State = {
     rows: number,
     worktree?: SpawnWorktreeOption,
     customName?: string,
+    flags?: SpawnFlags,
   ) => Promise<{ ptyId: string; tmuxWindow: string; cwd: string }>
   resume: (
     workspaceId: string,
@@ -43,13 +50,16 @@ type State = {
 export const useSessions = create<State>((set) => ({
   sessions: [],
   activePtyId: null,
-  async spawn(workspaceId, cols, rows, worktree, customName) {
+  async spawn(workspaceId, cols, rows, worktree, customName, flags) {
     const { ptyId, tmuxWindow, worktreeBranch, cwd } = await invoke('session:spawnClaude', {
       workspaceId,
       cols,
       rows,
       worktree,
       customName,
+      bypassPermissions: flags?.bypassPermissions,
+      initialPromptBase64: flags?.initialPromptBase64,
+      envVars: flags?.envVars,
     })
     set((s) => ({
       sessions: [

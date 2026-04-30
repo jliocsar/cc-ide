@@ -1,5 +1,9 @@
 # cc-ide
 
+<div align="center">
+<img src=".github/preview.png">
+</div>
+
 Electron desktop app to orchestrate multiple Claude Code instances across projects, worktrees, and a spatial canvas with PR-review-style plan and diff feedback that drags directly into any running Claude.
 
 ## What it does

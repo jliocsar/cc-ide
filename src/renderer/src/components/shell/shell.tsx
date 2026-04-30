@@ -23,6 +23,7 @@ import { useTabs } from '@/state/tabs'
 import { useUi } from '@/state/ui'
 import { useWorkspaces } from '@/state/workspaces'
 import { HeaderTabs } from './header-tabs'
+import { KeybindsModal } from './keybinds-modal'
 import { Sidebar } from './sidebar'
 import { SpawnModal } from './spawn-modal'
 import { Statusbar } from './statusbar'
@@ -43,6 +44,7 @@ export function Shell(): JSX.Element {
   const resetSidebarWidth = useUi((s) => s.resetSidebarWidth)
   const toggleSidebar = useUi((s) => s.toggleSidebar)
   const [resizingSidebar, setResizingSidebar] = useState(false)
+  const [keybindsOpen, setKeybindsOpen] = useState(false)
   const activeWorkspaceId = useWorkspaces((s) => s.activeId)
   const conversationsLoaded = useSidebarData((s) => s.conversationsLoaded)
   const worktreesLoaded = useSidebarData((s) => s.worktreesLoaded)
@@ -81,6 +83,11 @@ export function Shell(): JSX.Element {
 
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'F1') {
+        ev.preventDefault()
+        setKeybindsOpen((v) => !v)
+        return
+      }
       const mod = ev.ctrlKey || ev.metaKey
       if (!mod) return
       if (ev.key === 'k' || ev.key === 'K') {
@@ -190,6 +197,7 @@ export function Shell(): JSX.Element {
       <CommandPalette />
       <PromptsModal />
       <SpawnModal />
+      <KeybindsModal open={keybindsOpen} onOpenChange={setKeybindsOpen} />
       {sidebarLoading ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background">
           <div className="flex items-center gap-2">

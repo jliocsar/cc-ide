@@ -141,8 +141,7 @@ export const MarkdownFileEditor = forwardRef<MarkdownFileEditorHandle, Props>(
       const initialKeybinds = useSettings.getState().settings.editor.keybinds
       const reviewPointer = reviewCapable
         ? reviewPointerExtension({
-            onStart: handleReviewStart,
-            onExtend: handleReviewExtend,
+            onCommit: handleReviewCommit,
             onToggle: handleReviewToggle,
             shouldIntercept: () => shouldInterceptCtrlClick(tabId),
           })
@@ -277,27 +276,10 @@ export const MarkdownFileEditor = forwardRef<MarkdownFileEditorHandle, Props>(
       })
     }, [editorFont, editorFontSize])
 
-    function handleReviewStart(lineNo: number): void {
+    function handleReviewCommit(start: number, end: number): void {
       const store = useReviewComments.getState()
-      const result = store.attemptStart(tabId, lineNo)
-      if (!result.ok) {
-        const blockedId = result.blockedRangeId
-        const blocked = store.byTab[tabId]?.find((r) => r.id === blockedId)
-        if (blocked && blocked.comment.trim().length > 0) {
-          toast.message('Line is in a commented range', {
-            description: 'Remove the comment first to edit the selection.',
-            action: {
-              label: 'Remove comment',
-              onClick: () => useReviewComments.getState().removeRange(tabId, blockedId),
-            },
-            duration: 6000,
-          })
-        }
-      }
-    }
-
-    function handleReviewExtend(lineNo: number): void {
-      useReviewComments.getState().extendLast(tabId, lineNo)
+      store.startSingle(tabId, start)
+      if (end !== start) store.extendLast(tabId, end)
     }
 
     function handleReviewToggle(lineNo: number): boolean {

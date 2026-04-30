@@ -421,8 +421,7 @@ function makeBubbleMeta(state: EditorState, _rangeId: string): { tabId: string }
 export const setBubbleTabId = setBubbleTabIdEffect
 
 export type ReviewHandlers = {
-  onStart: (lineNo: number) => void
-  onExtend: (lineNo: number) => void
+  onCommit: (start: number, end: number) => void
   onToggle: (lineNo: number) => boolean
   shouldIntercept?: () => boolean
 }
@@ -439,14 +438,48 @@ function lineFromY(view: EditorView, y: number): number | null {
   }
 }
 
+const setPendingRangeEffect = StateEffect.define<{ start: number; end: number } | null>()
+
+const pendingRangeField = StateField.define<{ start: number; end: number } | null>({
+  create: () => null,
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setPendingRangeEffect)) return e.value
+    }
+    return value
+  },
+  provide: (f) =>
+    EditorView.decorations.compute([f], (state) => {
+      const pending = state.field(f)
+      if (!pending) return Decoration.none
+      const doc = state.doc
+      const min = Math.min(pending.start, pending.end)
+      const max = Math.max(pending.start, pending.end)
+      const builder: { from: number; deco: Decoration }[] = []
+      for (let lineNo = min; lineNo <= max; lineNo++) {
+        if (lineNo < 1 || lineNo > doc.lines) continue
+        const line = doc.line(lineNo)
+        builder.push({ from: line.from, deco: Decoration.line({ class: 'cm-plan-range' }) })
+      }
+      builder.sort((a, b) => a.from - b.from)
+      return Decoration.set(
+        builder.map((b) => b.deco.range(b.from, b.from)),
+        true,
+      )
+    }),
+})
+
 export function reviewPointerExtension(handlers: ReviewHandlers): Extension {
   const plugin = ViewPlugin.fromClass(
     class {
       view: EditorView
       dragging = false
+      pendingStart: number | null = null
+      pendingEnd: number | null = null
       onDown: (e: PointerEvent) => void
       onMove: (e: PointerEvent) => void
       onUp: (e: PointerEvent) => void
+      onCancel: (e: PointerEvent) => void
 
       constructor(view: EditorView) {
         this.view = view
@@ -460,38 +493,61 @@ export function reviewPointerExtension(handlers: ReviewHandlers): Extension {
             e.preventDefault()
             return
           }
-          handlers.onStart(lineNo)
+          this.pendingStart = lineNo
+          this.pendingEnd = lineNo
           this.dragging = true
+          view.dispatch({ effects: [setPendingRangeEffect.of({ start: lineNo, end: lineNo })] })
           ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
           e.preventDefault()
         }
         this.onMove = (e) => {
           if (!this.dragging) return
           const lineNo = lineFromY(view, e.clientY)
-          if (lineNo === null) return
-          handlers.onExtend(lineNo)
+          if (lineNo === null || lineNo === this.pendingEnd) return
+          this.pendingEnd = lineNo
+          if (this.pendingStart !== null) {
+            view.dispatch({
+              effects: [setPendingRangeEffect.of({ start: this.pendingStart, end: lineNo })],
+            })
+          }
         }
         this.onUp = (e) => {
           if (!this.dragging) return
           this.dragging = false
           ;(e.target as HTMLElement).releasePointerCapture?.(e.pointerId)
+          if (this.pendingStart !== null) {
+            const start = Math.min(this.pendingStart, this.pendingEnd ?? this.pendingStart)
+            const end = Math.max(this.pendingStart, this.pendingEnd ?? this.pendingStart)
+            handlers.onCommit(start, end)
+          }
+          this.pendingStart = null
+          this.pendingEnd = null
+          view.dispatch({ effects: [setPendingRangeEffect.of(null)] })
+        }
+        this.onCancel = (e) => {
+          if (!this.dragging) return
+          this.dragging = false
+          ;(e.target as HTMLElement).releasePointerCapture?.(e.pointerId)
+          this.pendingStart = null
+          this.pendingEnd = null
+          view.dispatch({ effects: [setPendingRangeEffect.of(null)] })
         }
         view.dom.addEventListener('pointerdown', this.onDown)
         view.dom.addEventListener('pointermove', this.onMove)
         view.dom.addEventListener('pointerup', this.onUp)
-        view.dom.addEventListener('pointercancel', this.onUp)
+        view.dom.addEventListener('pointercancel', this.onCancel)
       }
 
       destroy(): void {
         this.view.dom.removeEventListener('pointerdown', this.onDown)
         this.view.dom.removeEventListener('pointermove', this.onMove)
         this.view.dom.removeEventListener('pointerup', this.onUp)
-        this.view.dom.removeEventListener('pointercancel', this.onUp)
+        this.view.dom.removeEventListener('pointercancel', this.onCancel)
       }
     },
   )
 
-  return [plugin]
+  return [pendingRangeField, plugin]
 }
 
 export function buildPlanExtensions(opts: {

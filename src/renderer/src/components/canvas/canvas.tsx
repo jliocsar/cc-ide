@@ -1,46 +1,52 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useShallow } from 'zustand/react/shallow'
-import { Button } from '@/components/ui/button'
-import { useAgentEvents } from '@/hooks/use-agent-events'
-import { useCanvasControls } from '@/hooks/use-canvas-controls'
-import { setCanvasHost } from '@/lib/canvas-host'
-import { MAX_WINDOWS_PER_WORKSPACE, useCanvas } from '@/state/canvas'
-import { useMaximizedWindow } from '@/state/maximized-window'
-import { useSpawnModal } from '@/state/spawn-modal'
-import { useWorkspaces } from '@/state/workspaces'
-import { CanvasContextMenu, type ContextMenuState } from './canvas-context-menu'
-import { EdgeLayer } from './edge-layer'
-import { SubagentWindow } from './subagent-window'
-import { TeammateWindow } from './teammate-window'
-import { XtermWindow } from './xterm-window'
-import { ZoomControls } from './zoom-controls'
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
+import { Button } from "@/components/ui/button";
+import { useAgentEvents } from "@/hooks/use-agent-events";
+import { useCanvasControls } from "@/hooks/use-canvas-controls";
+import { setCanvasHost } from "@/lib/canvas-host";
+import { MAX_WINDOWS_PER_WORKSPACE, useCanvas } from "@/state/canvas";
+import { useMaximizedWindow } from "@/state/maximized-window";
+import { useSpawnModal } from "@/state/spawn-modal";
+import { useWorkspaces } from "@/state/workspaces";
+import {
+  CanvasContextMenu,
+  type ContextMenuState,
+} from "./canvas-context-menu";
+import { EdgeLayer } from "./edge-layer";
+import { SubagentWindow } from "./subagent-window";
+import { TeammateWindow } from "./teammate-window";
+import { XtermWindow } from "./xterm-window";
+import { ZoomControls } from "./zoom-controls";
 
 export function Canvas(): JSX.Element {
-  const hostRef = useRef<HTMLDivElement>(null)
-  const scrollerRef = useRef<HTMLDivElement>(null)
+  const hostRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const { camera, windows } = useCanvas(
     useShallow((s) => ({ camera: s.camera, windows: s.windows })),
-  )
+  );
 
-  const activeWorkspaceId = useWorkspaces((s) => s.activeId)
-  const openSpawnModal = useSpawnModal((s) => s.open)
-  const modalOpen = useSpawnModal((s) => s.isOpen)
+  const activeWorkspaceId = useWorkspaces((s) => s.activeId);
+  const openSpawnModal = useSpawnModal((s) => s.open);
+  const modalOpen = useSpawnModal((s) => s.isOpen);
 
-  useAgentEvents()
+  useAgentEvents();
 
   const maximizedWindowId = useMaximizedWindow((s) =>
     activeWorkspaceId ? (s.byWorkspace[activeWorkspaceId] ?? null) : null,
-  )
-  const setMaximizedWindow = useMaximizedWindow((s) => s.set)
-  const paged = maximizedWindowId !== null
+  );
+  const setMaximizedWindow = useMaximizedWindow((s) => s.set);
+  const paged = maximizedWindowId !== null;
 
-  const [menu, setMenu] = useState<ContextMenuState | null>(null)
-  const { panMod, onViewportPointerDown } = useCanvasControls({ hostRef, activeWorkspaceId })
+  const [menu, setMenu] = useState<ContextMenuState | null>(null);
+  const { panMod, onViewportPointerDown } = useCanvasControls({
+    hostRef,
+    activeWorkspaceId,
+  });
 
   useEffect(() => {
-    setCanvasHost(hostRef.current)
-    return () => setCanvasHost(null)
-  }, [])
+    setCanvasHost(hostRef.current);
+    return () => setCanvasHost(null);
+  }, []);
 
   // On entering paged mode, snap-scroll to the maximized window. We
   // intentionally run only when `paged` flips — the windowId is updated
@@ -48,178 +54,190 @@ export function Canvas(): JSX.Element {
   // position back on every user swipe.
   // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
   useEffect(() => {
-    if (!paged) return
-    const scroller = scrollerRef.current
-    if (!scroller) return
+    if (!paged) return;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
     const target = scroller.querySelector<HTMLElement>(
-      `[data-window-id="${CSS.escape(maximizedWindowId ?? '')}"]`,
-    )
-    if (!target) return
-    scroller.scrollTo({ left: target.offsetLeft, behavior: 'auto' })
-  }, [paged])
+      `[data-window-id="${CSS.escape(maximizedWindowId ?? "")}"]`,
+    );
+    if (!target) return;
+    scroller.scrollTo({ left: target.offsetLeft, behavior: "auto" });
+  }, [paged]);
 
   // As the user scrolls, update the maximized windowId to whatever page
   // is centered — so the header bar + restore always track what you see.
   useEffect(() => {
-    if (!paged || !activeWorkspaceId) return
-    const scroller = scrollerRef.current
-    if (!scroller) return
-    let raf = 0
+    if (!paged || !activeWorkspaceId) return;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    let raf = 0;
     const pickCentered = (): void => {
-      raf = 0
-      const center = scroller.scrollLeft + scroller.clientWidth / 2
-      let bestId: string | null = null
-      let bestDist = Infinity
-      for (const el of scroller.querySelectorAll<HTMLElement>('[data-window-id]')) {
-        const mid = el.offsetLeft + el.offsetWidth / 2
-        const d = Math.abs(mid - center)
+      raf = 0;
+      const center = scroller.scrollLeft + scroller.clientWidth / 2;
+      let bestId: string | null = null;
+      let bestDist = Infinity;
+      for (const el of scroller.querySelectorAll<HTMLElement>(
+        "[data-window-id]",
+      )) {
+        const mid = el.offsetLeft + el.offsetWidth / 2;
+        const d = Math.abs(mid - center);
         if (d < bestDist) {
-          bestDist = d
-          bestId = el.dataset.windowId ?? null
+          bestDist = d;
+          bestId = el.dataset.windowId ?? null;
         }
       }
       if (bestId && bestId !== maximizedWindowId) {
-        setMaximizedWindow(activeWorkspaceId, bestId)
+        setMaximizedWindow(activeWorkspaceId, bestId);
       }
-    }
+    };
     const onScroll = (): void => {
-      if (raf) return
-      raf = requestAnimationFrame(pickCentered)
-    }
-    scroller.addEventListener('scroll', onScroll, { passive: true })
+      if (raf) return;
+      raf = requestAnimationFrame(pickCentered);
+    };
+    scroller.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      scroller.removeEventListener('scroll', onScroll)
-      if (raf) cancelAnimationFrame(raf)
-    }
-  }, [paged, activeWorkspaceId, maximizedWindowId, setMaximizedWindow])
+      scroller.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [paged, activeWorkspaceId, maximizedWindowId, setMaximizedWindow]);
 
   // Page-step navigation in paged mode. Bound to Ctrl+wheel and
   // Ctrl+Shift+Arrow. We animate scrollLeft by hand with easeInOutCubic —
   // native `behavior: 'smooth'` is short and snap-type mandatory
   // collapses it into a jump. macOS-workspaces feel: ~460ms ease.
   useEffect(() => {
-    if (!paged || !activeWorkspaceId) return
-    const scroller = scrollerRef.current
-    if (!scroller) return
-    let cooldown = 0
-    let raf = 0
-    const ANIM_MS = 260
-    const ease = (t: number): number => 1 - (1 - t) ** 3
+    if (!paged || !activeWorkspaceId) return;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    let cooldown = 0;
+    let raf = 0;
+    const ANIM_MS = 260;
+    const ease = (t: number): number => 1 - (1 - t) ** 3;
     const animateTo = (target: number): void => {
-      if (raf) cancelAnimationFrame(raf)
-      const start = scroller.scrollLeft
-      const delta = target - start
-      if (delta === 0) return
-      scroller.style.scrollSnapType = 'none'
-      const t0 = performance.now()
+      if (raf) cancelAnimationFrame(raf);
+      const start = scroller.scrollLeft;
+      const delta = target - start;
+      if (delta === 0) return;
+      scroller.style.scrollSnapType = "none";
+      const t0 = performance.now();
       const step = (now: number): void => {
-        const t = Math.min(1, (now - t0) / ANIM_MS)
-        scroller.scrollLeft = start + delta * ease(t)
+        const t = Math.min(1, (now - t0) / ANIM_MS);
+        scroller.scrollLeft = start + delta * ease(t);
         if (t < 1) {
-          raf = requestAnimationFrame(step)
+          raf = requestAnimationFrame(step);
         } else {
-          raf = 0
-          scroller.style.scrollSnapType = ''
+          raf = 0;
+          scroller.style.scrollSnapType = "";
         }
-      }
-      raf = requestAnimationFrame(step)
-    }
+      };
+      raf = requestAnimationFrame(step);
+    };
     const stepPage = (dir: 1 | -1): void => {
-      const now = performance.now()
-      if (now < cooldown) return
+      const now = performance.now();
+      if (now < cooldown) return;
       // querySelectorAll returns DOM order, but flex `order: round(x)` puts
       // windows on screen by canvas-x. Sorting by offsetLeft makes
       // pages[i+1] always the visual neighbor — otherwise Ctrl+Right could
       // skip a page or animate the wrong direction.
-      const pages = Array.from(scroller.querySelectorAll<HTMLElement>('[data-window-id]')).sort(
-        (a, b) => a.offsetLeft - b.offsetLeft,
-      )
-      if (pages.length === 0) return
+      const pages = Array.from(
+        scroller.querySelectorAll<HTMLElement>("[data-window-id]"),
+      ).sort((a, b) => a.offsetLeft - b.offsetLeft);
+      if (pages.length === 0) return;
       // Anchor on the page the user last landed on (settled or being
       // animated to). Falling back to center-distance during animation
       // races the in-flight scroll and lands on the wrong index.
-      const targetId = useMaximizedWindow.getState().byWorkspace[activeWorkspaceId] ?? null
-      let currentIdx = pages.findIndex((el) => el.dataset.windowId === targetId)
+      const targetId =
+        useMaximizedWindow.getState().byWorkspace[activeWorkspaceId] ?? null;
+      let currentIdx = pages.findIndex(
+        (el) => el.dataset.windowId === targetId,
+      );
       if (currentIdx < 0) {
-        const center = scroller.scrollLeft + scroller.clientWidth / 2
-        let bestDist = Infinity
-        currentIdx = 0
+        const center = scroller.scrollLeft + scroller.clientWidth / 2;
+        let bestDist = Infinity;
+        currentIdx = 0;
         pages.forEach((el, i) => {
-          const mid = el.offsetLeft + el.offsetWidth / 2
-          const d = Math.abs(mid - center)
+          const mid = el.offsetLeft + el.offsetWidth / 2;
+          const d = Math.abs(mid - center);
           if (d < bestDist) {
-            bestDist = d
-            currentIdx = i
+            bestDist = d;
+            currentIdx = i;
           }
-        })
+        });
       }
-      const nextIdx = Math.max(0, Math.min(pages.length - 1, currentIdx + dir))
-      if (nextIdx === currentIdx) return
-      const target = pages[nextIdx]
-      if (!target) return
-      cooldown = now + ANIM_MS
-      animateTo(target.offsetLeft)
-    }
+      const nextIdx = Math.max(0, Math.min(pages.length - 1, currentIdx + dir));
+      if (nextIdx === currentIdx) return;
+      const target = pages[nextIdx];
+      if (!target) return;
+      cooldown = now + ANIM_MS;
+      animateTo(target.offsetLeft);
+    };
     const onWheel = (ev: WheelEvent): void => {
-      if (!(ev.ctrlKey || ev.metaKey)) return
-      ev.preventDefault()
-      ev.stopPropagation()
-      const delta = ev.deltaY + ev.deltaX
-      if (delta === 0) return
-      stepPage(delta > 0 ? 1 : -1)
-    }
+      if (!(ev.ctrlKey || ev.metaKey)) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const delta = ev.deltaY + ev.deltaX;
+      if (delta === 0) return;
+      stepPage(delta > 0 ? 1 : -1);
+    };
     const onKey = (ev: KeyboardEvent): void => {
-      if (!(ev.ctrlKey || ev.metaKey)) return
-      if (!ev.shiftKey || ev.altKey) return
-      if (ev.key === 'ArrowRight' || ev.code === 'KeyL') {
-        ev.preventDefault()
-        ev.stopPropagation()
-        stepPage(1)
-      } else if (ev.key === 'ArrowLeft' || ev.code === 'KeyH') {
-        ev.preventDefault()
-        ev.stopPropagation()
-        stepPage(-1)
+      if (!(ev.ctrlKey || ev.metaKey)) return;
+      if (!ev.shiftKey || ev.altKey) return;
+      if (ev.key === "ArrowRight" || ev.code === "KeyL") {
+        ev.preventDefault();
+        ev.stopPropagation();
+        stepPage(1);
+      } else if (ev.key === "ArrowLeft" || ev.code === "KeyH") {
+        ev.preventDefault();
+        ev.stopPropagation();
+        stepPage(-1);
       }
-    }
-    scroller.addEventListener('wheel', onWheel, { capture: true, passive: false })
-    window.addEventListener('keydown', onKey, { capture: true })
+    };
+    scroller.addEventListener("wheel", onWheel, {
+      capture: true,
+      passive: false,
+    });
+    window.addEventListener("keydown", onKey, { capture: true });
     return () => {
-      scroller.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions)
-      window.removeEventListener('keydown', onKey, { capture: true } as EventListenerOptions)
-      if (raf) cancelAnimationFrame(raf)
-      scroller.style.scrollSnapType = ''
-    }
-  }, [paged, activeWorkspaceId])
+      scroller.removeEventListener("wheel", onWheel, {
+        capture: true,
+      } as EventListenerOptions);
+      window.removeEventListener("keydown", onKey, {
+        capture: true,
+      } as EventListenerOptions);
+      if (raf) cancelAnimationFrame(raf);
+      scroller.style.scrollSnapType = "";
+    };
+  }, [paged, activeWorkspaceId]);
 
   const spawnFromToolbar = useCallback(() => {
-    const host = hostRef.current
-    if (!host) return
-    const rect = host.getBoundingClientRect()
-    openSpawnModal({ x: rect.width / 2, y: rect.height / 2 })
-  }, [openSpawnModal])
+    const host = hostRef.current;
+    if (!host) return;
+    const rect = host.getBoundingClientRect();
+    openSpawnModal({ x: rect.width / 2, y: rect.height / 2 });
+  }, [openSpawnModal]);
 
   const onContextMenu = useCallback((ev: React.MouseEvent<HTMLDivElement>) => {
-    const host = hostRef.current
-    if (!host) return
-    if (ev.target !== host) return
-    ev.preventDefault()
-    const rect = host.getBoundingClientRect()
+    const host = hostRef.current;
+    if (!host) return;
+    if (ev.target !== host) return;
+    ev.preventDefault();
+    const rect = host.getBoundingClientRect();
     setMenu({
       x: ev.clientX,
       y: ev.clientY,
       vp: { x: ev.clientX - rect.left, y: ev.clientY - rect.top },
-    })
-  }, [])
+    });
+  }, []);
 
-  const closeMenu = useCallback(() => setMenu(null), [])
+  const closeMenu = useCallback(() => setMenu(null), []);
   const spawnFromMenu = useCallback(
     (vp: { x: number; y: number }) => openSpawnModal(vp),
     [openSpawnModal],
-  )
+  );
 
-  const hasWindows = windows.length > 0
-  const atCap = windows.length >= MAX_WINDOWS_PER_WORKSPACE
-  const canSpawn = Boolean(activeWorkspaceId) && !atCap
+  const hasWindows = windows.length > 0;
+  const atCap = windows.length >= MAX_WINDOWS_PER_WORKSPACE;
+  const canSpawn = Boolean(activeWorkspaceId) && !atCap;
 
   return (
     <div
@@ -228,15 +246,16 @@ export function Canvas(): JSX.Element {
       onContextMenu={onContextMenu}
       className="relative overflow-hidden bg-background"
       data-pan-mod={panMod || undefined}
-      data-paged={paged ? 'true' : undefined}
-      style={{ touchAction: 'none' }}
+      data-paged={paged ? "true" : undefined}
+      style={{ touchAction: "none" }}
     >
       <div
-        className="cc-dot-grid pointer-events-none absolute inset-0 opacity-[0.06]"
+        className="cc-dot-grid pointer-events-none absolute inset-0 opacity-[0.15]"
         style={{
-          backgroundImage: 'radial-gradient(circle, oklch(1 0 0) 1px, transparent 1px)',
-          backgroundSize: `${24 * camera.zoom}px ${24 * camera.zoom}px`,
-          backgroundPosition: `${camera.x}px ${camera.y}px`,
+          backgroundImage:
+            "radial-gradient(circle, oklch(1 0 0) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          backgroundPosition: "0px 0px",
         }}
       />
 
@@ -252,15 +271,19 @@ export function Canvas(): JSX.Element {
       >
         {!paged && <EdgeLayer />}
         {windows.map((w) => {
-          const kind = w.kind ?? 'claude'
-          if (kind === 'subagent') return <SubagentWindow key={w.id} w={w} />
-          if (kind === 'teammate') return <TeammateWindow key={w.id} w={w} />
-          return <XtermWindow key={w.id} w={w} />
+          const kind = w.kind ?? "claude";
+          if (kind === "subagent") return <SubagentWindow key={w.id} w={w} />;
+          if (kind === "teammate") return <TeammateWindow key={w.id} w={w} />;
+          return <XtermWindow key={w.id} w={w} />;
         })}
       </div>
 
       {!hasWindows ? (
-        <EmptyState canSpawn={canSpawn} spawnDisabled={modalOpen} onSpawn={spawnFromToolbar} />
+        <EmptyState
+          canSpawn={canSpawn}
+          spawnDisabled={modalOpen}
+          onSpawn={spawnFromToolbar}
+        />
       ) : null}
 
       {!paged && (
@@ -280,7 +303,7 @@ export function Canvas(): JSX.Element {
         onSpawn={spawnFromMenu}
       />
     </div>
-  )
+  );
 }
 
 function EmptyState({
@@ -288,15 +311,21 @@ function EmptyState({
   spawnDisabled,
   onSpawn,
 }: {
-  canSpawn: boolean
-  spawnDisabled: boolean
-  onSpawn: () => void
+  canSpawn: boolean;
+  spawnDisabled: boolean;
+  onSpawn: () => void;
 }): JSX.Element {
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
       <div className="pointer-events-auto flex flex-col items-center gap-3">
-        <div className="font-mono text-xs text-muted-foreground">empty canvas</div>
-        <Button size="sm" onClick={onSpawn} disabled={spawnDisabled || !canSpawn}>
+        <div className="font-mono text-xs text-muted-foreground">
+          empty canvas
+        </div>
+        <Button
+          size="sm"
+          onClick={onSpawn}
+          disabled={spawnDisabled || !canSpawn}
+        >
           Spawn Claude
         </Button>
         {!canSpawn ? (
@@ -306,5 +335,5 @@ function EmptyState({
         ) : null}
       </div>
     </div>
-  )
+  );
 }

@@ -258,13 +258,13 @@ function DiffHunks({
   path: string
 }): JSX.Element {
   const ranges = useReviewComments((s) => s.byTab[tabId] ?? EMPTY_RANGES) as RangeDraft[]
-  const startSingle = useReviewComments((s) => s.startSingle)
   const attemptToggle = useReviewComments((s) => s.attemptToggle)
   const removeRange = useReviewComments((s) => s.removeRange)
-  const extendLast = useReviewComments((s) => s.extendLast)
   const hunkTokens = useHunkTokens(hunks, path)
   const draggingRef = useRef(false)
   const lastLineRef = useRef<number | null>(null)
+  const [pendingRange, setPendingRange] = useState<{ start: number; end: number } | null>(null)
+  const pendingRangeRef = useRef<{ start: number; end: number } | null>(null)
 
   const diffFont = useSettings((s) => s.settings.diff.font)
   const diffFontSize = useSettings((s) => s.settings.diff.fontSize)
@@ -331,6 +331,11 @@ function DiffHunks({
   const focusedRangeId = useCommentPulse((s) => s.focusedByTab[tabId] ?? null)
 
   function isInRange(lineNo: number): boolean {
+    if (pendingRange !== null) {
+      const min = Math.min(pendingRange.start, pendingRange.end)
+      const max = Math.max(pendingRange.start, pendingRange.end)
+      if (lineNo >= min && lineNo <= max) return true
+    }
     return ranges.some((r) => lineNo >= r.start && lineNo <= r.start + r.len - 1)
   }
 
@@ -338,6 +343,11 @@ function DiffHunks({
   // edited or still empty. Once committed (non-empty + blurred), the line
   // returns to intrinsic bg and the bubble alone carries the signal.
   function isActive(lineNo: number): boolean {
+    if (pendingRange !== null) {
+      const min = Math.min(pendingRange.start, pendingRange.end)
+      const max = Math.max(pendingRange.start, pendingRange.end)
+      if (lineNo >= min && lineNo <= max) return true
+    }
     return ranges.some((r) => {
       if (lineNo < r.start || lineNo > r.start + r.len - 1) return false
       const empty = r.comment.trim().length === 0
@@ -363,21 +373,44 @@ function DiffHunks({
       const n = lineNoUnderPoint(ev.clientX, ev.clientY)
       if (n === null || n === lastLineRef.current) return
       lastLineRef.current = n
-      extendLast(tabId, n)
+      const pr = pendingRangeRef.current
+      if (pr !== null) {
+        const updated = { start: pr.start, end: n }
+        pendingRangeRef.current = updated
+        setPendingRange(updated)
+      }
     }
     function onUp(): void {
+      if (draggingRef.current) {
+        const pr = pendingRangeRef.current
+        if (pr !== null) {
+          const s = useReviewComments.getState()
+          const start = Math.min(pr.start, pr.end)
+          const end = Math.max(pr.start, pr.end)
+          s.startSingle(tabId, start)
+          if (end !== start) s.extendLast(tabId, end)
+        }
+      }
       draggingRef.current = false
       lastLineRef.current = null
+      pendingRangeRef.current = null
+      setPendingRange(null)
+    }
+    function onCancel(): void {
+      draggingRef.current = false
+      lastLineRef.current = null
+      pendingRangeRef.current = null
+      setPendingRange(null)
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
+    window.addEventListener('pointercancel', onCancel)
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('pointercancel', onCancel)
     }
-  }, [tabId, extendLast])
+  }, [tabId])
 
   function onNewSidePointerDown(ev: React.PointerEvent): void {
     if (ev.button !== 0) return
@@ -399,7 +432,9 @@ function DiffHunks({
         })
       }
     } else {
-      startSingle(tabId, lineNo)
+      const pr = { start: lineNo, end: lineNo }
+      pendingRangeRef.current = pr
+      setPendingRange(pr)
       draggingRef.current = true
     }
     ev.preventDefault()

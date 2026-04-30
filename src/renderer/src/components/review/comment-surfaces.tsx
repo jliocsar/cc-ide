@@ -94,6 +94,14 @@ export function CommentBubble({ tabId, range }: BubbleProps): JSX.Element {
 
   const hasComment = range.comment.trim().length > 0
 
+  function handleRemove(): void {
+    if (!hasComment) {
+      removeRange(tabId, range.id)
+    } else {
+      setConfirmOpen(true)
+    }
+  }
+
   return (
     <motion.div
       layout
@@ -118,16 +126,15 @@ export function CommentBubble({ tabId, range }: BubbleProps): JSX.Element {
         <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
           {rangeLabel(range)}
         </span>
-        {hasComment ? (
-          <button
-            type="button"
-            onClick={() => setConfirmOpen(true)}
-            aria-label="Remove comment"
-            className="relative -mr-1 flex size-6 items-center justify-center rounded-md text-muted-foreground/70 opacity-0 blur-[3px] transition-[background-color,color,filter,opacity] duration-150 after:absolute after:-inset-2 hover:bg-accent/55 hover:text-foreground group-hover/bubble:opacity-100 group-hover/bubble:blur-0"
-          >
-            <X className="size-3" />
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={handleRemove}
+          aria-label="Remove comment"
+          className="relative -mr-1 flex size-6 items-center justify-center rounded-md text-muted-foreground/70 opacity-0 transition-[background-color,color,opacity] duration-150 after:absolute after:-inset-2 hover:bg-accent/55 hover:text-foreground group-hover/bubble:opacity-100"
+        >
+          <X className="size-3" />
+        </button>
       </div>
       {editing ? (
         <Textarea
@@ -251,9 +258,13 @@ export function CommentSidebarEntry({ tabId, range, onJump }: SidebarEntryProps)
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation()
-              setConfirmOpen(true)
+              if (isEmpty) {
+                removeRange(tabId, range.id)
+              } else {
+                setConfirmOpen(true)
+              }
             }}
-            className="relative -mr-1 flex size-6 items-center justify-center rounded-md text-muted-foreground/70 opacity-0 blur-[3px] transition-[background-color,color,filter,opacity] duration-150 after:absolute after:-inset-2 hover:bg-accent/55 hover:text-foreground group-hover:opacity-100 group-hover:blur-0 focus-visible:opacity-100 focus-visible:blur-0"
+            className="relative -mr-1 flex size-6 items-center justify-center rounded-md text-muted-foreground/70 opacity-0 transition-[background-color,color,opacity] duration-150 after:absolute after:-inset-2 hover:bg-accent/55 hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
           >
             <Trash2 className="size-3" />
           </button>

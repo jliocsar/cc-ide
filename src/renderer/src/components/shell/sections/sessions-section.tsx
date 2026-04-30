@@ -137,7 +137,11 @@ function SessionRow({
           <div className="min-w-0 flex-1 overflow-hidden">
             <div className="flex items-center gap-1.5">
               <span className="truncate font-mono">{shortName}</span>
-              <span className="shrink-0 rounded-sm border border-green-500/30 bg-green-500/15 px-1 py-px font-mono text-[9px] uppercase leading-none tracking-wider text-green-500">
+              <span className="inline-flex shrink-0 items-center gap-1 font-mono text-[9px] text-muted-foreground/70">
+                <span
+                  className="size-1.5 rounded-full bg-green-500"
+                  style={{ animation: 'cc-pill-glow 1.8s ease-out infinite' }}
+                />
                 live
               </span>
             </div>

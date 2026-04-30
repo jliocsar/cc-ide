@@ -53,3 +53,31 @@ export function setLastUsedWorktree(workspaceId: string, option: SpawnWorktreeOp
     // non-fatal
   }
 }
+
+const ENV_VARS_KEY = 'cc-ide:spawn-env-vars'
+
+export type EnvVarRow = { key: string; value: string }
+
+type EnvVarStore = Record<string, EnvVarRow[]>
+
+export function getEnvVarsForWorkspace(workspaceId: string): EnvVarRow[] {
+  try {
+    const raw = localStorage.getItem(ENV_VARS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as EnvVarStore
+    return Array.isArray(parsed?.[workspaceId]) ? parsed[workspaceId] : []
+  } catch {
+    return []
+  }
+}
+
+export function setEnvVarsForWorkspace(workspaceId: string, rows: EnvVarRow[]): void {
+  try {
+    const raw = localStorage.getItem(ENV_VARS_KEY)
+    const all = raw ? (JSON.parse(raw) as EnvVarStore) : {}
+    all[workspaceId] = rows
+    localStorage.setItem(ENV_VARS_KEY, JSON.stringify(all))
+  } catch {
+    // non-fatal
+  }
+}

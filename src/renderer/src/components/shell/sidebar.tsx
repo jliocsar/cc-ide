@@ -31,8 +31,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ScrollFade } from '@/components/ui/scroll-fade'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { invoke, onEvent } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { MAX_WINDOWS_PER_WORKSPACE, useCanvas } from '@/state/canvas'
@@ -167,87 +167,135 @@ export function Sidebar(): JSX.Element {
           <TooltipContent side="right">Collapse sidebar · Ctrl+B</TooltipContent>
         </Tooltip>
       </div>
-      <ScrollArea
-        ref={scrollerRef}
-        onScroll={(e) => setSidebarScrollTop((e.currentTarget as HTMLDivElement).scrollTop)}
-        className="min-h-0 flex-1 [&>[data-slot=scroll-area-viewport]>div]:!block [&>[data-slot=scroll-area-viewport]>div]:!w-full [&>[data-slot=scroll-area-viewport]>div]:!min-w-0"
-      >
-        <Accordion
-          type="multiple"
-          value={openSections}
-          onValueChange={setOpenSections}
-          className="w-full pb-4"
+      <TooltipProvider delayDuration={800}>
+        <ScrollFade
+          ref={scrollerRef}
+          className="flex-1"
+          onScroll={(e) => setSidebarScrollTop((e.currentTarget as HTMLDivElement).scrollTop)}
         >
-          <AccordionItem value="workspaces" className="group/item border-b-0">
-            <SidebarSectionHeader
-              icon={FolderGit2}
-              label="Workspaces"
-              count={loaded ? workspaces.length : undefined}
-              primaryAction={
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    void pickAndAdd()
-                  }}
-                  aria-label="Add workspace"
-                >
-                  <Plus />
-                </Button>
-              }
-            />
-            <AccordionContent className="pb-0">
-              <div className="flex flex-col gap-px">
-                {!loaded ? (
-                  <div className="px-3 py-1 text-[11px] text-muted-foreground">loading…</div>
-                ) : workspaces.length === 0 ? (
-                  <div className="px-3 py-1 text-[11px] text-muted-foreground">
-                    no workspaces yet
-                  </div>
-                ) : (
-                  workspaces.map((w) => {
-                    const active = w.id === activeId
-                    const liveCount = liveCountByWorkspace.get(w.id) ?? 0
-                    return (
-                      <ContextMenu key={w.id}>
-                        <ContextMenuTrigger asChild>
-                          <div
-                            className={cn(
-                              'group flex items-center gap-2 px-3 py-1 text-[11px] transition-colors',
-                              active
-                                ? 'bg-accent text-accent-foreground'
-                                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                            )}
-                          >
-                            <Tooltip>
+          <Accordion
+            type="multiple"
+            value={openSections}
+            onValueChange={setOpenSections}
+            className="w-full pb-4"
+          >
+            <AccordionItem value="workspaces" className="group/item border-b-0">
+              <SidebarSectionHeader
+                icon={FolderGit2}
+                label="Workspaces"
+                count={loaded ? workspaces.length : undefined}
+                primaryAction={
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void pickAndAdd()
+                    }}
+                    aria-label="Add workspace"
+                  >
+                    <Plus />
+                  </Button>
+                }
+              />
+              <AccordionContent className="pb-0">
+                <div className="flex flex-col gap-px">
+                  {!loaded ? (
+                    <div className="px-3 py-1 text-[11px] text-muted-foreground">loading…</div>
+                  ) : workspaces.length === 0 ? (
+                    <div className="px-3 py-1 text-[11px] text-muted-foreground">
+                      no workspaces yet
+                    </div>
+                  ) : (
+                    workspaces.map((w) => {
+                      const active = w.id === activeId
+                      const liveCount = liveCountByWorkspace.get(w.id) ?? 0
+                      return (
+                        <ContextMenu key={w.id}>
+                          <Tooltip>
+                            <ContextMenuTrigger asChild>
                               <TooltipTrigger asChild>
-                                <button
-                                  type="button"
+                                <div
+                                  role="button"
+                                  tabIndex={0}
                                   onClick={() => setActive(w.id)}
-                                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault()
+                                      setActive(w.id)
+                                    }
+                                  }}
+                                  className={cn(
+                                    'group flex cursor-pointer items-center gap-2 px-3 py-1 text-[11px] transition-colors outline-none focus-visible:bg-accent/50',
+                                    active
+                                      ? 'bg-accent text-accent-foreground'
+                                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                                  )}
                                 >
                                   {active ? (
                                     <CheckCircle2 className="size-3 shrink-0" />
                                   ) : (
                                     <Circle className="size-3 shrink-0" />
                                   )}
-                                  <span className="truncate font-mono">{w.name}</span>
+                                  <span className="min-w-0 flex-1 truncate font-mono">
+                                    {w.name}
+                                  </span>
                                   {liveCount > 0 ? (
-                                    <span
-                                      className="shrink-0 rounded-sm bg-muted px-1 py-px font-mono text-[9px] leading-none tabular-nums text-muted-foreground"
-                                      title={`${liveCount} live session${liveCount === 1 ? '' : 's'}`}
-                                    >
+                                    <span className="shrink-0 rounded-sm bg-muted px-1 py-px font-mono text-[9px] leading-none tabular-nums text-muted-foreground">
                                       {liveCount}
                                     </span>
                                   ) : null}
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (
+                                        confirm(
+                                          `Remove "${w.name}" from cc-ide?\nFiles on disk are NOT deleted.`,
+                                        )
+                                      ) {
+                                        void remove(w.id)
+                                      }
+                                    }}
+                                    className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100"
+                                    aria-label="Remove workspace"
+                                  >
+                                    <Trash2 className="size-3" />
+                                  </button>
+                                </div>
                               </TooltipTrigger>
-                              <TooltipContent side="right">{w.path}</TooltipContent>
-                            </Tooltip>
-                            <button
-                              type="button"
-                              onClick={() => {
+                            </ContextMenuTrigger>
+                            <TooltipContent side="right">{w.path}</TooltipContent>
+                          </Tooltip>
+                          <ContextMenuContent>
+                            {!active ? (
+                              <ContextMenuItem onSelect={() => setActive(w.id)}>
+                                <CheckCircle2 />
+                                Set active
+                              </ContextMenuItem>
+                            ) : null}
+                            <ContextMenuItem
+                              onSelect={() => {
+                                void invoke('shell:showItemInFolder', { absolutePath: w.path })
+                              }}
+                            >
+                              <FolderOpen />
+                              Reveal in Finder
+                            </ContextMenuItem>
+                            <ContextMenuItem
+                              onSelect={() => {
+                                void invoke('clipboard:write', { text: w.path }).then(() =>
+                                  toast.success('Copied path'),
+                                )
+                              }}
+                            >
+                              <Copy />
+                              Copy path
+                            </ContextMenuItem>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem
+                              variant="destructive"
+                              onSelect={() => {
                                 if (
                                   confirm(
                                     `Remove "${w.name}" from cc-ide?\nFiles on disk are NOT deleted.`,
@@ -256,81 +304,38 @@ export function Sidebar(): JSX.Element {
                                   void remove(w.id)
                                 }
                               }}
-                              className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100"
-                              aria-label="Remove workspace"
                             >
-                              <Trash2 className="size-3" />
-                            </button>
-                          </div>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                          {!active ? (
-                            <ContextMenuItem onSelect={() => setActive(w.id)}>
-                              <CheckCircle2 />
-                              Set active
+                              <Trash2 />
+                              Remove
                             </ContextMenuItem>
-                          ) : null}
-                          <ContextMenuItem
-                            onSelect={() => {
-                              void invoke('shell:showItemInFolder', { absolutePath: w.path })
-                            }}
-                          >
-                            <FolderOpen />
-                            Reveal in Finder
-                          </ContextMenuItem>
-                          <ContextMenuItem
-                            onSelect={() => {
-                              void invoke('clipboard:write', { text: w.path }).then(() =>
-                                toast.success('Copied path'),
-                              )
-                            }}
-                          >
-                            <Copy />
-                            Copy path
-                          </ContextMenuItem>
-                          <ContextMenuSeparator />
-                          <ContextMenuItem
-                            variant="destructive"
-                            onSelect={() => {
-                              if (
-                                confirm(
-                                  `Remove "${w.name}" from cc-ide?\nFiles on disk are NOT deleted.`,
-                                )
-                              ) {
-                                void remove(w.id)
-                              }
-                            }}
-                          >
-                            <Trash2 />
-                            Remove
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      </ContextMenu>
-                    )
-                  })
-                )}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      )
+                    })
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-          {activeId ? (
-            <>
-              <SessionsAccordion workspaceId={activeId} />
-              <ConversationsAccordion workspaceId={activeId} />
-              <WorktreesAccordion workspaceId={activeId} />
-              <PlansAccordion workspaceId={activeId} />
-              <PromptsAccordion workspaceId={activeId} />
-              <AccordionItem value="diffs" className="group/item border-b-0">
-                <SidebarSectionHeader icon={GitCompare} label="Diffs" />
-                <AccordionContent className="pb-0">
-                  <DiffsSection worktrees={worktrees} />
-                </AccordionContent>
-              </AccordionItem>
-              <DropsAccordion workspaceId={activeId} />
-            </>
-          ) : null}
-        </Accordion>
-      </ScrollArea>
+            {activeId ? (
+              <>
+                <SessionsAccordion workspaceId={activeId} />
+                <ConversationsAccordion workspaceId={activeId} />
+                <WorktreesAccordion workspaceId={activeId} />
+                <PlansAccordion workspaceId={activeId} />
+                <PromptsAccordion workspaceId={activeId} />
+                <AccordionItem value="diffs" className="group/item border-b-0">
+                  <SidebarSectionHeader icon={GitCompare} label="Diffs" />
+                  <AccordionContent className="pb-0">
+                    <DiffsSection worktrees={worktrees} />
+                  </AccordionContent>
+                </AccordionItem>
+                <DropsAccordion workspaceId={activeId} />
+              </>
+            ) : null}
+          </Accordion>
+        </ScrollFade>
+      </TooltipProvider>
       <SidebarFooter hasWorkspace={!!activeId} />
     </aside>
   )

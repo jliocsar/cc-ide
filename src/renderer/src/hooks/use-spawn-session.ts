@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import { getCanvasViewportCenter } from '@/lib/canvas-host'
 import { MAX_WINDOWS_PER_WORKSPACE, useCanvas, worldFromViewport } from '@/state/canvas'
-import { type SpawnWorktreeOption, useSessions } from '@/state/sessions'
+import { type SpawnFlags, type SpawnWorktreeOption, useSessions } from '@/state/sessions'
 import { useWorkspaces } from '@/state/workspaces'
 
 const DEFAULT_WIN_W = 720
@@ -13,6 +13,7 @@ export function useSpawnSession(): {
     viewportPos?: { x: number; y: number },
     worktree?: SpawnWorktreeOption,
     customName?: string,
+    flags?: SpawnFlags,
   ) => Promise<void>
   spawning: boolean
   error: string | null
@@ -28,6 +29,7 @@ export function useSpawnSession(): {
       viewportPos?: { x: number; y: number },
       worktree?: SpawnWorktreeOption,
       customName?: string,
+      flags?: SpawnFlags,
     ) => {
       if (!activeWorkspaceId) {
         setError('Add a workspace first.')
@@ -47,6 +49,7 @@ export function useSpawnSession(): {
           30,
           worktree,
           customName,
+          flags,
         )
         const { camera } = useCanvas.getState()
         const world = worldFromViewport(vp.x, vp.y, camera)

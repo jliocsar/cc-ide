@@ -301,6 +301,11 @@ export const ipcContract = {
           }),
         ])
         .optional(),
+      bypassPermissions: z.boolean().optional(),
+      // Base64-encoded UTF-8 prompt body. Decoded shell-side; arbitrary content survives quoting.
+      initialPromptBase64: z.string().optional(),
+      // Extra env exports. Values may contain `$VAR` for shell-side expansion against the user's rcfile.
+      envVars: z.record(z.string(), z.string()).optional(),
     }),
     response: z.object({
       ptyId: z.string(),
