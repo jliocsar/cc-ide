@@ -2,9 +2,7 @@
 <img src=".github/assets/hero.png" />
 </div>
 
-<div hidden>
-<h1>cc-ide</h1>
-</div>
+# cc-ide
 
 Electron desktop app to orchestrate multiple Claude Code instances across projects, worktrees, and a spatial canvas with PR-review-style plan and diff feedback that drags directly into any running Claude.
 
