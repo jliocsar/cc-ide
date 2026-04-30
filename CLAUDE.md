@@ -2,7 +2,6 @@
 
 Claude Code IDE. Electron + React. Orchestrates multiple Claude Code instances across projects, worktrees, and a spatial canvas with drag-to-terminal plan/diff review.
 
-**Read first, always:** HANDOFF.md (next-agent startup).
 
 ## Rules (must follow)
 
@@ -48,4 +47,4 @@ Use `TaskCreate` for anything more than 1–2 steps. Mark completed as you go. D
 
 ## Current status (2026-04-14)
 
-MVP shipped end-to-end. Phase 7 live-debug session found and fixed four real bugs (see lessons.md #4–6); a handful of verification flows remain. See open issues in `gh issue list` and HANDOFF.md.
+MVP shipped end-to-end. Phase 7 live-debug session found and fixed four real bugs (see lessons.md #4–6); a handful of verification flows remain. See open issues in `gh issue list`.
