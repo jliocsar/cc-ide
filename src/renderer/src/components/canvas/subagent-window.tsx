@@ -136,7 +136,7 @@ function SubagentWindowImpl({ w }: { w: CanvasWindow }): JSX.Element {
         </>
       }
     >
-      <div className="h-full overflow-y-auto bg-[#0a0a0a] px-3 py-2 font-mono text-[11px] leading-relaxed">
+      <div className="scrollbar-themed h-full overflow-y-auto bg-[#0a0a0a] px-3 py-2 font-mono text-[11px] leading-relaxed">
         {paired.length === 0 ? (
           <div className="text-muted-foreground">waiting for output…</div>
         ) : (
@@ -176,7 +176,7 @@ function renderEntry(entry: PairedEntry): JSX.Element {
         {entry.result ? (
           <pre
             className={cn(
-              'mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap rounded border border-border bg-background/60 px-2 py-1 text-[10.5px] text-muted-foreground',
+              'scrollbar-themed mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap rounded border border-border bg-background/60 px-2 py-1 text-[10.5px] text-muted-foreground',
               hasError && 'border-destructive/60 text-destructive',
             )}
           >
