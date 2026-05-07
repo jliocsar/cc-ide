@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+# Run Biome on staged files only. --write applies safe + --unsafe fixes
+# in place; we then re-stage so the fixes ship in this commit.
+# If Biome can't auto-fix everything, it exits non-zero and blocks the commit.
+
+pnpm exec biome check --staged --write --unsafe --no-errors-on-unmatched --files-ignore-unknown=true || exit 1
+
+# Re-stage files that biome modified (they were already staged; --again
+# picks up unstaged modifications to already-tracked, already-staged paths).
+git update-index --again
